@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34601.278
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "img2table.sharp", "img2table.sharp.csproj", "{5212E35C-D42D-481B-9698-BD51568F1BC8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5212E35C-D42D-481B-9698-BD51568F1BC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5212E35C-D42D-481B-9698-BD51568F1BC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5212E35C-D42D-481B-9698-BD51568F1BC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5212E35C-D42D-481B-9698-BD51568F1BC8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7FA19E21-20A3-41D6-8E7A-DE6EE5910C1F}
+	EndGlobalSection
+EndGlobal
