@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace img2table.sharp.img2table.tables.objects
+namespace Img2table.Sharp.Img2table.Tables.Objects
 {
     public class Objects
     {
@@ -57,15 +57,15 @@ namespace img2table.sharp.img2table.tables.objects
                 get
                 {
                     return new Dictionary<string, object>
-            {
-                { "x1", X1 },
-                { "x2", X2 },
-                { "y1", Y1 },
-                { "y2", Y2 },
-                { "width", Width },
-                { "height", Height },
-                { "thickness", Thickness }
-            };
+                    {
+                        { "x1", X1 },
+                        { "x2", X2 },
+                        { "y1", Y1 },
+                        { "y2", Y2 },
+                        { "width", Width },
+                        { "height", Height },
+                        { "thickness", Thickness }
+                    };
                 }
             }
 
@@ -76,7 +76,6 @@ namespace img2table.sharp.img2table.tables.objects
 
             public Line Reprocess()
             {
-                // 重新分配坐标
                 int _x1 = Math.Min(X1, X2);
                 int _x2 = Math.Max(X1, X2);
                 int _y1 = Math.Min(Y1, Y2);
@@ -86,7 +85,6 @@ namespace img2table.sharp.img2table.tables.objects
                 Y1 = _y1;
                 Y2 = _y2;
 
-                // 修正“几乎”水平或垂直的行
                 if (Math.Abs(Angle) <= 5)
                 {
                     int yVal = (int)Math.Round((Y1 + Y2) / 2.0);

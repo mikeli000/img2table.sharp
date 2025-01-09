@@ -1,19 +1,19 @@
-﻿using img2table.sharp.img2table.tables;
-using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables;
+using Img2table.Sharp.Img2table.Tables.Objects;
 using OpenCvSharp;
 
-namespace img2table.sharp
+namespace Img2table.Sharp
 {
     internal class Program
     {
         static void Main(string[] args)
         {
-            var tempFile = @"C:/temp/img2table_data/borderless/m.png";
+            var tempFile = @"C:/temp/img2table_data/borderless/implicit.png";
             Console.WriteLine(tempFile);
 
             using var img = new Mat(tempFile, ImreadModes.Color);
             var tableImage = new TableImage(img);
-            List<Table> tables = tableImage.extract_tables(true, true, true);
+            List<Table> tables = tableImage.ExtractTables(false, false, true);
             foreach (var t in tables)
             {
                 Console.WriteLine(t.ToString());

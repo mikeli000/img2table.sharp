@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace img2table.sharp.img2table.tables.processing
+namespace Img2table.Sharp.Img2table.Tables.Processing
 {
     public class Processing
     {

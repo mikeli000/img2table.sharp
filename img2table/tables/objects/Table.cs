@@ -1,6 +1,6 @@
-﻿using static img2table.sharp.img2table.tables.objects.Objects;
+﻿using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
 
-namespace img2table.sharp.img2table.tables.objects
+namespace Img2table.Sharp.Img2table.Tables.Objects
 {
     public class Table : TableObject
     {
@@ -41,15 +41,13 @@ namespace img2table.sharp.img2table.tables.objects
 
                 foreach (var cell in _items.SelectMany(row => row.Items))
                 {
-                    // Add vertical lines
                     vLines.Add(new Line(cell.X1, cell.Y1, cell.X1, cell.Y2));
                     vLines.Add(new Line(cell.X2, cell.Y1, cell.X2, cell.Y2));
-                    // Add horizontal lines
+                    
                     hLines.Add(new Line(cell.X1, cell.Y1, cell.X2, cell.Y1));
                     hLines.Add(new Line(cell.X1, cell.Y2, cell.X2, cell.Y2));
                 }
 
-                // Merge vertical lines
                 var vLinesGroups = vLines
                     .OrderBy(l => l.X1)
                     .ThenBy(l => l.Y1)
@@ -57,7 +55,6 @@ namespace img2table.sharp.img2table.tables.objects
                     .Select(g => new Line(g.Min(l => l.X1), g.Min(l => l.Y1), g.Max(l => l.X2), g.Max(l => l.Y2)))
                     .ToList();
 
-                // Merge horizontal lines
                 var hLinesGroups = hLines
                     .OrderBy(l => l.Y1)
                     .ThenBy(l => l.X1)

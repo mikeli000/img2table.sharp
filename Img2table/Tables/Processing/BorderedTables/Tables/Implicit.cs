@@ -1,25 +1,22 @@
-﻿using img2table.sharp.img2table.tables.objects;
-using img2table.sharp.img2table.tables.processing.bordered_tables.cells;
-using img2table.sharp.img2table.tables.processing.borderless_tables;
-using static img2table.sharp.img2table.tables.objects.Objects;
-using static img2table.sharp.img2table.tables.processing.borderless_tables.Model;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
+using Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables;
+using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
+using static Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.Model;
 
-namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Tables
 {
     public class Implicit
     {
-        public static Table implicit_content(Table table, List<Cell> contours, double charLength, bool implicitRows = false, bool implicitColumns = false)
+        public static Table ImplicitContent(Table table, List<Cell> contours, double charLength, bool implicitRows = false, bool implicitColumns = false)
         {
             if (!implicitRows && !implicitColumns)
             {
                 return table;
             }
 
-            // 获取表格轮廓并创建相应的段
             List<Cell> tbContours = contours.Where(c => c.X1 >= table.X1 && c.X2 <= table.X2 && c.Y1 >= table.Y1 && c.Y2 <= table.Y2).ToList();
             ImageSegment segment = new ImageSegment(table.X1, table.Y1, table.X2, table.Y2, tbContours);
 
-            // 创建新线条
             List<Line> lines = table.Lines;
             if (implicitRows)
             {
@@ -30,18 +27,15 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 lines.AddRange(ImplicitColumnsLines(table, segment, charLength));
             }
 
-            // 创建单元格
-            List<Cell> cells = Cells.get_cells(lines.Where(line => line.Horizontal).ToList(), lines.Where(line => line.Vertical).ToList());
+            List<Cell> cells = Cells.Cells.GetCells(lines.Where(line => line.Horizontal).ToList(), lines.Where(line => line.Vertical).ToList());
 
-            return TableCreation.cluster_to_table(cells, tbContours, false);
+            return TableCreation.ClusterToTable(cells, tbContours, false);
         }
 
         static List<Line> ImplicitRowsLines(Table table, ImageSegment segment)
         {
-            // 水平空白区域
-            List<Whitespace> hWs = Whitespaces.get_whitespaces(segment, vertical: false, pct: 1);
+            List<Whitespace> hWs = Whitespaces.GetWhitespaces(segment, vertical: false, pct: 1);
 
-            // 如果缺少顶部或底部的空白区域，则创建它们
             if (hWs[0].Y1 > segment.Y1)
             {
                 Whitespace upWs = new Whitespace(new List<Cell>
@@ -60,7 +54,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 hWs.Add(downWs);
             }
 
-            // 识别相关的空白区域高度
             if (hWs.Count > 2)
             {
                 List<int> fullWsH = hWs.Skip(1).Take(hWs.Count - 2).Where(ws => ws.Width == hWs.Max(w => w.Width)).Select(ws => ws.Height).OrderBy(h => h).ToList();
@@ -68,7 +61,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 hWs = new List<Whitespace> { hWs[0] }.Concat(hWs.Skip(1).Take(hWs.Count - 2).Where(ws => ws.Height >= minHeight)).Concat(new List<Whitespace> { hWs[^1] }).ToList();
             }
 
-            // 识别创建的线条
             List<Line> createdLines = new List<Line>();
             foreach (var ws in hWs)
             {
@@ -83,10 +75,8 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
 
         static List<Line> ImplicitColumnsLines(Table table, ImageSegment segment, double charLength)
         {
-            // 垂直空白区域
-            List<Whitespace> vWs = Whitespaces.get_whitespaces(segment, vertical: true, min_width: charLength, pct: 1);
+            List<Whitespace> vWs = Whitespaces.GetWhitespaces(segment, vertical: true, min_width: charLength, pct: 1);
 
-            // 识别创建的线条
             List<Line> createdLines = new List<Line>();
             foreach (var ws in vWs)
             {

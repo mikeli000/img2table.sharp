@@ -1,41 +1,38 @@
-﻿using img2table.sharp.img2table.tables.objects;
-using img2table.sharp.img2table.tables.processing.borderless_tables.layout;
-using img2table.sharp.img2table.tables.processing.borderless_tables.table;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
+using Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.layout;
+using Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.Table;
 using OpenCvSharp;
 using System.Data;
-using static img2table.sharp.img2table.tables.objects.Objects;
+using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
 
-namespace img2table.sharp.img2table.tables.processing.borderless_tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables
 {
     public class BorderlessTables
     {
-        public static List<Table> identify_borderless_tables(Mat thresh, List<Line> lines, double char_length, 
-            double median_line_sep, List<Cell> contours, List<Table> existing_tables)
+        public static List<Objects.Table> IdentifyBorderlessTables(Mat thresh, List<Line> lines, double char_length, 
+            double medianLineSep, List<Cell> contours, List<Objects.Table> existingTables)
         {
-            // Segment image and identify parts that can correspond to tables
-            var table_segments = Layout.segment_image(thresh, lines, char_length, median_line_sep, existing_tables);
+            var tableSegments = Layout.SegmentImage(thresh, lines, char_length, medianLineSep, existingTables);
 
-            var tables = new List<Table>();
-            foreach (var table_segment in table_segments)
+            var tables = new List<Objects.Table>();
+            foreach (var tableSegment in tableSegments)
             {
-                // Identify column groups in segment
-                var column_group = Columns.identify_columns(tableSegment: table_segment,
+                var columnGroup = Columns.IdentifyColumns(tableSegment: tableSegment,
                                                 charLength: char_length,
-                                                medianLineSep: median_line_sep);    
+                                                medianLineSep: medianLineSep);    
 
-                if (column_group != null)
+                if (columnGroup != null)
                 {
                     // Identify potential table rows
-                    var row_delimiters = Rows.identify_delimiter_group_rows(column_group, contours);
+                    var rowDelimiters = Rows.IdentifyDelimiterGroupRows(columnGroup, contours);
 
-                    if (row_delimiters != null && row_delimiters.Count() > 0)
+                    if (rowDelimiters != null && rowDelimiters.Count() > 0)
                     {
-                        // Create table from column group and rows
-                        var borderless_table = TableIdentifier.identify_table(column_group, row_delimiters, contours, median_line_sep, char_length);
+                        var borderlessTable = TableIdentifier.IdentifyTable(columnGroup, rowDelimiters, contours, medianLineSep, char_length);
 
-                        if (borderless_table != null)
+                        if (borderlessTable != null)
                         {
-                            var corrected_table = coherent_table(borderless_table, table_segment.Elements);
+                            var corrected_table = CoherentTable(borderlessTable, tableSegment.Elements);
                             if (corrected_table != null)
                             {
                                 tables.Add(corrected_table);
@@ -45,17 +42,14 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                 }
             }
 
-            return deduplicate_tables(tables, existing_tables);
+            return DeduplicateTables(tables, existingTables);
         }
 
-        public static Table coherent_table(Table tb, List<Cell> elements)
+        private static Objects.Table CoherentTable(Objects.Table tb, List<Cell> elements)
         {
             DataTable dfRows = CreateDataFrame(tb);
-            
-            // Dataframe of elements
             DataTable dfElements = CreateElementsDataFrame(elements);
 
-            // Get elements in each cells and identify coherent rows
             var uniqueRows = dfRows.AsEnumerable()
                 .GroupBy(row => new
                 {
@@ -67,7 +61,6 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                 })
                 .Select(g => g.First()).CopyToDataTable();
 
-            // Calculate nb_cells for each row_id
             var rowsWithNbCells = uniqueRows.AsEnumerable()
                 .GroupBy(row => row.Field<int>("row_id"))
                 .Select(g => new
@@ -79,7 +72,6 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                 .Where(r => r.nb_cells >= 3)
                 .ToList();
 
-            // Cross join with elements
             var crossJoin = from row in rowsWithNbCells
                             from element in dfElements.AsEnumerable()
                             from cell in row.cells
@@ -134,14 +126,14 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                 var newRows = tb.Items.GetRange(offset, count);
                 if (newRows.Count >= 2)
                 {
-                    return new Table(newRows, true);
+                    return new Objects.Table(newRows, true);
                 }
             }
 
             return null;
         }
 
-        private static DataTable CreateDataFrame(Table tb)
+        private static DataTable CreateDataFrame(Objects.Table tb)
         {
             DataTable dataTable = new DataTable();
             dataTable.Columns.Add("row_id", typeof(int));
@@ -189,18 +181,16 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
             return dataTable;
         }
 
-        private static List<Table> deduplicate_tables(List<Table> identifiedTables, List<Table> existingTables)
+        private static List<Objects.Table> DeduplicateTables(List<Objects.Table> identifiedTables, List<Objects.Table> existingTables)
         {
-            // Sort tables by area
             identifiedTables = identifiedTables.OrderByDescending(tb => tb.Area).ToList();
 
-            // For each table check if it does not overlap with an existing table
-            List<Table> finalTables = new List<Table>();
+            List<Objects.Table> finalTables = new List<Objects.Table>();
             foreach (var table in identifiedTables)
             {
                 if (!existingTables.Concat(finalTables).Any(tb =>
-                            (Common.is_contained_cell(table.Cell, tb.Cell, 0.1)
-                             || Common.is_contained_cell(tb.Cell, table.Cell, 0.1))))
+                            (Common.IsContainedCell(table.Cell, tb.Cell, 0.1)
+                             || Common.IsContainedCell(tb.Cell, table.Cell, 0.1))))
                 {
                     finalTables.Add(table);
                 }

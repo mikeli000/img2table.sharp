@@ -1,23 +1,16 @@
-﻿using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 using OpenCvSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace img2table.sharp.img2table.tables.processing.borderless_tables.layout
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.layout
 {
     public class ImageElements
     {
-        public static List<Cell> get_image_elements(Mat thresh, double char_length, double median_line_sep)
+        public static List<Cell> GetImageElements(Mat thresh, double char_length, double median_line_sep)
         {
-            // 查找轮廓
             Point[][] contours;
             HierarchyIndex[] hierarchy;
             Cv2.FindContours(thresh, out contours, out hierarchy, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
 
-            // 获取轮廓列表
             List<Cell> elements = new List<Cell>();
             foreach (var contour in contours)
             {

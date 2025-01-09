@@ -1,21 +1,15 @@
-﻿using img2table.sharp.img2table.tables.objects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 
-namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Cells
 {
     public class Deduplication
     {
-        public static List<Cell> deduplicate_cells(List<Cell> cells)
+        public static List<Cell> DeduplicateCells(List<Cell> cells)
         {
-            // 创建单元格覆盖数组
             int xMax = cells.Count > 0 ? cells.Max(c => c.X2) : 0;
             int yMax = cells.Count > 0 ? cells.Max(c => c.Y2) : 0;
             byte[,] coverageArray = new byte[yMax, xMax];
-            // 初始化覆盖数组为1
+
             for (int y = 0; y < yMax; y++)
             {
                 for (int x = 0; x < xMax; x++)
@@ -45,7 +39,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                     }
                 }
 
-                // 如果单元格至少有25%的区域未被覆盖，则添加它
                 if (shouldAdd)
                 {
                     dedupCells.Add(cell);

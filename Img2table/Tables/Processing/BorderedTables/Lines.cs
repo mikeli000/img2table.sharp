@@ -1,31 +1,28 @@
-﻿using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static img2table.sharp.img2table.tables.objects.Objects;
+using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
 
-namespace img2table.sharp.img2table.tables.processing.bordered_tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderedTables
 {
     public class Lines
     {
-        public static (List<Line>, List<Line>) detect_lines(Mat img, List<Cell> contours, double charLength, double minLineLength)
+        public static (List<Line>, List<Line>) DetectLines(Mat img, List<Cell> contours, double charLength, double minLineLength)
         {
-            // 灰度和模糊处理
             Mat blur = new Mat();
             Cv2.BilateralFilter(img, blur, 3, 40, 80);
             Mat gray = new Mat();
             Cv2.CvtColor(blur, gray, ColorConversionCodes.RGB2GRAY);
 
-            // 应用拉普拉斯算子和滤波图像
             Mat laplacian = new Mat();
             Cv2.Laplacian(gray, laplacian, MatType.CV_64F, ksize: 3);
             Mat edgeImg = new Mat();
             Cv2.ConvertScaleAbs(laplacian, edgeImg);
 
-            // 移除轮廓并转换为二值图像
             foreach (var c in contours)
             {
                 Rect rect = new Rect(c.X1 - 1, c.Y1 - 1, c.X2 - c.X1 + 2, c.Y2 - c.Y1 + 2);
@@ -36,53 +33,43 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables
             Mat binaryImg = new Mat();
             Cv2.Threshold(edgeImg, binaryImg, Math.Min(2.5 * meanEdge, maxEdge), 255, ThresholdTypes.Binary);
 
-            //using (new Window("dst image", binaryImg))
-            //Cv2.WaitKey();
-
-            // 检测线条
-            List<Line> hLines = identify_straight_lines(binaryImg, minLineLength, charLength, vertical: false);
-            List<Line> vLines = identify_straight_lines(binaryImg, minLineLength, charLength, vertical: true);
+            List<Line> hLines = IdentifyStraightLines(binaryImg, minLineLength, charLength, vertical: false);
+            List<Line> vLines = IdentifyStraightLines(binaryImg, minLineLength, charLength, vertical: true);
 
             return (hLines, vLines);
         }
 
-        static List<Line> identify_straight_lines(Mat thresh, double minLineLength, double charLength, bool vertical)
+        private static List<Line> IdentifyStraightLines(Mat thresh, double minLineLength, double charLength, bool vertical)
         {
-            // 应用掩膜
             Size kernelDims = vertical ? new Size(1, (int)Math.Round(minLineLength / 3) > 0 ? (int)Math.Round(minLineLength / 3) : 1)
                                        : new Size((int)Math.Round(minLineLength / 3) > 0 ? (int)Math.Round(minLineLength / 3) : 1, 1);
             Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, kernelDims);
             Mat mask = new Mat();
             Cv2.MorphologyEx(thresh, mask, MorphTypes.Open, kernel, iterations: 1);
 
-            // 应用闭操作以处理空心线
             Size hollowKernelDims = vertical ? new Size(3, 1) : new Size(1, 3);
             Mat hollowKernel = Cv2.GetStructuringElement(MorphShapes.Rect, hollowKernelDims);
             Mat maskClosed = new Mat();
             Cv2.MorphologyEx(mask, maskClosed, MorphTypes.Close, hollowKernel);
 
-            // 应用闭操作以处理虚线
             Size dottedKernelDims = vertical ? new Size(1, (int)Math.Round(minLineLength / 6) > 0 ? (int)Math.Round(minLineLength / 6) : 1)
                                              : new Size((int)Math.Round(minLineLength / 6) > 0 ? (int)Math.Round(minLineLength / 6) : 1, 1);
             Mat dottedKernel = Cv2.GetStructuringElement(MorphShapes.Rect, dottedKernelDims);
             Mat maskDotted = new Mat();
             Cv2.MorphologyEx(maskClosed, maskDotted, MorphTypes.Close, dottedKernel);
 
-            // 应用掩膜以处理线长度
             Size finalKernelDims = vertical ? new Size(1, (int)minLineLength > 0 ? (int)minLineLength : 1)
                                             : new Size((int)minLineLength > 0 ? (int)minLineLength : 1, 1);
             Mat finalKernel = Cv2.GetStructuringElement(MorphShapes.Rect, finalKernelDims);
             Mat finalMask = new Mat();
             Cv2.MorphologyEx(maskDotted, finalMask, MorphTypes.Open, finalKernel, iterations: 1);
 
-            // 获取统计信息
             Mat labels = new Mat();
             Mat stats = new Mat();
             Mat centroids = new Mat();
             Cv2.ConnectedComponentsWithStats(finalMask, labels, stats, centroids, PixelConnectivity.Connectivity8, MatType.CV_32S);
 
             List<Line> lines = new List<Line>();
-            // 获取对应于线条的相关连通组件
             for (int idx = 1; idx < stats.Rows; idx++)
             {
                 int x = stats.At<int>(idx, 0);
@@ -91,12 +78,11 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables
                 int h = stats.At<int>(idx, 3);
                 int area = stats.At<int>(idx, 4);
 
-                // 根据纵横比进行过滤
                 if (Math.Max(w, h) / (double)Math.Min(w, h) < 5 && Math.Min(w, h) >= charLength)
                 {
                     continue;
                 }
-                // 根据长度进行过滤
+
                 if (Math.Max(w, h) < minLineLength)
                 {
                     continue;

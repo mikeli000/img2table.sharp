@@ -1,4 +1,4 @@
-﻿using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace img2table.sharp.img2table.tables.processing.borderless_tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables
 {
     public class Model
     {
@@ -59,7 +59,6 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
             {
                 return new Cell(ws.X1, ws.Y1, ws.X2, ws.Y2);
             }
-
         }
 
         public class ImageSegment
@@ -120,25 +119,27 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
 
         public class TableSegment
         {
-            public List<ImageSegment> table_areas { get; private set; }
+            public List<ImageSegment> TableAreas { get; private set; }
 
-            public TableSegment(List<ImageSegment> table_areas)
+            public TableSegment(List<ImageSegment> tableAreas)
             {
-                this.table_areas = table_areas;
+                TableAreas = tableAreas;
             }
+
+            public int X1 => TableAreas.Min(tb_area => tb_area.X1);
+            public int Y1 => TableAreas.Min(tb_area => tb_area.Y1);
+            public int X2 => TableAreas.Max(tb_area => tb_area.X2);
+            public int Y2 => TableAreas.Max(tb_area => tb_area.Y2);
+
+            public List<Cell> Elements => TableAreas.SelectMany(tb_area => tb_area.Elements).ToList();
+
+            public List<Whitespace> Whitespaces => TableAreas.SelectMany(tb_area => tb_area.Whitespaces).ToList();
 
             public override string ToString()
             {
                 return $"TableSegment(X1: {X1}, Y1: {Y1}, X2: {X2}, Y2: {Y2}, Elements: [{string.Join(", ", Elements)}])";
             }
 
-            public int X1 => table_areas.Min(tb_area => tb_area.X1);
-            public int Y1 => table_areas.Min(tb_area => tb_area.Y1);
-            public int X2 => table_areas.Max(tb_area => tb_area.X2);
-            public int Y2 => table_areas.Max(tb_area => tb_area.Y2);
-
-            public List<Cell> Elements => table_areas.SelectMany(tb_area => tb_area.Elements).ToList();
-            public List<Whitespace> Whitespaces => table_areas.SelectMany(tb_area => tb_area.Whitespaces).ToList();
         }
 
         public class VerticalWS
@@ -275,12 +276,10 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                     int xLeft = Elements.Min(el => el.X1);
                     int xRight = Elements.Max(el => el.X2);
 
-                    // Left column
                     Columns[0] = new Column(Columns[0].Whitespaces.Select(v_ws => new VerticalWS(
                         new Whitespace(new List<Cell> { new Cell(xLeft - (int)(0.5 * CharLength), v_ws.Ws.Y1, xLeft - (int)(0.5 * CharLength), v_ws.Ws.Y2) }),
                         v_ws.Position, v_ws.Top, v_ws.Bottom)).ToList());
 
-                    // Right column
                     Columns[Columns.Count - 1] = new Column(Columns[Columns.Count - 1].Whitespaces.Select(v_ws => new VerticalWS(
                         new Whitespace(new List<Cell> { new Cell(xRight + (int)(0.5 * CharLength), v_ws.Ws.Y1, xRight + (int)(0.5 * CharLength), v_ws.Ws.Y2) }),
                         v_ws.Position, v_ws.Top, v_ws.Bottom)).ToList());

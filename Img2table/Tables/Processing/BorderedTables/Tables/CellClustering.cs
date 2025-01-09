@@ -1,29 +1,19 @@
-﻿using img2table.sharp.img2table.tables.objects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 
-namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Tables
 {
     public class CellClustering
     {
-        public static List<List<Cell>> cluster_cells_in_tables(List<Cell> cells)
+        public static List<List<Cell>> ClusterCellsInTables(List<Cell> cells)
         {
-            // 获取相邻单元格对
             List<HashSet<int>> adjacentCells = GetAdjacentCells(cells);
-
-            // 根据相邻单元格对创建聚类
             List<HashSet<int>> clusters = FindComponents(adjacentCells);
-
-            // 返回单元格对象列表
             List<List<Cell>> listTableCells = clusters.Select(cluster => cluster.Select(idx => cells[idx]).ToList()).ToList();
 
             return listTableCells;
         }
 
-        static List<HashSet<int>> GetAdjacentCells(List<Cell> cells)
+        private static List<HashSet<int>> GetAdjacentCells(List<Cell> cells)
         {
             if (cells.Count == 0)
             {
@@ -52,19 +42,15 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                     var cell1 = dfCells[i];
                     var cell2 = dfCells[j];
 
-                    // 计算水平和垂直重叠
                     int xOverlap = Math.Min(cell1.X2, cell2.X2) - Math.Max(cell1.X1, cell2.X1);
                     int yOverlap = Math.Min(cell1.Y2, cell2.Y2) - Math.Max(cell1.Y1, cell2.Y1);
 
-                    // 计算水平和垂直差异
                     int diffX = new[] { Math.Abs(cell1.X1 - cell2.X1), Math.Abs(cell1.X1 - cell2.X2), Math.Abs(cell1.X2 - cell2.X1), Math.Abs(cell1.X2 - cell2.X2) }.Min();
                     int diffY = new[] { Math.Abs(cell1.Y1 - cell2.Y1), Math.Abs(cell1.Y1 - cell2.Y2), Math.Abs(cell1.Y2 - cell2.Y1), Math.Abs(cell1.Y2 - cell2.Y2) }.Min();
 
-                    // 计算水平和垂直差异的阈值
                     int threshX = Math.Min(5, (int)(0.05 * Math.Min(cell1.Width, cell2.Width)));
                     int threshY = Math.Min(5, (int)(0.05 * Math.Min(cell1.Height, cell2.Height)));
 
-                    // 过滤相邻单元格
                     if ((yOverlap > 5 && diffX <= threshX) || (xOverlap > 5 && diffY <= threshY))
                     {
                         adjacentCells.Add(new HashSet<int> { cell1.idx, cell2.idx });
@@ -75,7 +61,7 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
             return adjacentCells;
         }
 
-        static List<HashSet<int>> FindComponents(List<HashSet<int>> edges)
+        private static List<HashSet<int>> FindComponents(List<HashSet<int>> edges)
         {
             var parent = new Dictionary<int, int>();
 

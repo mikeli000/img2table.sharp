@@ -1,38 +1,34 @@
-﻿using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static img2table.sharp.img2table.tables.objects.Objects;
+using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
 
-namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Cells
 {
     public class Identification
     {
-        public static List<Cell> get_cells_dataframe(List<Line> horizontalLines, List<Line> verticalLines)
+        public static List<Cell> GetCellsDataframe(List<Line> horizontalLines, List<Line> verticalLines)
         {
-            // 检查是否有空行
             if (horizontalLines.Count == 0 || verticalLines.Count == 0)
             {
                 return new List<Cell>();
             }
 
-            // 从水平和垂直线条中创建数组
             var hLinesArray = horizontalLines.Select(line => new[] { line.X1, line.Y1, line.X2, line.Y2 }).ToArray();
             var vLinesArray = verticalLines.Select(line => new[] { line.X1, line.Y1, line.X2, line.Y2 }).ToArray();
 
-            // 计算单元格
-            var cellsArray = identify_cells(hLinesArray, vLinesArray);
+            var cellsArray = IdentifyCells(hLinesArray, vLinesArray);
 
             return cellsArray.Select(c => new Cell(c[0], c[1], c[2], c[3])).ToList();
         }
 
-        static List<int[]> identify_cells(int[][] hLinesArray, int[][] vLinesArray)
+        private static List<int[]> IdentifyCells(int[][] hLinesArray, int[][] vLinesArray)
         {
             List<int[]> potentialCells = new List<int[]>();
 
-            // 获取水平线条中的潜在单元格
             for (int i = 0; i < hLinesArray.Length; i++)
             {
                 int x1i = hLinesArray[i][0];
@@ -52,7 +48,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                         continue;
                     }
 
-                    // 检查线条之间的对应关系
                     bool lCorresponds = -0.02 <= (x1i - x1j) / ((x2i - x1i) == 0 ? 1 : (x2i - x1i)) && (x1i - x1j) / ((x2i - x1i) == 0 ? 1 : (x2i - x1i)) <= 0.02;
                     bool rCorresponds = -0.02 <= (x2i - x2j) / ((x2i - x1i) == 0 ? 1 : (x2i - x1i)) && (x2i - x2j) / ((x2i - x1i) == 0 ? 1 : (x2i - x1i)) <= 0.02;
                     bool lContained = (x1i <= x1j && x1j <= x2i) || (x1j <= x1i && x1i <= x2j);
@@ -70,7 +65,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                 return new List<int[]>();
             }
 
-            // 按上边界去重
             potentialCells = potentialCells.OrderBy(cell => cell[0]).ThenBy(cell => cell[1]).ThenBy(cell => cell[2]).ThenBy(cell => cell[3]).ToList();
             List<int[]> dedupUpper = new List<int[]>();
             int prevX1 = 0, prevX2 = 0, prevY1 = 0;
@@ -90,7 +84,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                 prevY1 = y1;
             }
 
-            // 按下边界去重
             dedupUpper = dedupUpper.OrderBy(cell => cell[0]).ThenBy(cell => cell[1]).ThenBy(cell => cell[2]).ThenBy(cell => cell[3]).ToList();
             List<int[]> dedupLower = new List<int[]>();
             int prevX1Lower = 0, prevX2Lower = 0, prevY2 = 0;
@@ -110,7 +103,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                 prevY2 = y2;
             }
 
-            // 创建潜在单元格数组
             List<int[]> cells = new List<int[]>();
             foreach (var cell in dedupLower)
             {
@@ -119,7 +111,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                 int y1 = cell[2];
                 int y2 = cell[3];
 
-                // 计算水平边距
                 double margin = Math.Max(5d, (x2 - x1) * 0.025);
 
                 List<int> delimiters = new List<int>();
@@ -132,7 +123,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
 
                     if (x1 - margin <= x1v && x1v <= x2 + margin)
                     {
-                        // 检查垂直重叠和容差
                         double overlap = Math.Min(y2, y2v) - Math.Max(y1, y1v);
                         double tolerance = Math.Max(5d, Math.Min(10d, 0.1 * (y2 - y1)));
                         if (y2 - y1 - overlap <= tolerance)
@@ -142,7 +132,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.cells
                     }
                 }
 
-                // 从分隔符创建新单元格
                 if (delimiters.Count >= 2)
                 {
                     delimiters.Sort();

@@ -1,4 +1,4 @@
-﻿using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 using OpenCvSharp;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace img2table.sharp.img2table.tables
+namespace Img2table.Sharp.Img2table.Tables
 {
     public static class Utils
     {

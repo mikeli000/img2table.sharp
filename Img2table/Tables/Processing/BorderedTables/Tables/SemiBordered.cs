@@ -1,49 +1,35 @@
-﻿using img2table.sharp.img2table.tables.objects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static img2table.sharp.img2table.tables.objects.Objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
+using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
 
-namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Tables
 {
     public class SemiBordered
     {
-        public static List<Cell> add_semi_bordered_cells(List<Cell> cluster, List<Line> lines, double charLength)
+        public static List<Cell> AddSemiBorderedCells(List<Cell> cluster, List<Line> lines, double charLength)
         {
             if (cluster.Count == 0)
             {
                 return cluster;
             }
 
-            // 识别属于聚类的线条
             var (hLinesCl, vLinesCl) = GetLinesInCluster(cluster, lines);
-
-            // 识别表格维度
             var (leftVal, rightVal, topVal, bottomVal) = IdentifyTableDimensions(cluster, hLinesCl, vLinesCl, charLength);
-
-            // 创建潜在的新单元格
             List<Cell> newCells = IdentifyPotentialNewCells(cluster, hLinesCl, vLinesCl, leftVal, rightVal, topVal, bottomVal);
-
-            // 更新聚类单元格
             List<Cell> updatedCluster = UpdateClusterCells(cluster, newCells);
 
             return updatedCluster;
         }
 
-        static List<Cell> UpdateClusterCells(List<Cell> cluster, List<Cell> newCells)
+        private static List<Cell> UpdateClusterCells(List<Cell> cluster, List<Cell> newCells)
         {
             if (newCells.Count == 0)
             {
                 return cluster;
             }
 
-            // 创建聚类和新单元格的数据框
             var dfCluster = cluster.Select(c => new { c.X1, c.Y1, c.X2, c.Y2, Area = c.Area }).ToList();
             var dfCells = newCells.Select((c, idx) => new { idx, c.X1, c.Y1, c.X2, c.Y2, Area = c.Area }).ToList();
 
-            // 识别不与聚类中的其他单元格重叠的单元格
             var dfCellsIndep = dfCells
                 .SelectMany(cell => dfCluster, (cell, clusterCell) => new
                 {
@@ -87,7 +73,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 return cluster;
             }
 
-            // 移除重复的单元格
             var dfDups = dfCellsIndep
                 .SelectMany(cell => dfCellsIndep, (cell, otherCell) => new
                 {
@@ -129,7 +114,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 .Select(x => x.idx)
                 .ToList();
 
-            // 获取最终要添加的单元格列表
             var dfFinalCells = dfCellsIndep
                 .Where(cell => !dfDups.Contains(cell.idx))
                 .Select(cell => new Cell(cell.X1, cell.Y1, cell.X2, cell.Y2))
@@ -137,7 +121,7 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
 
             if (dfFinalCells.Count > 0)
             {
-                return TableCreation.normalize_table_cells(cluster.Concat(dfFinalCells).ToList());
+                return TableCreation.NormalizeTableCells(cluster.Concat(dfFinalCells).ToList());
             }
             else
             {
@@ -145,16 +129,13 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
             }
         }
 
-        static List<Cell> IdentifyPotentialNewCells(List<Cell> cluster, List<Line> hLinesCl, List<Line> vLinesCl, int leftVal, int rightVal, int topVal, int bottomVal)
+        private static List<Cell> IdentifyPotentialNewCells(List<Cell> cluster, List<Line> hLinesCl, List<Line> vLinesCl, int leftVal, int rightVal, int topVal, int bottomVal)
         {
-            // 计算聚类中使用的x和y值
             List<int> xCluster = new HashSet<int>(cluster.SelectMany(c => new[] { c.X1, c.X2 }).Union(new[] { leftVal, rightVal })).OrderBy(x => x).ToList();
             List<int> yCluster = new HashSet<int>(cluster.SelectMany(c => new[] { c.Y1, c.Y2 }).Union(new[] { topVal, bottomVal })).OrderBy(y => y).ToList();
 
-            // 创建新单元格列表
             List<Cell> newCells = new List<Cell>();
 
-            // 计算左端的单元格
             int x1 = xCluster[0], x2 = xCluster[1];
             int y1, y2;
             List<int> yVals = new HashSet<int>(new[] { topVal, bottomVal }.Union(hLinesCl.Where(l => Math.Min(l.X2, x2) - Math.Max(l.X1, x1) >= 0.9 * (x2 - x1)).Select(l => l.Y1))).OrderBy(y => y).ToList();
@@ -169,7 +150,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 }
             }
 
-            // 计算右端的单元格
             x1 = xCluster[xCluster.Count - 2];
             x2 = xCluster[xCluster.Count - 1];
             yVals = new HashSet<int>(new[] { topVal, bottomVal }.Union(hLinesCl.Where(l => Math.Min(l.X2, x2) - Math.Max(l.X1, x1) >= 0.9 * (x2 - x1)).Select(l => l.Y1))).OrderBy(y => y).ToList();
@@ -184,7 +164,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 }
             }
 
-            // 计算顶端的单元格
             y1 = yCluster[0];
             y2 = yCluster[1];
             List<int> xVals = new HashSet<int>(new[] { leftVal, rightVal }.Union(vLinesCl.Where(l => Math.Min(l.Y2, y2) - Math.Max(l.Y1, y1) >= 0.9 * (y2 - y1)).Select(l => l.X1))).OrderBy(x => x).ToList();
@@ -199,7 +178,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                 }
             }
 
-            // 计算底端的单元格
             y1 = yCluster[yCluster.Count - 2];
             y2 = yCluster[yCluster.Count - 1];
             xVals = new HashSet<int>(new[] { leftVal, rightVal }.Union(vLinesCl.Where(l => Math.Min(l.Y2, y2) - Math.Max(l.Y1, y1) >= 0.9 * (y2 - y1)).Select(l => l.X1))).OrderBy(x => x).ToList();
@@ -217,15 +195,13 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
             return newCells.Distinct().ToList();
         }
 
-        static (List<Line> hLinesCl, List<Line> vLinesCl) GetLinesInCluster(List<Cell> cluster, List<Line> lines)
+        private static (List<Line> hLinesCl, List<Line> vLinesCl) GetLinesInCluster(List<Cell> cluster, List<Line> lines)
         {
-            // 计算聚类坐标
             int xMin = cluster.Min(c => c.X1);
             int xMax = cluster.Max(c => c.X2);
             int yMin = cluster.Min(c => c.Y1);
             int yMax = cluster.Max(c => c.Y2);
 
-            // 查找聚类的水平和垂直线条
             var yValuesCl = new HashSet<int>(cluster.SelectMany(c => new[] { c.Y1, c.Y2 }));
             List<Line> hLinesCl = lines.Where(line => line.Horizontal
                 && yValuesCl.Any(y => Math.Abs(line.Y1 - y) <= 0.05 * (yMax - yMin))).ToList();
@@ -237,17 +213,15 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
             return (hLinesCl, vLinesCl);
         }
 
-        static (int leftVal, int rightVal, int topVal, int bottomVal) IdentifyTableDimensions(List<Cell> cluster, List<Line> hLinesCl, List<Line> vLinesCl, double charLength)
+        private static (int leftVal, int rightVal, int topVal, int bottomVal) IdentifyTableDimensions(List<Cell> cluster, List<Line> hLinesCl, List<Line> vLinesCl, double charLength)
         {
             int leftVal, rightVal, topVal, bottomVal;
 
             if (hLinesCl.Count > 0)
             {
-                // 计算线条的极端维度
                 int left = hLinesCl.Min(line => line.X1);
                 int right = hLinesCl.Max(line => line.X2);
 
-                // 左端
                 var leftEndLines = hLinesCl.Where(line => line.X1 - left <= 0.05 * (right - left)).ToList();
                 if (new HashSet<Line> { hLinesCl[0], hLinesCl[^1] }.Except(leftEndLines).Count() == 0)
                 {
@@ -258,7 +232,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                     leftVal = cluster.Min(c => c.X1);
                 }
 
-                // 右端
                 var rightEndLines = hLinesCl.Where(line => right - line.X2 <= 0.05 * (right - left)).ToList();
                 if (new HashSet<Line> { hLinesCl[0], hLinesCl[^1] }.Except(rightEndLines).Count() == 0)
                 {
@@ -277,11 +250,9 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
 
             if (vLinesCl.Count > 0)
             {
-                // 计算线条的极端维度
                 int top = vLinesCl.Min(line => line.Y1);
                 int bottom = vLinesCl.Max(line => line.Y2);
 
-                // 顶端
                 var topEndLines = vLinesCl.Where(line => line.Y1 - top <= 0.05 * (bottom - top)).ToList();
                 if (new HashSet<Line> { vLinesCl[0], vLinesCl[^1] }.Except(topEndLines).Count() == 0)
                 {
@@ -292,7 +263,6 @@ namespace img2table.sharp.img2table.tables.processing.bordered_tables.tables
                     topVal = cluster.Min(c => c.Y1);
                 }
 
-                // 底端
                 var bottomEndLines = vLinesCl.Where(line => bottom - line.Y2 <= 0.05 * (bottom - top)).ToList();
                 if (new HashSet<Line> { vLinesCl[0], vLinesCl[^1] }.Except(bottomEndLines).Count() == 0)
                 {

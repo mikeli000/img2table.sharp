@@ -1,23 +1,21 @@
-﻿using img2table.sharp.img2table.tables.objects;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static img2table.sharp.img2table.tables.processing.borderless_tables.Model;
+using static Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.Model;
 
-namespace img2table.sharp.img2table.tables.processing.borderless_tables
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables
 {
     public class Columns
     {
-        public static ColumnGroup identify_columns(TableSegment tableSegment, double charLength, double medianLineSep)
+        public static ColumnGroup IdentifyColumns(TableSegment tableSegment, double charLength, double medianLineSep)
         {
-            // 获取列的空白区域
-            var columns = get_columns_delimiters(tableSegment, charLength);
+            var columns = GetColumnsDelimiters(tableSegment, charLength);
 
             if (columns.Count > 0)
             {
-                // 创建列组
                 int x1Del = columns.Min(d => d.X1);
                 int x2Del = columns.Max(d => d.X2);
                 int y1Del = columns.Min(d => d.Y1);
@@ -33,12 +31,10 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
             return null;
         }
 
-        static List<Column> get_columns_delimiters(TableSegment tableSegment, double charLength)
+        private static List<Column> GetColumnsDelimiters(TableSegment tableSegment, double charLength)
         {
-            // 获取空白区域
-            var tableAreas = tableSegment.table_areas.OrderBy(x => x.Position).ToList();
+            var tableAreas = tableSegment.TableAreas.OrderBy(x => x.Position).ToList();
 
-            // 创建相关垂直空白区域的组
             List<Column> columns = new List<Column>();
             for (int idArea = 0; idArea < tableAreas.Count; idArea++)
             {
@@ -48,17 +44,14 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
 
                 foreach (var col in columns)
                 {
-                    // 获取匹配的空白区域
                     var matchingWs = whitespaces.Where(v_ws => col.Corresponds(v_ws, charLength)).ToList();
 
                     if (matchingWs.Any())
                     {
                         foreach (var v_ws in matchingWs)
                         {
-                            // 更新空白区域
                             v_ws.Used = true;
 
-                            // 创建新列
                             var new_whitespaces = new List<VerticalWS>();
                             new_whitespaces.AddRange(col.Whitespaces);
                             var newCol = new Column(new_whitespaces, col.Top, col.Bottom, col.TopPosition, col.BottomPosition);
@@ -72,14 +65,11 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                     }
                 }
 
-                // 创建对应于未使用空白区域的列
                 newColumns.AddRange(whitespaces.Where(v_ws => !v_ws.Used).Select(v_ws => Column.FromWs(v_ws)));
 
-                // 用新列替换现有列
                 columns = newColumns;
             }
 
-            // 重新计算列的边界（直到前一个/下一个区域）
             var dictBounds = tableAreas.Select((area, index) => new { area, index })
                          .ToDictionary(
                              x => x.index,
@@ -98,7 +88,6 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                     int y_min = v_ws.Top ? dictBounds.GetValueOrDefault(v_ws.Position - 1, new Dictionary<string, int>()).GetValueOrDefault("y_max", v_ws.Y1) : v_ws.Y1;
                     int y_max = v_ws.Bottom ? dictBounds.GetValueOrDefault(v_ws.Position + 1, new Dictionary<string, int>()).GetValueOrDefault("y_min", v_ws.Y2) : v_ws.Y2;
 
-                    // 重新计算垂直空白区域
                     var reshaped_v_ws = new VerticalWS(
                         new Whitespace(v_ws.Ws.Cells.Select(c => new Cell(
                             col.X1, 
@@ -118,7 +107,6 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables
                 reshapedColumns.Add(reshapedCol);
             }
 
-            // 仅保留代表最大高度至少66%的列
             int maxHeight = reshapedColumns.Max(col => col.Height);
             reshapedColumns = reshapedColumns.Where(col => col.Height >= 0.66 * maxHeight).ToList();
 

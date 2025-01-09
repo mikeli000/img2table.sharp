@@ -1,26 +1,20 @@
-﻿using img2table.sharp.img2table.tables.objects;
-using img2table.sharp.img2table.tables.processing.bordered_tables.cells;
-using img2table.sharp.img2table.tables.processing.bordered_tables.tables;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static img2table.sharp.img2table.tables.objects.Objects;
-using static img2table.sharp.img2table.tables.processing.borderless_tables.Model;
+﻿using Img2table.Sharp.Img2table.Tables.Objects;
+using Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Cells;
+using Img2table.Sharp.Img2table.Tables.Processing.BorderedTables.Tables;
+using static Img2table.Sharp.Img2table.Tables.Objects.Objects;
+using static Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.Model;
 
-namespace img2table.sharp.img2table.tables.processing.borderless_tables.table
+namespace Img2table.Sharp.Img2table.Tables.Processing.BorderlessTables.Table
 {
     public class TableIdentifier
     {
-        public static Table identify_table(ColumnGroup columns, List<Cell> row_delimiters, List<Cell> contours, double median_line_sep, double char_length)
+        public static Objects.Table IdentifyTable(ColumnGroup columns, List<Cell> rowDelimiters, List<Cell> contours, double medianLineSep, double charLength)
         {
-            // Create table from rows and columns delimiters
-            Table table = get_table(columns, row_delimiters, contours);
+            Objects.Table table = GetTable(columns, rowDelimiters, contours);
 
             if (table != null)
             {
-                if (Coherency.check_table_coherency(table, median_line_sep, char_length))
+                if (Coherency.check_table_coherency(table, medianLineSep, charLength))
                 {
                     return table;
                 }
@@ -29,9 +23,8 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables.table
             return null;
         }
 
-        static Table get_table(ColumnGroup columns, List<Cell> rowDelimiters, List<Cell> contours)
+        private static Objects.Table GetTable(ColumnGroup columns, List<Cell> rowDelimiters, List<Cell> contours)
         {
-            // Convert delimiters to lines
             List<Line> vLines = new List<Line>();
             foreach (var col in columns.Columns)
             {
@@ -55,14 +48,9 @@ namespace img2table.sharp.img2table.tables.processing.borderless_tables.table
             }
 
             List<Line> hLines = rowDelimiters.Select(d => new Line(d.X1, d.Y1, d.X2, d.Y2)).ToList();
+            List<Cell> cells = Cells.GetCells(hLines, vLines);
 
-            // Identify cells
-            List<Cell> cells = Cells.get_cells(hLines, vLines);
-
-
-            // Create table object
-            Table table = TableCreation.cluster_to_table(cells, contours, true);
-
+            Objects.Table table = TableCreation.ClusterToTable(cells, contours, true);
             return table != null && table.NbColumns >= 3 && table.NbRows >= 2 ? table : null;
         }
     }
