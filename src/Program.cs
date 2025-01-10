@@ -1,6 +1,6 @@
 ﻿using img2table.sharp.Core.Data;
-using Img2table.Sharp.Core.Tables;
-using Img2table.Sharp.Core.Tables.Objects;
+using Img2table.Sharp.Core.Tabular;
+using Img2table.Sharp.Core.Tabular.Object;
 using OpenCvSharp;
 using System.Text.Json;
 
