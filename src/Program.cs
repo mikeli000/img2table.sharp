@@ -1,8 +1,7 @@
-﻿using img2table.sharp.Core.Data;
-using Img2table.Sharp.Core.Tabular;
-using Img2table.Sharp.Core.Tabular.Object;
+﻿using Img2table.Sharp.Img2table.Sharp.Data;
+using Img2table.Sharp.Tabular;
+using Img2table.Sharp.Tabular.TableElement;
 using OpenCvSharp;
-using System.Text.Json;
 
 namespace Img2table.Sharp
 {
@@ -15,7 +14,7 @@ namespace Img2table.Sharp
 
             using var img = new Mat(tempFile, ImreadModes.Color);
             var tableImage = new TableImage(img);
-            List<Table> tables = tableImage.ExtractTables(false, false, true);
+            List<Table> tables = tableImage.ExtractTables(true, false, true);
             foreach (var t in tables)
             {
                 Console.WriteLine(t.ToString());

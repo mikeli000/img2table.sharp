@@ -1,10 +1,11 @@
-using Img2table.Sharp.Core.Tabular;
-using Img2table.Sharp.Core.Tabular.Object;
+
+using Img2table.Sharp.Tabular;
+using Img2table.Sharp.Tabular.TableElement;
 using OpenCvSharp;
 using System;
 using Xunit;
 
-namespace img2table.sharp.tests
+namespace Img2table.Sharp.tests
 {
     public class UnitTest
     {
