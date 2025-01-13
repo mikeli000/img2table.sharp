@@ -9,12 +9,12 @@ namespace Img2table.Sharp
     {
         static void Main(string[] args)
         {
-            var tempFile = @"C:/temp/img2table_data/borderless/implicit.png";
+            var tempFile = @"C:/temp/img2table_data/borderless/i.png";
             Console.WriteLine(tempFile);
 
             using var img = new Mat(tempFile, ImreadModes.Color);
             var tableImage = new TableImage(img);
-            List<Table> tables = tableImage.ExtractTables(true, false, true);
+            List<Table> tables = tableImage.ExtractTables(false, false, true);
             foreach (var t in tables)
             {
                 Console.WriteLine(t.ToString());
