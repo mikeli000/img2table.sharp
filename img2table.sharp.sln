@@ -10,6 +10,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "img2table.sharp.tests", "te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "img2table.sharp", "src\img2table.sharp.csproj", "{8D9C6CFD-B71F-4720-B009-7534E3D535DF}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PDFDict.SDK.Sharp", "..\pdfdict.sharp\src\PDFDict.SDK.Sharp\PDFDict.SDK.Sharp.csproj", "{DC19C3BC-EBB6-48C8-88D5-D1498E7ADB4A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,6 +26,10 @@ Global
 		{8D9C6CFD-B71F-4720-B009-7534E3D535DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D9C6CFD-B71F-4720-B009-7534E3D535DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D9C6CFD-B71F-4720-B009-7534E3D535DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC19C3BC-EBB6-48C8-88D5-D1498E7ADB4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC19C3BC-EBB6-48C8-88D5-D1498E7ADB4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC19C3BC-EBB6-48C8-88D5-D1498E7ADB4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC19C3BC-EBB6-48C8-88D5-D1498E7ADB4A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
