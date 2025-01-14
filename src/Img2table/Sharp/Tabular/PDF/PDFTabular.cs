@@ -1,4 +1,5 @@
 ﻿using Img2table.Sharp.Tabular.Image;
+using Img2table.Sharp.Tabular.TableElement;
 using PDFDict.SDK.Sharp.Core;
 using System.Drawing;
 
@@ -36,6 +37,11 @@ namespace Img2table.Sharp.Tabular.PDF
             }
 
             return tables;
+        }
+
+        private void LoadText(PDFDocument pdfDoc, int pageIndex, List<Table> tables)
+        {
+
         }
     }
 }
