@@ -1,8 +1,9 @@
-﻿using Img2table.Sharp.Tabular.PDF;
-using Img2table.Sharp.Img2table.Sharp.Data;
+﻿using Img2table.Sharp.Img2table.Sharp.Data;
 using Img2table.Sharp.Tabular;
 using Img2table.Sharp.Tabular.TableElement;
+using Img2table.Sharp.Tabular.TextLoader;
 using OpenCvSharp;
+using System.Drawing;
 
 namespace Img2table.Sharp
 {
@@ -10,12 +11,32 @@ namespace Img2table.Sharp
     {
         static void Main(string[] args)
         {
-            TabularPDF();
+            // TabularPDF();
 
-            // TabulaImage();
+            TabularImage();
         }
 
-        private static void TabulaImage()
+        private static void TabularImage()
+        {
+            var tempFile = @"C:/temp/img2table_data/borderless/4.png";
+            Console.WriteLine(tempFile);
+
+            var tableImage = new ImageTabular();
+            var ret = tableImage.Process(tempFile, true);
+
+            foreach (var t in ret.Tables)
+            {
+                Console.WriteLine(t.ToString());
+            }
+
+            using var img = new Mat(tempFile, ImreadModes.Color);
+            DrawTables(img, ret.Tables);
+
+            using (new Window("dst image", img))
+            Cv2.WaitKey();
+        }
+
+        private static void TestImage()
         {
             var tempFile = @"C:/temp/img2table_data/borderless/page2.png";
             Console.WriteLine(tempFile);
@@ -27,9 +48,6 @@ namespace Img2table.Sharp
             {
                 Console.WriteLine(t.ToString());
             }
-
-            string json = TableJson.Serialize(tables);
-            tables = TableJson.Deserialize(json);
 
             DrawTables(img, tables);
 
@@ -54,6 +72,7 @@ namespace Img2table.Sharp
 
                 using var img = new Mat(pt.PageImage, ImreadModes.Color);
                 DrawTables(img, pt.Tables);
+
                 using (new Window("dst image", img))
                 Cv2.WaitKey();
             }
@@ -61,7 +80,7 @@ namespace Img2table.Sharp
 
         private static void DrawTables(Mat img, List<Table> tables)
         {
-            int thickness = 1;
+            int thickness = 2;
             Scalar rectangleColor = new Scalar(0, 0, 255); // Red color (BGR format)
             
             foreach (Table table in tables)
@@ -70,12 +89,6 @@ namespace Img2table.Sharp
                 {
                     foreach (var cell in row.Items)
                     {
-                        if (cell.X1 == 45 && cell.Y1 == 123 && cell.Width == 100 && cell.Height == 32)
-                        {
-                            Cv2.Rectangle(img, new Rect(cell.X1, 0, cell.Width, cell.Height), new Scalar(255, 0, 0), thickness);
-                            continue;
-                        }
-
                         Cv2.Rectangle(img, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), rectangleColor, thickness);
                     }
                 }
@@ -83,6 +96,17 @@ namespace Img2table.Sharp
 
             string outputPath = @"C:/temp/img2table_data/borderless/temp.png";
             Cv2.ImWrite(outputPath, img);
+        }
+
+        private static void DrawTemp(Mat img, List<RectangleF> rects)
+        {
+            int thickness = 1;
+            Scalar rectangleColor = new Scalar(255, 0, 0); // Red color (BGR format)
+
+            foreach (var cell in rects)
+            {
+                Cv2.Rectangle(img, new Rect((int)cell.X, (int)cell.Y, (int)cell.Width, (int)cell.Height), rectangleColor, thickness);
+            }
         }
     }
 }

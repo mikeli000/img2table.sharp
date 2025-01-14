@@ -146,7 +146,7 @@
                     sb.AppendLine($"    Cell[{i},{j}] - X1: {cell.X1}, Y1: {cell.Y1}, X2: {cell.X2}, Y2: {cell.Y2}");
                     if (!string.IsNullOrEmpty(cell.Content))
                     {
-                        sb.AppendLine($"        {cell.Content}\n");
+                        sb.AppendLine($"        {cell.Content}");
                     }
                 }
             }
