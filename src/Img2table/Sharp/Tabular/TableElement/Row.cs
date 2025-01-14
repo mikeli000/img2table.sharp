@@ -11,6 +11,7 @@
         }
 
         public List<Cell> Items => _items;
+        public List<Cell> Cells => _items;
         public int NbColumns => _items.Count;
 
         public bool VConsistent => _items.All(c => c.Y1 == Y1 && c.Y2 == Y2);

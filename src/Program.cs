@@ -11,11 +11,13 @@ namespace Img2table.Sharp
         static void Main(string[] args)
         {
             TabularPDF();
+
+            // TabulaImage();
         }
 
         private static void TabulaImage()
         {
-            var tempFile = @"C:/temp/img2table_data/borderless/i.png";
+            var tempFile = @"C:/temp/img2table_data/borderless/page2.png";
             Console.WriteLine(tempFile);
 
             using var img = new Mat(tempFile, ImreadModes.Color);
@@ -49,6 +51,7 @@ namespace Img2table.Sharp
                 {
                     Console.WriteLine(t2.ToString());
                 }
+
                 using var img = new Mat(pt.PageImage, ImreadModes.Color);
                 DrawTables(img, pt.Tables);
                 using (new Window("dst image", img))
@@ -67,6 +70,12 @@ namespace Img2table.Sharp
                 {
                     foreach (var cell in row.Items)
                     {
+                        if (cell.X1 == 45 && cell.Y1 == 123 && cell.Width == 100 && cell.Height == 32)
+                        {
+                            Cv2.Rectangle(img, new Rect(cell.X1, 0, cell.Width, cell.Height), new Scalar(255, 0, 0), thickness);
+                            continue;
+                        }
+
                         Cv2.Rectangle(img, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), rectangleColor, thickness);
                     }
                 }

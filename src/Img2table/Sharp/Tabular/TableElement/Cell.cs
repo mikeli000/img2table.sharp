@@ -1,13 +1,27 @@
-﻿namespace Img2table.Sharp.Tabular.TableElement
+﻿using System.Text;
+
+namespace Img2table.Sharp.Tabular.TableElement
 {
     public class Cell : TableObject
     {
-        public string Content { get; }
+        private StringBuilder _text = new StringBuilder();
+        public string Content => _text.ToString();
 
         public Cell(int x1, int y1, int x2, int y2, string content = null)
             : base(x1, y1, x2, y2)
         {
-            Content = content;
+            if (!string.IsNullOrEmpty(content))
+            {
+                _text.Append(content);
+            }
+        }
+
+        public void AddText(string appendText)
+        {
+            if (!string.IsNullOrEmpty(appendText))
+            {
+                _text.Append(appendText);
+            }
         }
 
         public Extraction.TableCell TableCell

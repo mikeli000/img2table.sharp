@@ -21,15 +21,16 @@
         public string Title => _title;
         public bool Borderless => _borderless;
 
-        public void SetTitle(string title)
-        {
-            _title = title;
-        }
-
+        public List<Row> Rows => _items;
         public int NbRows => _items.Count;
         public int NbColumns => _items.FirstOrDefault()?.NbColumns ?? 0;
 
         public Cell Cell => new Cell(X1, Y1, X2, Y2);
+
+        public void SetTitle(string title)
+        {
+            _title = title;
+        }
 
         public List<Line> Lines
         {
@@ -143,6 +144,10 @@
                 {
                     var cell = _items[i].Items[j];
                     sb.AppendLine($"    Cell[{i},{j}] - X1: {cell.X1}, Y1: {cell.Y1}, X2: {cell.X2}, Y2: {cell.Y2}");
+                    if (!string.IsNullOrEmpty(cell.Content))
+                    {
+                        sb.AppendLine($"        {cell.Content}\n");
+                    }
                 }
             }
 

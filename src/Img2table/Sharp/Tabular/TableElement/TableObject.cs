@@ -1,4 +1,6 @@
-﻿namespace Img2table.Sharp.Tabular.TableElement
+﻿using System.Drawing;
+
+namespace Img2table.Sharp.Tabular.TableElement
 {
     public class TableObject
     {
@@ -39,6 +41,11 @@
             }
 
             return Tuple.Create(x1, y1, x2, y2);
+        }
+
+        public RectangleF Rect()
+        {
+            return new RectangleF(X1, Y1, Width, Height);
         }
 
         public int Height

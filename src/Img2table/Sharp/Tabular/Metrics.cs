@@ -17,10 +17,11 @@ namespace Img2table.Sharp.Tabular
                 return new(null, null, null);
             }
 
-            return ComputeMedianLineSep(char_length.Value, threshChars, charsArray);
+            var res = ComputeMedianLineSep(char_length.Value, threshChars, charsArray);
+            return new(char_length, res.Item1, res.Item2);
         }
 
-        private static Tuple<double?, double?, List<Cell>> ComputeMedianLineSep(double charLength, Mat thresh_chars, Mat chars_array)
+        private static Tuple<double?, List<Cell>> ComputeMedianLineSep(double charLength, Mat thresh_chars, Mat chars_array)
         {
             Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size((int)(charLength / 2 + 1), (int)(charLength / 3 + 1)));
             Cv2.MorphologyEx(thresh_chars, thresh_chars, MorphTypes.Close, kernel);
@@ -32,13 +33,8 @@ namespace Img2table.Sharp.Tabular
 
             Mat statsContours = RecomputeContours(stats, chars_array);
 
-            var row_separations = getRowSeparations(statsContours);
-
+            var row_separations = GetRowSeparations(statsContours);
             double? medianLineSep = GetMedianLineSeparation(row_separations);
-            if (medianLineSep == null)
-            {
-                return new(null, null, null);
-            }
 
             List<Cell> contours = new List<Cell>();
             for (int idx = 1; idx < statsContours.Rows; idx++)
@@ -51,10 +47,10 @@ namespace Img2table.Sharp.Tabular
                 contours.Add(new Cell(x, y, x + w, y + h));
             }
 
-            return new(charLength, medianLineSep, contours);
+            return new(medianLineSep, contours);
         }
 
-        private static List<double> getRowSeparations(Mat stats)
+        private static List<double> GetRowSeparations(Mat stats)
         {
             List<double> rowSeparations = new List<double>();
 
