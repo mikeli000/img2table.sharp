@@ -7,12 +7,11 @@ namespace Img2table.Sharp.Tabular
 {
     public class ImageTabular
     {
-        private static float DEFAULT_OVERLAP_RATIO = 0.6f;
-        
+        private TabularParameter _parameter;
 
-        public ImageTabular() 
+        public ImageTabular(TabularParameter tabularParameter) 
         {
-
+            _parameter = tabularParameter;
         }
 
         public PagedTable Process(string imgFile, bool loadText = false)
@@ -24,7 +23,7 @@ namespace Img2table.Sharp.Tabular
 
             using var img = new Mat(imgFile, ImreadModes.Color);
             var tableImage = new TableImage.TableImage(img);
-            List<Table> tables = tableImage.ExtractTables(false, false, true);
+            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables);
 
             if (loadText)
             {
@@ -60,17 +59,17 @@ namespace Img2table.Sharp.Tabular
             {
                 foreach (var row in table.Rows)
                 {
-                    LoadRowText(row, pageTextCells);
+                    LoadRowText(row, pageTextCells, _parameter);
                 }
             }
         }
 
-        public static void LoadRowText(Row row, List<Cell> pageTextCells)
+        public static void LoadRowText(Row row, List<Cell> pageTextCells, TabularParameter parameter)
         {
             foreach (var cell in row.Cells)
             {
                 var cellRect = cell.Rect();
-                var oneTextCells = FindTextElement(cellRect, pageTextCells);
+                var oneTextCells = FindTextElement(cellRect, pageTextCells, parameter);
 
                 if (oneTextCells.Count > 0)
                 {
@@ -83,14 +82,14 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
-        private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells)
+        private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter)
         {
             var cells = new List<Cell>();
             foreach (var tc in textCells)
             {
                 var textRect = tc.Rect();
 
-                bool contained = IsContained(cellRect, textRect);
+                bool contained = IsContained(cellRect, textRect, parameter);
                 if (contained)
                 {
                     cells.Add(tc);
@@ -100,7 +99,7 @@ namespace Img2table.Sharp.Tabular
             return cells;
         }
 
-        private static bool IsContained(RectangleF container, RectangleF dst)
+        private static bool IsContained(RectangleF container, RectangleF dst, TabularParameter parameter)
         {
             RectangleF intersection = RectangleF.Intersect(container, dst);
 
@@ -112,7 +111,7 @@ namespace Img2table.Sharp.Tabular
             float intersectionArea = intersection.Width * intersection.Height;
             float dstArea = dst.Width * dst.Height;
 
-            return intersectionArea / dstArea >= DEFAULT_OVERLAP_RATIO;
+            return intersectionArea / dstArea >= parameter.CellTextOverlapRatio;
         }
     }
 }

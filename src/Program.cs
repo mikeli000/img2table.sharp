@@ -19,7 +19,7 @@ namespace Img2table.Sharp
             var tempFile = @"C:/temp/img2table_data/borderless/b.png";
             Console.WriteLine(tempFile);
 
-            var tableImage = new ImageTabular();
+            var tableImage = new ImageTabular(TabularParameter.AutoDetect);
             var ret = tableImage.Process(tempFile, true);
 
             foreach (var t in ret.Tables)
@@ -60,7 +60,7 @@ namespace Img2table.Sharp
             var tempFile = @"C:/temp/img2table_data/borderless/b.pdf";
             Console.WriteLine(tempFile);
 
-            var pdfTabular = new PDFTabular();
+            var pdfTabular = new PDFTabular(TabularParameter.AutoDetect);
             var tables = pdfTabular.Process(tempFile);
 
             foreach (var pt in tables)
@@ -73,6 +73,9 @@ namespace Img2table.Sharp
                 using var img = new Mat(pt.PageImage, ImreadModes.Color);
                 DrawTables(img, pt.Tables);
 
+                string outputPath = @"C:/temp/img2table_data/borderless/temp.png";
+                Cv2.ImWrite(outputPath, img);
+
                 using (new Window("dst image", img))
                 Cv2.WaitKey();
             }
@@ -80,7 +83,7 @@ namespace Img2table.Sharp
 
         private static void DrawTables(Mat img, List<Table> tables)
         {
-            int thickness = 2;
+            int thickness = 1;
             Scalar rectangleColor = new Scalar(0, 0, 255); // Red color (BGR format)
             
             foreach (Table table in tables)

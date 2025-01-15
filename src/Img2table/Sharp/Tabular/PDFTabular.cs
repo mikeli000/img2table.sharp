@@ -7,10 +7,11 @@ namespace Img2table.Sharp.Tabular
 {
     public class PDFTabular
     {
-        private static float _resolution = 500f;
+        private TabularParameter _parameter;
 
-        public PDFTabular()
+        public PDFTabular(TabularParameter tabularParameter)
         {
+            _parameter = tabularParameter;
         }
 
         public List<PagedTable> Process(string pdfFile)
@@ -29,14 +30,14 @@ namespace Img2table.Sharp.Tabular
                 for (int i = 0; i < pageCount; i++)
                 {
                     string pageImagePath = Path.Combine(outputFolder, @$"page{i + 1}.png");
-                    pdfDoc.RenderPage(pageImagePath, i, _resolution, backgroundColor: Color.White);
+                    pdfDoc.RenderPage(pageImagePath, i, _parameter.RenderResolution, backgroundColor: Color.White);
 
-                    var imageTabular = new ImageTabular();
+                    var imageTabular = new ImageTabular(_parameter);
                     var pagedTable = imageTabular.Process(pageImagePath);
 
                     allTables.Add(pagedTable);
 
-                    LoadText(pdfDoc, i, pagedTable, _resolution / 72f);
+                    LoadText(pdfDoc, i, pagedTable, _parameter.RenderResolution / 72f);
                 }
             }
 
@@ -56,7 +57,7 @@ namespace Img2table.Sharp.Tabular
             {
                 foreach (var row in table.Rows)
                 {
-                    ImageTabular.LoadRowText(row, pageTextCells);
+                    ImageTabular.LoadRowText(row, pageTextCells, _parameter);
                 }
             }
         }
