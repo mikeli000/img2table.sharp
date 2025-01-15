@@ -1,9 +1,7 @@
 
-using Img2table.Sharp.Tabular;
-using Img2table.Sharp.Tabular.TableElement;
+using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
-using System;
-using Xunit;
+using Img2table.Sharp.Tabular.TableImage;
 
 namespace Img2table.Sharp.tests
 {

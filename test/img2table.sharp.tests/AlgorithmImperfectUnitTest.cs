@@ -1,13 +1,8 @@
-﻿using Img2table.Sharp.Tabular.TableElement;
-using Img2table.Sharp.Tabular;
-using OpenCvSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using OpenCvSharp;
+using Img2table.Sharp.Tabular.TableImage.TableElement;
+using Img2table.Sharp.Tabular.TableImage;
 
-namespace img2table.sharp.tests
+namespace Img2table.Sharp.Tests
 {
     public class AlgorithmImperfectUnitTest
     {

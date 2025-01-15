@@ -1,4 +1,4 @@
-﻿using Img2table.Sharp.Tabular.TableElement;
+﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,9 +1,7 @@
-﻿using Img2table.Sharp.Img2table.Sharp.Data;
+﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
 using Img2table.Sharp.Tabular;
-using Img2table.Sharp.Tabular.TableElement;
-using Img2table.Sharp.Tabular.TextLoader;
 using OpenCvSharp;
-using System.Drawing;
+using Img2table.Sharp.Tabular.TableImage;
 
 namespace Img2table.Sharp
 {
@@ -11,14 +9,14 @@ namespace Img2table.Sharp
     {
         static void Main(string[] args)
         {
-            // TabularPDF();
+            TabularPDF();
 
-            TabularImage();
+            // TabularImage();
         }
 
         private static void TabularImage()
         {
-            var tempFile = @"C:/temp/img2table_data/borderless/4.png";
+            var tempFile = @"C:/temp/img2table_data/borderless/b.png";
             Console.WriteLine(tempFile);
 
             var tableImage = new ImageTabular();
@@ -32,6 +30,8 @@ namespace Img2table.Sharp
             using var img = new Mat(tempFile, ImreadModes.Color);
             DrawTables(img, ret.Tables);
 
+            string outputPath = @"C:/temp/img2table_data/borderless/temp.png";
+            Cv2.ImWrite(outputPath, img);
             using (new Window("dst image", img))
             Cv2.WaitKey();
         }
@@ -57,7 +57,7 @@ namespace Img2table.Sharp
 
         private static void TabularPDF()
         {
-            var tempFile = @"C:/temp/img2table_data/borderless/table_style.pdf";
+            var tempFile = @"C:/temp/img2table_data/borderless/b.pdf";
             Console.WriteLine(tempFile);
 
             var pdfTabular = new PDFTabular();
@@ -93,19 +93,16 @@ namespace Img2table.Sharp
                     }
                 }
             }
-
-            string outputPath = @"C:/temp/img2table_data/borderless/temp.png";
-            Cv2.ImWrite(outputPath, img);
         }
 
-        private static void DrawTemp(Mat img, List<RectangleF> rects)
+        private static void DrawTemp(Mat img, List<Cell> rects)
         {
             int thickness = 1;
             Scalar rectangleColor = new Scalar(255, 0, 0); // Red color (BGR format)
 
             foreach (var cell in rects)
             {
-                Cv2.Rectangle(img, new Rect((int)cell.X, (int)cell.Y, (int)cell.Width, (int)cell.Height), rectangleColor, thickness);
+                Cv2.Rectangle(img, new Rect((int)cell.X1, (int)cell.Y1, (int)cell.Width, (int)cell.Height), rectangleColor, thickness);
             }
         }
     }

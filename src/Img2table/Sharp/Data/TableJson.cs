@@ -1,7 +1,7 @@
-﻿using Img2table.Sharp.Tabular.TableElement;
+﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
 using System.Text.Json;
 
-namespace Img2table.Sharp.Img2table.Sharp.Data
+namespace Img2table.Sharp.Data
 {
     public class TableJson
     {
