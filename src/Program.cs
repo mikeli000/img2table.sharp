@@ -82,6 +82,7 @@ namespace Img2table.Sharp
                 Cv2.WaitKey();
 
                 TableHTML.Generate(new PagedTableDTO(pt), @"C:/temp/img2table_data/borderless/b.html");
+                TableMarkdown.Generate(new PagedTableDTO(pt), @"C:/temp/img2table_data/borderless/b.md");
             }
         }
 
