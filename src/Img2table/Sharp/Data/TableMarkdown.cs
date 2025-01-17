@@ -32,7 +32,6 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     WriteTableRow(sb, string.Join(" | ", headerRow.Items.Select(c => c.Content)));
                     WriteTableRow(sb, string.Join(" | ", headerRow.Items.Select(c => "---")));
 
-                    // Add data rows
                     foreach (var row in table.Items.Skip(1))
                     {
                         WriteTableRow(sb, string.Join(" | ", row.Items.Select(c => c.Content)));
