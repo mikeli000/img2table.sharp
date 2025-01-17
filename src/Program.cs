@@ -2,6 +2,8 @@
 using Img2table.Sharp.Tabular;
 using OpenCvSharp;
 using Img2table.Sharp.Tabular.TableImage;
+using img2table.sharp.Img2table.Sharp.Data;
+using Img2table.Sharp.Data;
 
 namespace Img2table.Sharp
 {
@@ -78,6 +80,8 @@ namespace Img2table.Sharp
 
                 using (new Window("dst image", img))
                 Cv2.WaitKey();
+
+                TableHTML.Generate(new PagedTableDTO(pt), @"C:/temp/img2table_data/borderless/b.html");
             }
         }
 

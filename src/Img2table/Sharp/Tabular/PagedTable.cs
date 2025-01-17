@@ -16,5 +16,6 @@ namespace Img2table.Sharp.Tabular
         public string PageImage { get; set; }
 
         public List<Table> Tables { get; set; }
+
     }
 }

@@ -8,8 +8,6 @@ namespace Img2table.Sharp.Data
         public string Title { get; set; }
         public bool Borderless { get; set; }
 
-        public TableDTO() { }
-
         public TableDTO(Table table)
         {
             Items = table.Items.Select(r => new RowDTO(r)).ToList();
@@ -30,11 +28,28 @@ namespace Img2table.Sharp.Data
     {
         public List<CellDTO> Items { get; set; }
 
-        public RowDTO() { }
-
         public RowDTO(Row row)
         {
-            Items = row.Items.Select(c => new CellDTO(c)).ToList();
+            Items = new List<CellDTO>();
+
+            Cell prev = null;
+            CellDTO prevDTO = null;
+            for (var i = 0; i < row.Cells.Count; i++)
+            {
+                var curr = row.Cells[i];
+                var currDTO = new CellDTO(curr);
+                if (curr.Equals(prev))
+                {
+                    prevDTO.ColSpan++;
+                }
+                else
+                {
+                    prev = curr;
+                    prevDTO = currDTO;
+                }
+
+                Items.Add(currDTO);
+            }
         }
 
         public Row ToRow()
@@ -51,7 +66,8 @@ namespace Img2table.Sharp.Data
         public int Y2 { get; set; }
         public string Content { get; set; }
 
-        public CellDTO() { }
+        private int RowSpan { get; set; } = 1;
+        public int ColSpan { get; set; } = 1;
 
         public CellDTO(Cell cell)
         {
