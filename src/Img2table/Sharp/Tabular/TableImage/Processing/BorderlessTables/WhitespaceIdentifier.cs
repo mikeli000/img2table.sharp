@@ -303,7 +303,7 @@ namespace Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables
 
             List<Whitespace> verticalDelims = IdentifyCoherentVWhitespaces(vWhitespaces);
 
-            return DeduplicateWhitespaces(verticalDelims, segment.Elements);
+            return DeduplicateWhitespaces(verticalDelims, segment.Elements).Where(ws => ws != null).ToList();
         }
 
         private static bool AdjacentWhitespaces(Whitespace w1, Whitespace w2)

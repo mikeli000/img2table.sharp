@@ -25,8 +25,16 @@ namespace Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout
                 bool shouldAdd = false;
                 for (int y = cell.Y1; y < cell.Y2; y++)
                 {
+                    if (y < 0)
+                    {
+                        continue;
+                    }
                     for (int x = cell.X1; x < cell.X2; x++)
                     {
+                        if (x < 0)
+                        {
+                            continue;
+                        }
                         if (coverageArray[y, x] == 1)
                         {
                             shouldAdd = true;
@@ -44,8 +52,16 @@ namespace Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout
                     dedupCells.Add(cell);
                     for (int y = cell.Y1; y < cell.Y2; y++)
                     {
+                        if (y < 0)
+                        {
+                            continue;
+                        }
                         for (int x = cell.X1; x < cell.X2; x++)
                         {
+                            if (x < 0)
+                            {
+                                continue;
+                            }
                             coverageArray[y, x] = 0;
                         }
                     }

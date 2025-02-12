@@ -136,7 +136,7 @@ namespace Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables.Layout
                 {
                     var v_ws = WhitespaceIdentifier.GetRelevantVerticalWhitespaces(segArea, charLength, medianLineSep, pct: 0.66);
 
-                    var middle_ws = v_ws.Where(ws => ws.X1 != segArea.X1 && ws.X2 != segArea.X2).ToList();
+                    var middle_ws = v_ws.Where(ws => ws != null && ws.X1 != segArea.X1 && ws.X2 != segArea.X2).ToList();
 
                     if (middle_ws.Count >= 1)
                     {

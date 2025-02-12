@@ -2,6 +2,7 @@
 using PDFDict.SDK.Sharp.Core;
 using PDFDict.SDK.Sharp.Core.Contents;
 using System.Drawing;
+using System.Text;
 
 namespace Img2table.Sharp.Tabular
 {
@@ -29,6 +30,15 @@ namespace Img2table.Sharp.Tabular
 
                 for (int i = 0; i < pageCount; i++)
                 {
+                    // step 1: check if page is tagged, if yes, use tagged content
+                    var page = pdfDoc.LoadPage(i);
+                    if (page.IsTagged())
+                    {
+                        var pagedTables = ExtractTableFromTaggedPDF(pdfDoc, page);
+                        allTables.AddRange(pagedTables);
+                        continue;
+                    }
+
                     string pageImagePath = Path.Combine(outputFolder, @$"page{i + 1}.png");
                     pdfDoc.RenderPage(pageImagePath, i, _parameter.RenderResolution, backgroundColor: Color.White);
 
@@ -42,6 +52,109 @@ namespace Img2table.Sharp.Tabular
             }
 
             return allTables;
+        }
+
+        private List<PagedTable> ExtractTableFromTaggedPDF(PDFDocument doc, PDFPage page)
+        {
+            var tables = new List<PagedTable>();
+            PagedTable pagedTable = new PagedTable();
+            pagedTable.PageIndex = page.GetPageIndex();
+            pagedTable.PageCount = doc.GetPageCount();
+            pagedTable.Tables = new List<Table>();
+            tables.Add(pagedTable);
+
+            var structTree = new PDFStructTree(page);
+            int count = structTree.GetChildCount();
+            for (int j = 0; j < count; j++)
+            {
+                var structElement = structTree.GetChild(j);
+                TransStructElement(structElement, pagedTable);
+            }
+
+            return tables;
+        }
+
+        private static void TransStructElement(PDFStructElement structElement, PagedTable pagedTable)
+        {
+            if (structElement.ChildCount == -1)
+            {
+                return;
+            }
+
+            if (structElement.ChildCount == 0)
+            {
+                Console.WriteLine(structElement);
+            }
+            else
+            {
+                Console.WriteLine(structElement);
+                for (int i = 0; i < structElement.ChildCount; i++)
+                {
+                    var child = structElement.GetChild(i);
+                    if (string.Equals(child.Type, "Table", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var table = new Table(new List<Row>());
+                        pagedTable.Tables.Add(table);
+                    }
+                    else if (string.Equals(child.Type, "THead", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var table = pagedTable.Tables.Last();
+                        table.Rows.Add(new Row());
+                    }
+                    else if (string.Equals(child.Type, "TR", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var table = pagedTable.Tables.Last();
+                        table.Rows.Add(new Row());
+                    }
+                    else if (string.Equals(child.Type, "TH", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var table = pagedTable.Tables.Last();
+                        StringBuilder innerText = new StringBuilder();
+                        ReadInnerText(child, innerText);
+
+                        Cell cell = new Cell(0, 0, 0, 0, innerText.ToString());
+                        table.Rows.Last().Cells.Add(cell);
+                    }
+                    else if (string.Equals(child.Type, "TD", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var table = pagedTable.Tables.Last();
+                        StringBuilder innerText = new StringBuilder();
+                        ReadInnerText(child, innerText);
+
+                        Cell cell = new Cell(0, 0, 0, 0, innerText.ToString());
+                        table.Rows.Last().Cells.Add(cell);
+                    }
+
+                    TransStructElement(child, pagedTable);
+                }
+            }
+        }
+
+        private static void ReadInnerText(PDFStructElement structElement, StringBuilder buf)
+        {
+            if (structElement.ChildCount == -1)
+            {
+                return;
+            }
+
+            if (structElement.ChildCount == 0)
+            {
+                return;
+            }
+            else
+            {
+                Console.WriteLine(structElement);
+                for (int i = 0; i < structElement.ChildCount; i++)
+                {
+                    var child = structElement.GetChild(i);
+                    if (child.ActualText != null)
+                    {
+                        buf.Append(child.ActualText);
+                    }
+
+                    ReadInnerText(child, buf);
+                }
+            }
         }
 
         private void LoadText(PDFDocument pdfDoc, int pageIndex, PagedTable pagedTable, float ratio)

@@ -46,6 +46,10 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
         {
             if (obj is Cell other)
             {
+                if (Width == 0 || Height == 0)
+                {
+                    return false;
+                }
                 return X1 == other.X1 && Y1 == other.Y1 && X2 == other.X2 && Y2 == other.Y2;
             }
             return false;

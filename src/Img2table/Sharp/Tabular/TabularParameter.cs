@@ -28,7 +28,7 @@
             ImplicitRows = false,
             ImplicitColumns = false,
             DetectBorderlessTables = true,
-            RenderResolution = 300f,
+            RenderResolution = 144,
             CellTextOverlapRatio = DEFAULT_OVERLAP_RATIO,
         };
     }

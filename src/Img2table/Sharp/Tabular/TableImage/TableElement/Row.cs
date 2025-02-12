@@ -10,6 +10,11 @@
             _items = cells ?? throw new ArgumentNullException(nameof(cells));
         }
 
+        public Row(): base(0, 0, 0, 0)
+        {
+            _items = new List<Cell>();
+        }
+         
         public List<Cell> Items => _items;
         public List<Cell> Cells => _items;
         public int NbColumns => _items.Count;

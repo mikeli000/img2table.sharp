@@ -48,7 +48,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                 _thresh = ThresholdDarkAreas(_img, _charLength);
                 List<Table> borderlessTables = BorderlessTableIdentifier.IdentifyBorderlessTables(_thresh, _lines, _charLength, _medianLineSep.Value, _contours, _tables);
 
-                _tables.AddRange(borderlessTables.Where(tb => tb.NbRows >= 2 && tb.NbColumns >= 3));
+                _tables.AddRange(borderlessTables.Where(tb => tb.NbRows >= 2 && tb.NbColumns >= 3)); //TODO : improve this condition
             }
         }
 
