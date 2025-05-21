@@ -13,6 +13,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
         private const string DefaultStyle = @"
             table, th, td {
               border: 1px solid black;
+              border-collapse: collapse;
             }";
 
         public static void Generate(PagedTableDTO pageTableDto, string outputFile)
@@ -70,7 +71,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                             cellNode.SetAttributeValue("colspan", cell.ColSpan.ToString());
                             j += cell.ColSpan - 1;
                         }
-                        cellNode.InnerHtml = cell.Content;
+                        cellNode.InnerHtml = ProcessNewline(cell.Content);
                         rowNode.AppendChild(cellNode);
                     }
                     tableNode.AppendChild(rowNode);
@@ -81,6 +82,12 @@ namespace img2table.sharp.Img2table.Sharp.Data
 
             StreamWriter sw = new StreamWriter(outputFile);
             htmlDoc.Save(sw);
+        }
+
+        private static string ProcessNewline(string text)
+        {
+            text = text.Replace(Environment.NewLine, "<br />");
+            return text;
         }
     }
 }

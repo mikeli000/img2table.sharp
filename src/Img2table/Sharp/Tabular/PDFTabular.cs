@@ -43,7 +43,7 @@ namespace Img2table.Sharp.Tabular
                     pdfDoc.RenderPage(pageImagePath, i, _parameter.RenderResolution, backgroundColor: Color.White);
 
                     var imageTabular = new ImageTabular(_parameter);
-                    var pagedTable = imageTabular.Process(pageImagePath);
+                    var pagedTable = imageTabular.Process(pageImagePath, true);
 
                     allTables.Add(pagedTable);
 
@@ -153,6 +153,15 @@ namespace Img2table.Sharp.Tabular
                     }
 
                     ReadInnerText(child, buf);
+
+                    if (string.Equals(child.Type, "P", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(child.Type, "LI", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (buf.Length > 0)
+                        {
+                            buf.Append(Environment.NewLine);
+                        }
+                    }
                 }
             }
         }

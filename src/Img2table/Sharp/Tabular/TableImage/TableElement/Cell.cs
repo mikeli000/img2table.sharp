@@ -16,7 +16,7 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
             }
         }
 
-        public void AddText(string appendText, bool endSpace = false)
+        public void AddText(string appendText, bool endSpace = false, bool newline = false)
         {
             if (!string.IsNullOrEmpty(appendText))
             {
@@ -24,6 +24,11 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
                 if (endSpace)
                 {
                     _text.Append(" ");
+                }
+
+                if (newline)
+                {
+                    _text.AppendLine();
                 }
             }
         }
@@ -54,7 +59,6 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
             }
             return false;
         }
-
 
         public override string ToString()
         {

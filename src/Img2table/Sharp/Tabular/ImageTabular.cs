@@ -1,7 +1,11 @@
 ﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
 using PDFDict.SDK.Sharp.Core.OCR;
+using Sdcb.PaddleOCR.Models.Local;
+using Sdcb.PaddleOCR;
 using System.Drawing;
+using System.Text;
+using Size = OpenCvSharp.Size;
 
 namespace Img2table.Sharp.Tabular
 {
@@ -27,7 +31,7 @@ namespace Img2table.Sharp.Tabular
 
             if (loadText)
             {
-                LoadText(imgFile, tables);
+                PaddleOCR(imgFile, tables);
             }
             
             var pagedTable = new PagedTable
@@ -41,17 +45,53 @@ namespace Img2table.Sharp.Tabular
             return pagedTable;
         }
 
+
+        private void PaddleOCR(string imageFile, List<Table> tables)
+        {
+            using Mat src = Cv2.ImRead(imageFile);
+            Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
+            {
+                using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
+                all.Detector.UnclipRatio = 1.2f;
+                return all.Run(src);
+            });
+            PaddleOcrResult ocrResult = ocrResultTask.Result;
+
+            var buf = new StringBuilder();
+            var pageTextCells = ocrResult.Regions.Select(word =>
+            {
+                var left = word.Rect.BoundingRect().Left;
+                var top = word.Rect.BoundingRect().Top;
+                var right = word.Rect.BoundingRect().Right;
+                var bottom = word.Rect.BoundingRect().Bottom;
+
+                buf.Append($"{word.Text}");
+                return new Cell(left, top, right, bottom, word.Text);
+            }).ToList();
+
+            Console.WriteLine(buf.ToString());
+            foreach (var table in tables)
+            {
+                foreach (var row in table.Rows)
+                {
+                    LoadRowText(row, pageTextCells, _parameter);
+                }
+            }
+        }
+
         private void LoadText(string imageFile, List<Table> tables)
         {
             var wordList = TesseractOCR.OCRWordLevel(imageFile);
 
+            var buf = new StringBuilder();
             var pageTextCells = wordList.Select(word =>
             {
                 var left = (int)Math.Round(word.BBox.Left);
                 var top = (int)Math.Round(word.BBox.Top);
                 var right = (int)Math.Round(word.BBox.Right);
                 var bottom = (int)Math.Round(word.BBox.Bottom);
-                
+
+                buf.Append($"{word.Text}");
                 return new Cell(left, top, right, bottom, word.Text);
             }).ToList();
 
@@ -75,7 +115,7 @@ namespace Img2table.Sharp.Tabular
                 {
                     foreach (var tc in oneTextCells)
                     {
-                        cell.AddText(tc.Content, true);
+                        cell.AddText(tc.Content, true, true);
                         pageTextCells.Remove(tc);
                     }
                 }
@@ -95,6 +135,8 @@ namespace Img2table.Sharp.Tabular
                     cells.Add(tc);
                 }
             }
+            cells = cells.OrderBy(c => c.X1).ToList();
+            cells = cells.OrderBy(c => c.Y1).ToList();
 
             return cells;
         }

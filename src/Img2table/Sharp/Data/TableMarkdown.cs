@@ -29,12 +29,12 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 {
                     // Add header row
                     var headerRow = table.Items.First();
-                    WriteTableRow(sb, string.Join(" | ", headerRow.Items.Select(c => c.Content)));
+                    WriteTableRow(sb, string.Join(" | ", headerRow.Items.Select(c => ProcessNewline(c.Content))));
                     WriteTableRow(sb, string.Join(" | ", headerRow.Items.Select(c => "---")));
 
                     foreach (var row in table.Items.Skip(1))
                     {
-                        WriteTableRow(sb, string.Join(" | ", row.Items.Select(c => c.Content)));
+                        WriteTableRow(sb, string.Join(" | ", row.Items.Select(c => ProcessNewline(c.Content))));
                     }
                 }
             }
@@ -48,6 +48,12 @@ namespace img2table.sharp.Img2table.Sharp.Data
             buf.Append(rowText);
             buf.Append(" | ");
             buf.AppendLine();
+        }
+
+        private static string ProcessNewline(string text)
+        {
+            text = text.Replace(Environment.NewLine, "<br />");
+            return text;
         }
     }
 }
