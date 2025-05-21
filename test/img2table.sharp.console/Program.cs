@@ -17,11 +17,11 @@ namespace img2table.sharp.console
     {
         static void Main(string[] args)
         {
-            //TabularPDF();
+            TabularPDF();
 
             // TabularImage();
 
-            Paddle();
+            // Paddle();
         }
 
         private static void Paddle()
@@ -173,7 +173,7 @@ namespace img2table.sharp.console
 
         private static void TabularPDF()
         {
-            string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/装配图.pdf");
+            string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/Normal Table.pdf");
             //string tempFile = @"C:\Users\MikeLi\Downloads\11068a08-c991-4511-b644-aa7840833616.PDF";
             //string tempFile = @"C:\dev\testfiles\pdfs\tagged\CoB Playbook - FY24.PDF";
 
@@ -181,8 +181,8 @@ namespace img2table.sharp.console
 
             var param = TabularParameter.AutoDetect;
             param.DetectBorderlessTables = true;
-            param.CellTextOverlapRatio = 0.6f;
-            param.RenderResolution = 96;
+            param.CellTextOverlapRatio = 0.7f;
+            param.RenderResolution = 72;
             var pdfTabular = new PDFTabular(param);
             var tables = pdfTabular.Process(tempFile);
 

@@ -43,11 +43,12 @@ namespace Img2table.Sharp.Tabular
                     pdfDoc.RenderPage(pageImagePath, i, _parameter.RenderResolution, backgroundColor: Color.White);
 
                     var imageTabular = new ImageTabular(_parameter);
-                    var pagedTable = imageTabular.Process(pageImagePath, true);
+                    var pagedTable = imageTabular.Process(pageImagePath, false);
 
                     allTables.Add(pagedTable);
 
-                    LoadText(pdfDoc, i, pagedTable, _parameter.RenderResolution / 72f);
+                    //LoadText(pdfDoc, i, pagedTable, _parameter.RenderResolution / 72f);
+                    LoadText(pdfDoc, i, pagedTable, 1f);
                 }
             }
 

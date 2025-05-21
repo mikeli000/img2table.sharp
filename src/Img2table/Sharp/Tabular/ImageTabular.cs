@@ -150,6 +150,11 @@ namespace Img2table.Sharp.Tabular
                 return false;
             }
 
+            if (intersection.Equals(dst))
+            {
+                return true;
+            }
+
             float intersectionArea = intersection.Width * intersection.Height;
             float dstArea = dst.Width * dst.Height;
 
