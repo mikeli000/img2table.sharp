@@ -182,7 +182,7 @@ namespace img2table.sharp.console
             var param = TabularParameter.AutoDetect;
             param.DetectBorderlessTables = true;
             param.CellTextOverlapRatio = 0.7f;
-            param.RenderResolution = 72;
+            param.RenderResolution = 144f;
             var pdfTabular = new PDFTabular(param);
             var tables = pdfTabular.Process(tempFile);
 
