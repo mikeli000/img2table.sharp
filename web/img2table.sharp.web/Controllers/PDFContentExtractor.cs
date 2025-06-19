@@ -1,0 +1,325 @@
+﻿using System.IO;
+using System;
+using System.Net.Http;
+using img2table.sharp.web.Models;
+using PDFDict.SDK.Sharp.Core;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Net.Http.Headers;
+using System.Net;
+using System.Drawing;
+using System.Linq;
+using OpenCvSharp;
+using System.Collections.Generic;
+using PDFDict.SDK.Sharp.Core.Contents;
+
+namespace img2table.sharp.web.Controllers
+{
+    public class PDFContentExtractor
+    {
+        private static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
+        private static readonly string DocumentLayoutExtractorServiceUrl = "http://localhost:8000/detect";
+        public static float DEFAULT_OVERLAP_RATIO = 0.8f;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private string _rootFolder;
+        private float RenderDPI = 300;
+        private float MinPredictConfidence = 0.2f;
+        
+        public PDFContentExtractor(IHttpClientFactory httpClientFactory)
+        {
+            Init();
+
+            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        }
+
+        private void Init()
+        {
+            _rootFolder = Path.Combine(Path.GetTempPath(), TempFolderName);
+            if (!Directory.Exists(_rootFolder))
+            {
+                Directory.CreateDirectory(_rootFolder);
+            }
+        }
+
+        private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
+        {
+            using var httpClient = _httpClientFactory.CreateClient();
+            using var formData = new MultipartFormDataContent();
+
+            var fileContent = new ByteArrayContent(pdfFileBytes);
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
+            formData.Add(fileContent, "file", pdfFileName);
+
+            formData.Add(new StringContent(RenderDPI + ""), "dpi");
+            formData.Add(new StringContent(MinPredictConfidence + ""), "confidence");
+            var response = await httpClient.PostAsync(DocumentLayoutExtractorServiceUrl, formData);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new PDFContentExtractorException(response.StatusCode, errorContent);
+            }
+
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            var detectResult = JsonSerializer.Deserialize<ChunkResult>(jsonResponse);
+
+            return detectResult;
+        }
+
+        public async Task ExtractAsync(byte[] pdfFileBytes, string pdfFileName)
+        {
+            ChunkResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
+
+            string workFolder = Path.Combine(_rootFolder, Guid.NewGuid().ToString());
+            if (!Directory.Exists(workFolder))
+            {
+                Directory.CreateDirectory(workFolder);
+            }
+
+            string pdfFile = Path.Combine(workFolder, pdfFileName);
+            await File.WriteAllBytesAsync(pdfFile, pdfFileBytes);
+            using (PDFDocument pdfDoc = PDFDocument.Load(pdfFile))
+            {
+                int pageCount = pdfDoc.GetPageCount();
+
+                for (int i = 0; i < pageCount; i++)
+                {
+                    // step 1: check if page is tagged, if yes, use tagged content
+                    var page = pdfDoc.LoadPage(i);
+                    if (page.IsTagged())
+                    {
+                    }
+
+                    string pageImagePath = Path.Combine(workFolder, @$"page{i + 1}.png");
+                    pdfDoc.RenderPage(pageImagePath, i, RenderDPI, backgroundColor: Color.White);
+
+                    var pageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == i + 1);
+                    var filteredChunks = ChunkUtils.FilterOverlapping(pageChunks.Objects);
+
+                    string previewFile = Path.Combine(workFolder, $"preview_{i + 1}.png");
+                    await SaveBase64ImageToFileAsync(previewFile, pageChunks.LabeledImage);
+
+                    BuildPageChunks(pdfDoc, page, filteredChunks, RenderDPI / 72f);
+                    DrawPageChunks(pageImagePath, filteredChunks);
+                }
+            }
+        }
+
+        private void BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
+        {
+            var pageThread = pdfPage.BuildPageThread();
+            var textThread = pageThread.GetTextThread();
+
+            var pageElements = TransPageElements(pageThread.GetContentList(), ratio, pdfPage.GetPageHeight());
+            foreach (var chunkObject in filteredChunkObjects)
+            {
+                var chunkType = ChunkType.MappingChunkType(chunkObject.Label);
+                if (chunkType == ChunkType.Unknown)
+                {
+                    continue;
+                }
+
+                var chunkBox = RectangleF.FromLTRB((float)chunkObject.BoundingBox[0], (float)chunkObject.BoundingBox[1], (float)chunkObject.BoundingBox[2], (float)chunkObject.BoundingBox[3]);
+                var chunkElements = FindPageElementsInBox(chunkBox, pageElements);
+
+                var chunkElement = new ChunkElement
+                {
+                    ChunkObject = chunkObject,
+                    ContentElements = chunkElements
+                };
+                switch (chunkType)
+                {
+                    case ChunkType.Table:
+                        ProcessTableChunk(chunkElement);
+                        break;
+                    case ChunkType.SectionHeader:
+                        break;
+                    case ChunkType.Picture:
+                        ProcessPictureChunk(chunkElement);
+                        break;
+                    default:
+                        // Handle other chunk types if needed
+                        break;
+                }
+            }
+        }
+
+        private void ProcessTableChunk(ChunkElement chunkElement)
+        {
+            //throw new NotImplementedException();
+        }
+
+        private void ProcessPictureChunk(ChunkElement chunkElement)
+        {
+            throw new NotImplementedException();
+        }
+
+        private bool IsChunkType(string label, string chunkType)
+        {
+            return string.Equals(label, chunkType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private List<ContentElement> TransPageElements(List<PageElement> textElements, float ratio, double pageHeight)
+        {
+            List<ContentElement> transPageElements = new List<ContentElement>();
+            double ph = pageHeight * ratio;
+            foreach (var ele in textElements)
+            {
+                int top = (int)Math.Round(ph - ele.BBox.Top * ratio - ele.BBox.Height * ratio);
+                int bottom = (int)Math.Round(top + ele.BBox.Height * ratio);
+                int left = (int)Math.Round(ele.BBox.Left * ratio);
+                int right = (int)Math.Round(ele.BBox.Right * ratio);
+
+                ContentElement c = new ContentElement()
+                {
+                    Left = left,
+                    Top = top,
+                    Right = right,
+                    Bottom = bottom,
+                    PageElement = ele
+                };
+                transPageElements.Add(c);
+            }
+
+            return transPageElements;
+        }
+
+        private static List<ContentElement> FindPageElementsInBox(RectangleF chunkBox, List<ContentElement> pageElements)
+        {
+            var chunks = new List<ContentElement>();
+            foreach (var tc in pageElements)
+            {
+                var textRect = tc.Rect();
+
+                bool contained = IsContained(chunkBox, textRect);
+                if (contained)
+                {
+                    chunks.Add(tc);
+                }
+            }
+            chunks = chunks.OrderBy(c => c.Left).ToList();
+            chunks = chunks.OrderBy(c => c.Top).ToList();
+
+            return chunks;
+        }
+
+        private static bool IsContained(RectangleF container, RectangleF dst)
+        {
+            RectangleF intersection = RectangleF.Intersect(container, dst);
+
+            if (intersection.IsEmpty)
+            {
+                return false;
+            }
+
+            if (intersection.Equals(dst))
+            {
+                return true;
+            }
+
+            float intersectionArea = intersection.Width * intersection.Height;
+            float dstArea = dst.Width * dst.Height;
+
+            return intersectionArea / dstArea >= DEFAULT_OVERLAP_RATIO;
+        }
+
+        public static async Task SaveBase64ImageToFileAsync(string outputFilePath, string base64String)
+        {
+            if (base64String.Contains(","))
+            {
+                base64String = base64String.Substring(base64String.IndexOf(",") + 1);
+            }
+
+            byte[] imageBytes = Convert.FromBase64String(base64String);
+            await File.WriteAllBytesAsync(outputFilePath, imageBytes);
+        }
+
+        private static void DrawPageChunks(string pageImagePath, IEnumerable<ChunkObject> chunkObjects)
+        {
+            if (!File.Exists(pageImagePath))
+            {
+                Console.WriteLine($"Image not found: {pageImagePath}");
+                return;
+            }
+
+            using var image = Cv2.ImRead(pageImagePath, ImreadModes.Color);
+            int thickness = 4;
+            double fontScale = 2;
+
+            foreach (var chunk in chunkObjects)
+            {
+                if (chunk.BoundingBox is not { Length: 4 }) continue;
+
+                var x1 = (int)chunk.BoundingBox[0];
+                var y1 = (int)chunk.BoundingBox[1];
+                var x2 = (int)chunk.BoundingBox[2];
+                var y2 = (int)chunk.BoundingBox[3];
+
+                string label = chunk.Label ?? "Unknown";
+                double conf = chunk.Confidence ?? 0.0;
+
+                var scalarColor = new Scalar(0, 255, 0);
+                if (ChunkType.LabelColors.TryGetValue(label, out var c))
+                {
+                    scalarColor = new Scalar(c.R, c.G, c.B);
+                }
+
+                // Draw rectangle
+                Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
+
+                // Draw label text
+                string text = $"{label} {conf:F2}";
+                Cv2.PutText(image, text, new OpenCvSharp.Point(x1, y1 - 5), HersheyFonts.HersheyDuplex, fontScale, scalarColor, 1);
+            }
+
+            Cv2.ImWrite(pageImagePath, image);
+        }
+    }
+
+    public class ContentElement
+    {
+        public int Left { get; set; }
+        public int Top { get; set; }
+        public int Right { get; set; }
+        public int Bottom { get; set; }
+        public PageElement PageElement { get; set; }
+
+        public RectangleF Rect()
+        {
+            return RectangleF.FromLTRB(Left, Top, Right, Bottom);
+        }
+
+        public string Content
+        {
+            get
+            {
+                if (PageElement is TextElement textElement)
+                {
+                    return textElement.GetText();
+                }
+
+                return string.Empty;
+            }
+        }
+    }
+
+
+    public class ChunkElement
+    {
+        public ChunkObject ChunkObject { get; set; }
+        public IEnumerable<ContentElement> ContentElements { get; set; }
+    }
+
+    public class PDFContentExtractorException : Exception
+    {
+        public HttpStatusCode StatusCode { get; }
+        public string ResponseContent { get; }
+
+        public PDFContentExtractorException(HttpStatusCode statusCode, string content)
+            : base($"PDF content extraction failed with status code {(int)statusCode}: {content}")
+        {
+            StatusCode = statusCode;
+            ResponseContent = content;
+        }
+    }
+}
