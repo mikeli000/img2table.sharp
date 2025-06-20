@@ -12,33 +12,25 @@ using System.Linq;
 using OpenCvSharp;
 using System.Collections.Generic;
 using PDFDict.SDK.Sharp.Core.Contents;
+using SharpCompress.Compressors.Xz;
 
 namespace img2table.sharp.web.Controllers
 {
     public class PDFContentExtractor
     {
-        private static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
+        public static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
+
         private static readonly string DocumentLayoutExtractorServiceUrl = "http://localhost:8000/detect";
         public static float DEFAULT_OVERLAP_RATIO = 0.8f;
         private readonly IHttpClientFactory _httpClientFactory;
-        private string _rootFolder;
+        private readonly string _rootFolder;
         private float RenderDPI = 300;
-        private float MinPredictConfidence = 0.2f;
+        private float PredictConfidenceThreshold = 0.2f;
         
-        public PDFContentExtractor(IHttpClientFactory httpClientFactory)
+        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder)
         {
-            Init();
-
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
-        }
-
-        private void Init()
-        {
-            _rootFolder = Path.Combine(Path.GetTempPath(), TempFolderName);
-            if (!Directory.Exists(_rootFolder))
-            {
-                Directory.CreateDirectory(_rootFolder);
-            }
+            _rootFolder = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
         }
 
         private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
@@ -51,7 +43,7 @@ namespace img2table.sharp.web.Controllers
             formData.Add(fileContent, "file", pdfFileName);
 
             formData.Add(new StringContent(RenderDPI + ""), "dpi");
-            formData.Add(new StringContent(MinPredictConfidence + ""), "confidence");
+            formData.Add(new StringContent(PredictConfidenceThreshold + ""), "confidence");
             var response = await httpClient.PostAsync(DocumentLayoutExtractorServiceUrl, formData);
 
             if (!response.IsSuccessStatusCode)
@@ -66,11 +58,12 @@ namespace img2table.sharp.web.Controllers
             return detectResult;
         }
 
-        public async Task ExtractAsync(byte[] pdfFileBytes, string pdfFileName)
+        public async Task<DocumentChunks> ExtractAsync(byte[] pdfFileBytes, string pdfFileName)
         {
             ChunkResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
 
-            string workFolder = Path.Combine(_rootFolder, Guid.NewGuid().ToString());
+            string jobFolderName = Guid.NewGuid().ToString();
+            string workFolder = Path.Combine(_rootFolder, jobFolderName);
             if (!Directory.Exists(workFolder))
             {
                 Directory.CreateDirectory(workFolder);
@@ -80,6 +73,10 @@ namespace img2table.sharp.web.Controllers
             await File.WriteAllBytesAsync(pdfFile, pdfFileBytes);
             using (PDFDocument pdfDoc = PDFDocument.Load(pdfFile))
             {
+                var documentChunks = new DocumentChunks();
+                documentChunks.DocumentName = pdfFileName;
+                var pagedChunks = new List<PageChunks>();
+
                 int pageCount = pdfDoc.GetPageCount();
 
                 for (int i = 0; i < pageCount; i++)
@@ -93,23 +90,37 @@ namespace img2table.sharp.web.Controllers
                     string pageImagePath = Path.Combine(workFolder, @$"page{i + 1}.png");
                     pdfDoc.RenderPage(pageImagePath, i, RenderDPI, backgroundColor: Color.White);
 
-                    var pageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == i + 1);
-                    var filteredChunks = ChunkUtils.FilterOverlapping(pageChunks.Objects);
+                    var predictedPageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == i + 1);
+                    var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
 
-                    string previewFile = Path.Combine(workFolder, $"preview_{i + 1}.png");
-                    await SaveBase64ImageToFileAsync(previewFile, pageChunks.LabeledImage);
-
-                    BuildPageChunks(pdfDoc, page, filteredChunks, RenderDPI / 72f);
+                    var previewImageName = $"preview_{i + 1}.png";
+                    string previewFile = Path.Combine(workFolder, previewImageName);
+                    await SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
                     DrawPageChunks(pageImagePath, filteredChunks);
+
+
+                    var chunks = BuildPageChunks(pdfDoc, page, filteredChunks, RenderDPI / 72f);
+                    var pageChunks = new PageChunks
+                    {
+                        PageNumber = i + 1,
+                        PreviewImagePath = $"{WorkDirectoryOptions.RequestPath}/{jobFolderName}/{previewImageName}",
+                        Chunks = chunks
+                    };
+
+                    pagedChunks.Add(pageChunks);
                 }
+
+                documentChunks.PagedChunks = pagedChunks;
+                return documentChunks;
             }
         }
 
-        private void BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
+        private IList<ChunkElement> BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
         {
             var pageThread = pdfPage.BuildPageThread();
             var textThread = pageThread.GetTextThread();
 
+            var chunks = new List<ChunkElement>();
             var pageElements = TransPageElements(pageThread.GetContentList(), ratio, pdfPage.GetPageHeight());
             foreach (var chunkObject in filteredChunkObjects)
             {
@@ -127,31 +138,99 @@ namespace img2table.sharp.web.Controllers
                     ChunkObject = chunkObject,
                     ContentElements = chunkElements
                 };
-                switch (chunkType)
-                {
-                    case ChunkType.Table:
-                        ProcessTableChunk(chunkElement);
-                        break;
-                    case ChunkType.SectionHeader:
-                        break;
-                    case ChunkType.Picture:
-                        ProcessPictureChunk(chunkElement);
-                        break;
-                    default:
-                        // Handle other chunk types if needed
-                        break;
-                }
+                ProcessChunkElement(chunkElement);
+                chunks.Add(chunkElement);
             }
+
+            return chunks;
+        }
+
+        private void ProcessChunkElement(ChunkElement chunkElement)
+        {
+            var chunkType = ChunkType.MappingChunkType(chunkElement.ChunkObject.Label);
+            if (chunkType == ChunkType.Unknown)
+            {
+                return;
+            }
+
+            switch (chunkType)
+            {
+                case ChunkType.Table:
+                    ProcessTableChunk(chunkElement);
+                    break;
+                case ChunkType.Picture:
+                    ProcessPictureChunk(chunkElement);
+                    break;
+                case ChunkType.SectionHeader:
+                    ProcessPageFooterChunk(chunkElement);
+                    break;
+                case ChunkType.Caption:
+                    ProcessCaptionChunk(chunkElement);
+                    break;
+                case ChunkType.Footnote:
+                    ProcessFootnoteChunk(chunkElement);
+                    break;
+                case ChunkType.Formula:
+                    ProcessFormulaChunk(chunkElement);
+                    break;
+                case ChunkType.ListItem:
+                    ProcessListItemChunk(chunkElement);
+                    break;
+                case ChunkType.PageFooter:
+                    ProcessPageFooterChunk(chunkElement);
+                    break;
+                case ChunkType.PageHeader:
+                    ProcessPageHeaderChunk(chunkElement);
+                    break;
+                case ChunkType.Text:
+                    ProcessTextChunk(chunkElement);
+                    break;
+                case ChunkType.Title:
+                    ProcessTitleChunk(chunkElement);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void ProcessTitleChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessTextChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessPageHeaderChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessListItemChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessFormulaChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessFootnoteChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessCaptionChunk(ChunkElement chunkElement)
+        {
+        }
+
+        private void ProcessPageFooterChunk(ChunkElement chunkElement)
+        {
         }
 
         private void ProcessTableChunk(ChunkElement chunkElement)
         {
-            //throw new NotImplementedException();
         }
 
         private void ProcessPictureChunk(ChunkElement chunkElement)
         {
-            throw new NotImplementedException();
         }
 
         private bool IsChunkType(string label, string chunkType)
@@ -308,6 +387,19 @@ namespace img2table.sharp.web.Controllers
     {
         public ChunkObject ChunkObject { get; set; }
         public IEnumerable<ContentElement> ContentElements { get; set; }
+    }
+
+    public class PageChunks
+    {
+        public int PageNumber { get; set; }
+        public string PreviewImagePath { get; set; }
+        public IEnumerable<ChunkElement> Chunks { get; set; }
+    }
+
+    public class DocumentChunks
+    {
+        public string DocumentName { get; set; }
+        public IEnumerable<PageChunks> PagedChunks { get; set; }
     }
 
     public class PDFContentExtractorException : Exception

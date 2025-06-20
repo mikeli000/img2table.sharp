@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
@@ -8,6 +7,11 @@ export default defineConfig({
   base: '/client-app/',
   build: {
     outDir: '../wwwroot/client-app',
-    emptyOutDir: true
-  }
+    emptyOutDir: true,
+  },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
 })

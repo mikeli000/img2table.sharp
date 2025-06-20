@@ -14,6 +14,7 @@ using Img2table.Sharp.Tabular.TableImage.TableElement;
 using System;
 using System.Linq;
 using OpenCvSharp;
+using Microsoft.Extensions.Options;
 
 namespace img2table.sharp.web.Controllers
 {
@@ -22,10 +23,12 @@ namespace img2table.sharp.web.Controllers
     public class ExtractController : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly string _rootFolder;
 
-        public ExtractController(IHttpClientFactory httpClientFactory)
+        public ExtractController(IHttpClientFactory httpClientFactory, IOptions<WorkDirectoryOptions> options)
         {
             _httpClientFactory = httpClientFactory;
+            _rootFolder = options.Value.RootFolder;
         }
 
         [HttpPost]
@@ -43,10 +46,10 @@ namespace img2table.sharp.web.Controllers
                 fileBytes = ms.ToArray();
             }
 
-            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory);
-            await extractor.ExtractAsync(fileBytes, uploadFile.FileName);
+            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder);
+            var res = await extractor.ExtractAsync(fileBytes, uploadFile.FileName);
 
-            return Ok(uploadFile.FileName);
+            return Ok(res);
         }
     }
 }
