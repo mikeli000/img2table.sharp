@@ -1,9 +1,11 @@
 import React from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
-const ExtractionPane = ({ result }) => {
-  return (
+const ExtractionPane = ({ documentChunks }) => {
+    return (
     <Card className="h-full">
       <CardContent className="p-4 h-full flex flex-col">
         <Tabs defaultValue="markdown" className="flex flex-col flex-1">
@@ -23,12 +25,25 @@ const ExtractionPane = ({ result }) => {
           </TabsList>
 
           <TabsContent value="markdown" className="mt-4 overflow-auto flex-1">
-            <pre className="whitespace-pre-wrap text-sm text-gray-800">{result.markdown || '暂无内容'}</pre>
+            {documentChunks.markdown ? (
+              <div className="prose max-w-none text-sm">
+                <ReactMarkdown rehypePlugins={[rehypeRaw]} key={documentChunks.markdown}>
+                  {documentChunks.markdown}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div className="text-gray-500 italic">No markdown content</div>
+            )}
           </TabsContent>
+
           <TabsContent value="json" className="mt-4 overflow-auto flex-1">
-            <pre className="whitespace-pre-wrap text-sm text-gray-800">
-              {JSON.stringify(result.json, null, 2)}
-            </pre>
+            {documentChunks ? (
+              <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                {JSON.stringify(documentChunks, null, 2)}
+              </pre>
+            ) : (
+              <div className="text-gray-500 italic">No JSON content</div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-const Sidebar = () => {
+const Sidebar = ({ setDocumentChunks }) => {
   const fileInputRef = useRef(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -34,10 +35,14 @@ const Sidebar = () => {
     formData.append('uploadFile', file);
 
     try {
-      const response = await fetch('https://localhost:53185/api/extract', {
+      const response = await fetch(`${baseUrl}/api/extract`, {
         method: 'POST',
         body: formData,
       });
+      const result = await response.json();
+      setDocumentChunks(result || []);
+
+      console.log('pagedChunks:', result);
 
       if (response.ok) {
         setUploadedFiles((prev) => [...prev, file.name]);

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -35,6 +34,15 @@ namespace img2table.sharp.web.Models
 
         [JsonPropertyName("bbox")]
         public double[] BoundingBox { get; set; }
+
+        [JsonIgnore]
+        public double X0 => BoundingBox[0];
+        [JsonIgnore]
+        public double Y0 => BoundingBox[1];
+        [JsonIgnore]
+        public double X1 => BoundingBox[2];
+        [JsonIgnore]
+        public double Y1 => BoundingBox[3];
     }
 
     public class ChunkType
@@ -126,7 +134,6 @@ namespace img2table.sharp.web.Models
     {
         public static bool IsOverlapping(double[] boxA, double[] boxB, double iouThreshold = 0.8)
         {
-            // box: [x1, y1, x2, y2]
             double xA = Math.Max(boxA[0], boxB[0]);
             double yA = Math.Max(boxA[1], boxB[1]);
             double xB = Math.Min(boxA[2], boxB[2]);
@@ -169,7 +176,54 @@ namespace img2table.sharp.web.Models
 
             return result
                 .OrderBy(o => o.BoundingBox[1])  // y1
-                .ThenBy(o => o.BoundingBox[0])   // x1
+                .OrderBy(o => o.BoundingBox[0])   // x1
+                .ToList();
+        }
+
+        public static List<ChunkObject> RebuildReadingOrder(IEnumerable<ChunkObject> objects)
+        {
+            var headers = objects.Where(c => c.Label == ChunkType.PageHeader).ToList();
+            var footers = objects.Where(c => c.Label == ChunkType.PageFooter).ToList();
+            var body = objects.Except(headers).Except(footers).ToList();
+
+            var result = new List<ChunkObject>();
+
+            result.AddRange(headers);
+            result.AddRange(body);
+            result.AddRange(footers);
+
+            return result;
+        }
+
+        public static void SplitIntoColumns(List<ChunkObject> boxes, out List<ChunkObject> left, out List<ChunkObject> right)
+        {
+            var centers = boxes
+                .Select(b => (b.X0 + b.X1) / 2)
+                .OrderBy(c => c)
+                .ToList();
+
+            double maxGap = 0;
+            double splitX = 0;
+
+            for (int i = 0; i < centers.Count - 1; i++)
+            {
+                var gap = centers[i + 1] - centers[i];
+                if (gap > maxGap)
+                {
+                    maxGap = gap;
+                    splitX = (centers[i + 1] + centers[i]) / 2;
+                }
+            }
+
+            left = SortByReadingOrder(boxes.Where(b => (b.X0 + b.X1) / 2 <= splitX).ToList());
+            right = SortByReadingOrder(boxes.Where(b => (b.X0 + b.X1) / 2 > splitX).ToList());
+        }
+
+        public static List<ChunkObject> SortByReadingOrder(List<ChunkObject> boxes)
+        {
+            return boxes
+                .OrderBy(b => b.Y0)
+                .ThenBy(b => b.X0)
                 .ToList();
         }
     }
