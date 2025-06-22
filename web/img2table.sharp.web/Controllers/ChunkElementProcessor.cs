@@ -139,24 +139,49 @@ namespace img2table.sharp.web.Controllers
                 return;
             }
 
-            var headers = new List<string>();
-            var rows = new List<string[]>();
-
-            foreach (var content in contents)
-            {
-                if (content.PageElement is ImageElement imageTable)
-                {
-                }
-                else if (content.PageElement is TextElement textElement)
-                {
-                }
-            }
-
-            _writer.WriteTable(headers.ToArray(), rows);
+            _writer.WriteText(chunkElement.MarkdownText);
         }
 
         private void ProcessPictureChunk(ChunkElement chunkElement)
         {
+            var contents = chunkElement.ContentElements;
+            if (contents == null || contents.Count() == 0)
+            {
+                return;
+            }
+
+            var textElements = new List<ContentElement>();
+            foreach (var content in contents)
+            {
+                if (content.PageElement is ImageElement imageElement)
+                {
+                    // handle image element
+                }
+                else if (content.PageElement is TextElement textElement)
+                {
+                    textElements.Add(content);
+                }
+            }
+
+            if (textElements.Count > 0)
+            {
+                foreach (var content in contents)
+                {
+                    if (content.PageElement == null)
+                    {
+                        continue;
+                    }
+
+                    if (_userEmbeddedHtml && TryBuildHTMLPiece(content.PageElement, out string html))
+                    {
+                        _writer.AppendText(html);
+                    }
+                    else if (content.PageElement is TextElement textElement)
+                    {
+                        _writer.AppendText(textElement.GetText());
+                    }
+                }
+            }
         }
 
         private void WriteText(ChunkElement chunkElement)

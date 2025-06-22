@@ -15,6 +15,9 @@ using PDFDict.SDK.Sharp.Core.Contents;
 using SharpCompress.Compressors.Xz;
 using System.Text.Json.Serialization;
 using System.Text;
+using static Img2table.Sharp.Tabular.TableImage.TableElement.Extraction;
+using Img2table.Sharp.Tabular;
+using img2table.sharp.Img2table.Sharp.Data;
 
 namespace img2table.sharp.web.Controllers
 {
@@ -63,6 +66,9 @@ namespace img2table.sharp.web.Controllers
             return detectResult;
         }
 
+        private bool _drawPageChunks = true;
+        private bool _saveDectectImage = true;
+
         public async Task<DocumentChunks> ExtractAsync(byte[] pdfFileBytes, string pdfFileName)
         {
             ChunkResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
@@ -100,21 +106,26 @@ namespace img2table.sharp.web.Controllers
                     var predictedPageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == i + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
-                    DrawPageChunks(pageImagePath, filteredChunks);
 
-                    var previewImageName = $"detect_page_{pageNumber}.png";
-                    string previewFile = Path.Combine(workFolder, previewImageName);
-                    await SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
-                    
-                    var chunks = BuildPageChunks(pdfDoc, page, filteredChunks, RenderDPI / 72f);
+                    var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, filteredChunks, RenderDPI / 72f);
                     var pageChunks = new PagedChunk
                     {
                         PageNumber = pageNumber,
-                        PreviewImagePath = $"{WorkDirectoryOptions.RequestPath}/{jobFolderName}/{previewImageName}",
+                        PreviewImagePath = $"{WorkDirectoryOptions.RequestPath}/{jobFolderName}/{pageImageName}",
                         Chunks = chunks
                     };
-
                     pagedChunks.Add(pageChunks);
+
+                    if (_drawPageChunks)
+                    {
+                        DrawPageChunks(pageImagePath, filteredChunks);
+                    }
+                    if (_saveDectectImage)
+                    {
+                        var previewImageName = $"detect_page_{pageNumber}.png";
+                        string previewFile = Path.Combine(workFolder, previewImageName);
+                        await SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
+                    }
                 }
 
                 documentChunks.PagedChunks = pagedChunks;
@@ -122,7 +133,7 @@ namespace img2table.sharp.web.Controllers
             }
         }
 
-        private IList<ChunkElement> BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
+        private IList<ChunkElement> BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, string workFolder, string pageImage, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
         {
             var pageThread = pdfPage.BuildPageThread();
             var textThread = pageThread.GetTextThread();
@@ -145,11 +156,81 @@ namespace img2table.sharp.web.Controllers
                     ChunkObject = chunkObject,
                     ContentElements = contentElements
                 };
+
+                if (chunkType == ChunkType.Table)
+                {
+                    var tableImage = $"table_{Guid.NewGuid().ToString()}.png";
+                    string tableImagePath = Path.Combine(workFolder, tableImage);
+                    ClipTableImage(pageImage, tableImagePath, chunkBox);
+
+                    if (contentElements != null)
+                    {
+                        bool imagebaseTable = false;
+                        if (contentElements.Count() == 1 && contentElements[0].PageElement is ImageElement)
+                        {
+                            imagebaseTable = true;
+                        }
+
+                        if (imagebaseTable)
+                        {
+                            var param = TabularParameter.AutoDetect;
+                            param.CellTextOverlapRatio = 0.7f;
+                            var imageTabular = new ImageTabular(param);
+                            var pagedTable = imageTabular.Process(tableImagePath, true);
+
+                            var tableDto = new PagedTableDTO(pagedTable).Tables.FirstOrDefault();
+                            if (tableDto == null)
+                            {
+                                continue;
+                            }
+
+                            TableHTML.Generate(tableDto, out string html);
+                            chunkElement.MarkdownText = html;
+                        }
+                        else
+                        {
+                            var param = TabularParameter.AutoDetect;
+                            param.CellTextOverlapRatio = 0.7f;
+                            
+                            var imageTabular = new ImageTabular(param);
+                            var pagedTable = imageTabular.Process(tableImagePath, false);
+
+                            var pdfTabular = new PDFTabular(param);
+                            pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio);
+                            var tableDto = new PagedTableDTO(pagedTable).Tables.FirstOrDefault();
+                            if (tableDto == null)
+                            {
+                                continue;
+                            }
+
+                            TableHTML.Generate(tableDto, out string html);
+                            chunkElement.MarkdownText = html;
+                        }
+                    }
+                }
+
                 _chunkElementProcessor.Process(chunkElement);
                 chunks.Add(chunkElement);
             }
 
             return chunks;
+        }
+
+        private static void ClipTableImage(string pageImage, string clippedImage, RectangleF tableBbox)
+        {
+            using Mat src = Cv2.ImRead(pageImage);
+            Rect roi = new Rect(
+                (int)Math.Floor(tableBbox.X),
+                (int)Math.Floor(tableBbox.Y),
+                (int)Math.Ceiling(tableBbox.Width),
+                (int)Math.Ceiling(tableBbox.Height)
+            );
+
+            roi = roi.Intersect(new Rect(0, 0, src.Width, src.Height));
+            Mat whiteBg = new Mat(src.Size(), src.Type(), new Scalar(255, 255, 255));
+            src[roi].CopyTo(whiteBg[roi]);
+
+            Cv2.ImWrite(clippedImage, whiteBg);
         }
 
         private bool IsChunkType(string label, string chunkType)

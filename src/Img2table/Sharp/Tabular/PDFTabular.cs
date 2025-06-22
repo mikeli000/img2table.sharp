@@ -170,6 +170,22 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
+        public void LoadText(PDFDocument pdfDoc, PDFPage pdfPage, PagedTable pagedTable, float ratio)
+        {
+            var pageThread = pdfPage.BuildPageThread();
+            var textThread = pageThread.GetTextThread();
+            var textElements = new List<TextElement>(textThread.GetTextElements());
+
+            var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight());
+            foreach (var table in pagedTable.Tables)
+            {
+                foreach (var row in table.Rows)
+                {
+                    ImageTabular.LoadRowText(row, pageTextCells, _parameter);
+                }
+            }
+        }
+
         private void LoadText(PDFDocument pdfDoc, int pageIndex, PagedTable pagedTable, float ratio)
         {
             var pdfPage = pdfDoc.LoadPage(pageIndex);

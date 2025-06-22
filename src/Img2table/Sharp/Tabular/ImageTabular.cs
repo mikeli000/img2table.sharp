@@ -45,7 +45,6 @@ namespace Img2table.Sharp.Tabular
             return pagedTable;
         }
 
-
         private void PaddleOCR(string imageFile, List<Table> tables)
         {
             using Mat src = Cv2.ImRead(imageFile);

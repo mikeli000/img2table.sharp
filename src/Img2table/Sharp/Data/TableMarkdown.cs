@@ -10,6 +10,12 @@ namespace img2table.sharp.Img2table.Sharp.Data
     {
         public static void Generate(PagedTableDTO pageTableDto, string outputFile)
         {
+            var s = Generate(pageTableDto);
+            File.WriteAllText(outputFile, s);
+        }
+
+        public static string Generate(PagedTableDTO pageTableDto)
+        {
             var tables = pageTableDto.Tables;
             var sb = new StringBuilder();
 
@@ -39,7 +45,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 }
             }
 
-            File.WriteAllText(outputFile, sb.ToString());
+            return sb.ToString();
         }
 
         private static void WriteTableRow(StringBuilder buf, string rowText) 

@@ -2,6 +2,7 @@
 using Img2table.Sharp.Data;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,76 @@ namespace img2table.sharp.Img2table.Sharp.Data
         public static void Generate(PagedTableDTO pageTableDto, string outputFile)
         {
             var htmlDoc = new HtmlDocument();
+            GenerateHtml(pageTableDto, htmlDoc);
+            StreamWriter sw = new StreamWriter(outputFile);
+            htmlDoc.Save(sw);
+        }
+
+        public static void Generate(PagedTableDTO pageTableDto, TextWriter textWriter)
+        {
+            var htmlDoc = new HtmlDocument();
+            GenerateHtml(pageTableDto, htmlDoc);
+            htmlDoc.Save(textWriter);
+        }
+
+        public static void Generate(PagedTableDTO pageTableDto, out string html)
+        {
+            var htmlDoc = new HtmlDocument();
+            GenerateHtml(pageTableDto, htmlDoc);
+            using (var sw = new StringWriter())
+            {
+                htmlDoc.Save(sw);
+                html = sw.ToString();
+            }
+        }
+
+        public static void Generate(TableDTO tableDTO, out string tableHtml)
+        {
+            var htmlDoc = new HtmlDocument();
+            GenerateHtmlTable(tableDTO, htmlDoc);
+            using (var sw = new StringWriter())
+            {
+                htmlDoc.Save(sw);
+                tableHtml = sw.ToString();
+            }
+        }
+
+        private static void GenerateHtmlTable(TableDTO tableDto, HtmlDocument htmlDoc)
+        {
+            var tableNode = htmlDoc.CreateElement("table");
+            if (!string.IsNullOrEmpty(tableDto.Title))
+            {
+                tableNode.SetAttributeValue("borderless", tableDto.Borderless.ToString());
+                tableNode.SetAttributeValue("title", tableDto.Title);
+
+                var captionNode = htmlDoc.CreateElement("caption");
+                captionNode.InnerHtml = tableDto.Title;
+                tableNode.AppendChild(captionNode);
+            }
+
+            foreach (var row in tableDto.Items)
+            {
+                var rowNode = htmlDoc.CreateElement("tr");
+                for (int j = 0; j < row.Items.Count; j++)
+                {
+                    var cell = row.Items[j];
+                    var cellNode = htmlDoc.CreateElement("td");
+                    if (cell.ColSpan > 1)
+                    {
+                        cellNode.SetAttributeValue("colspan", cell.ColSpan.ToString());
+                        j += cell.ColSpan - 1;
+                    }
+                    cellNode.InnerHtml = ProcessNewline(cell.Content);
+                    rowNode.AppendChild(cellNode);
+                }
+                tableNode.AppendChild(rowNode);
+            }
+
+            htmlDoc.DocumentNode.AppendChild(tableNode);
+        }
+
+        private static void GenerateHtml(PagedTableDTO pageTableDto, HtmlDocument htmlDoc)
+        {
             var root = htmlDoc.CreateElement("html");
             htmlDoc.DocumentNode.AppendChild(root);
 
@@ -79,9 +150,6 @@ namespace img2table.sharp.Img2table.Sharp.Data
 
                 htmlDoc.DocumentNode.AppendChild(tableNode);
             }
-
-            StreamWriter sw = new StreamWriter(outputFile);
-            htmlDoc.Save(sw);
         }
 
         private static string ProcessNewline(string text)

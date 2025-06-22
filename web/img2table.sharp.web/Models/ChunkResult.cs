@@ -174,17 +174,14 @@ namespace img2table.sharp.web.Models
                 }
             }
 
-            return result
-                .OrderBy(o => o.BoundingBox[1])  // y1
-                .OrderBy(o => o.BoundingBox[0])   // x1
-                .ToList();
+            return result;
         }
 
         public static List<ChunkObject> RebuildReadingOrder(IEnumerable<ChunkObject> objects)
         {
-            var headers = objects.Where(c => c.Label == ChunkType.PageHeader).ToList();
-            var footers = objects.Where(c => c.Label == ChunkType.PageFooter).ToList();
-            var body = objects.Except(headers).Except(footers).ToList();
+            var headers = objects.Where(c => c.Label == ChunkType.PageHeader).ToList().OrderBy(c => c.X1);
+            var footers = objects.Where(c => c.Label == ChunkType.PageFooter).ToList().OrderBy(c => c.X1);
+            var body = objects.Except(headers).Except(footers).ToList().OrderBy(c => c.Y1);
 
             var result = new List<ChunkObject>();
 
