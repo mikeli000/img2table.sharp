@@ -174,11 +174,11 @@ namespace img2table.sharp.web.Controllers
 
                     if (_userEmbeddedHtml && TryBuildHTMLPiece(content.PageElement, out string html))
                     {
-                        _writer.AppendText(html);
+                        _writer.WriteText(html);
                     }
                     else if (content.PageElement is TextElement textElement)
                     {
-                        _writer.AppendText(textElement.GetText());
+                        _writer.WriteText(textElement.GetText());
                     }
                 }
             }
