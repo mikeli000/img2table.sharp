@@ -33,12 +33,12 @@ namespace img2table.sharp.web.Controllers
         private float PredictConfidenceThreshold = 0.2f;
         private ChunkElementProcessor _chunkElementProcessor;
 
-        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder)
+        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml)
         {
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _rootFolder = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
 
-            _chunkElementProcessor = new ChunkElementProcessor(true);
+            _chunkElementProcessor = new ChunkElementProcessor(useEmbeddedHtml);
         }
 
         private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)

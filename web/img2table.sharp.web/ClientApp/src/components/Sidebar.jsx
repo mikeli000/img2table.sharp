@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-const Sidebar = ({ setDocumentChunks }) => {
+const Sidebar = ({ setDocumentChunks, useHtml }) => {
   const fileInputRef = useRef(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -21,6 +21,9 @@ const Sidebar = ({ setDocumentChunks }) => {
   };
 
   const handleFileChange = (e) => {
+
+      console.log('useHtml:', useHtml);
+
     const file = e.target.files[0];
     if (file && file.type === 'application/pdf') {
       uploadFile(file);
@@ -33,6 +36,7 @@ const Sidebar = ({ setDocumentChunks }) => {
     setUploading(true);
     const formData = new FormData();
     formData.append('uploadFile', file);
+    formData.append("useEmbeddedHtml", useHtml ? "true" : "false");
 
     try {
       const response = await fetch(`${baseUrl}/api/extract`, {
