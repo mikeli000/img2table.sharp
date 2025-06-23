@@ -32,13 +32,15 @@ namespace img2table.sharp.web.Controllers
         private float RenderDPI = 300;
         private float PredictConfidenceThreshold = 0.2f;
         private ChunkElementProcessor _chunkElementProcessor;
+        private bool _useEmbeddedHtml;
 
-        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml)
+        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml, bool ignoreMarginalia)
         {
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _rootFolder = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
 
-            _chunkElementProcessor = new ChunkElementProcessor(useEmbeddedHtml);
+            _useEmbeddedHtml = useEmbeddedHtml;
+            _chunkElementProcessor = new ChunkElementProcessor(useEmbeddedHtml, ignoreMarginalia);
         }
 
         private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
@@ -99,12 +101,18 @@ namespace img2table.sharp.web.Controllers
                     }
 
                     int pageNumber = i + 1;
+                    //if (pageNumber != 1)
+                    //{
+                    //    continue;
+                    //}
+
                     var pageImageName = $"page_{pageNumber}.png";
                     string pageImagePath = Path.Combine(workFolder, pageImageName);
                     pdfDoc.RenderPage(pageImagePath, i, RenderDPI, backgroundColor: Color.White);
 
                     var predictedPageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == i + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
+                    filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
 
                     var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, filteredChunks, RenderDPI / 72f);
@@ -196,7 +204,7 @@ namespace img2table.sharp.web.Controllers
                             var pagedTable = imageTabular.Process(tableImagePath, false);
 
                             var pdfTabular = new PDFTabular(param);
-                            pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio);
+                            pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml: _useEmbeddedHtml);
                             var tableDto = new PagedTableDTO(pagedTable).Tables.FirstOrDefault();
                             if (tableDto == null)
                             {

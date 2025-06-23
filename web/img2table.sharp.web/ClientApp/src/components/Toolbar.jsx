@@ -10,7 +10,7 @@ import {
   FileText, ScrollText
 } from "lucide-react";
 
-const Toolbar = ({ useHtml, setUseHtml }) => {
+const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia }) => {
   const [docType, setDocType] = useState("slide");
 
   return (
@@ -64,6 +64,14 @@ const Toolbar = ({ useHtml, setUseHtml }) => {
         <label htmlFor="use-html" className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
           Use HTML in Markdown
         </label>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="ignore-marginalia"
+          checked={ignoreMarginalia}
+          onCheckedChange={(val) => setIgnoreMarginalia(val === true)}
+        />
+        <label htmlFor="ignore-marginalia" className="text-sm">Ignore Marginalia</label>
       </div>
     </div>
   );

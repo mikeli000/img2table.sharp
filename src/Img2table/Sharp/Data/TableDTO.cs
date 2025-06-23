@@ -17,47 +17,16 @@ namespace Img2table.Sharp.Data
 
         private void ToTableDTO(Table table)
         {
+            int n_row = table.NbRows;
+            int n_col = table.NbColumns;
+
             Items = new List<RowDTO>();
-            RowDTO prevRow = null;
+            var rowSpanCellDict = new Dictionary<string, CellDTO>();
             for (int i = 0; i < table.Items.Count; i++)
             {
-                var currRow = new RowDTO(table.Items[i]);
+                var currRow = new RowDTO(table.Items[i], rowSpanCellDict);
                 Items.Add(currRow);
-
-                if (prevRow == null)
-                {
-                    prevRow = currRow;
-                    continue;
-                }
-
-                if (!CountRowSpan(prevRow, currRow))
-                {
-                    prevRow = currRow;
-                }
             }
-        }
-
-        private bool CountRowSpan(RowDTO prevRow, RowDTO currRow)
-        {
-            bool found = false;
-            for (int i = 0; i < prevRow.Items.Count; i++)
-            {
-                var c1 = prevRow.Items[i];
-
-                for (int j = 0; j < currRow.Items.Count; j++)
-                {
-                    var c2 = currRow.Items[j];
-                    if (c2.Equals(c1))
-                    {
-                        c2.RowSpan++;
-                        found = true;
-                        currRow.Items.RemoveAt(j);
-                        break;
-                    }
-                }
-            }
-
-            return found;
         }
 
         public Table ToTable()
@@ -73,25 +42,34 @@ namespace Img2table.Sharp.Data
     {
         public List<CellDTO> Items { get; set; }
 
-        public RowDTO(Row row)
+        public RowDTO(Row row, IDictionary<string, CellDTO> rowSpanCellDict)
         {
+            var colSpanCellDict = new Dictionary<string, CellDTO>();
             Items = new List<CellDTO>();
 
-            Cell prev = null;
-            CellDTO prevDTO = null;
             for (var i = 0; i < row.Cells.Count; i++)
             {
-                var curr = row.Cells[i];
-                var currDTO = new CellDTO(curr);
-                if (curr.Equals(prev))
+                var cell = row.Cells[i];
+                bool isSpannedCell = false;
+                if (rowSpanCellDict.TryGetValue(cell.CellKey, out var y_cell))
                 {
-                    prevDTO.ColSpan++;
+                    y_cell.RowSpan++;
+                    isSpannedCell = true;
                 }
-                else
+
+                if (colSpanCellDict.TryGetValue(cell.CellKey, out var x_cell))
                 {
-                    prev = curr;
-                    prevDTO = currDTO;
+                    x_cell.ColSpan++;
+                    isSpannedCell = true;
                 }
+
+                if (isSpannedCell)
+                {
+                    continue;
+                }
+                var currDTO = new CellDTO(cell);
+                rowSpanCellDict[cell.CellKey] = currDTO;
+                colSpanCellDict[cell.CellKey] = currDTO;
 
                 Items.Add(currDTO);
             }

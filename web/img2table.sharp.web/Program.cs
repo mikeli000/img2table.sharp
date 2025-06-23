@@ -9,6 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy => policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
+
 var rootFolder = Path.Combine(Path.GetTempPath(), WorkDirectoryOptions.RootFolderName);
 if (!Directory.Exists(rootFolder))
 {
@@ -29,7 +39,7 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = WorkDirectoryOptions.RequestPath
 });
 
-
+app.UseCors("AllowFrontend");
 app.UseDefaultFiles();
 app.MapFallbackToFile("/client-app/index.html");
 

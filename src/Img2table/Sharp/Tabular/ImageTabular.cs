@@ -5,7 +5,6 @@ using Sdcb.PaddleOCR.Models.Local;
 using Sdcb.PaddleOCR;
 using System.Drawing;
 using System.Text;
-using Size = OpenCvSharp.Size;
 
 namespace Img2table.Sharp.Tabular
 {
@@ -103,7 +102,7 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
-        public static void LoadRowText(Row row, List<Cell> pageTextCells, TabularParameter parameter)
+        public static void LoadRowText(Row row, List<Cell> pageTextCells, TabularParameter parameter, bool useHtml = false)
         {
             foreach (var cell in row.Cells)
             {
@@ -112,14 +111,99 @@ namespace Img2table.Sharp.Tabular
 
                 if (oneTextCells.Count > 0)
                 {
+                    Cell prev = null;
                     foreach (var tc in oneTextCells)
                     {
-                        cell.AddText(tc.Content, true, true);
+                        string text = useHtml ? tc.HtmlContent : tc.Content;
+                        if (prev != null)
+                        {
+                            if (prev.Baseline == tc.Baseline)
+                            {
+                                cell.AddText(text, true);
+                            }
+                            else
+                            {
+                                if (IsNewParagraphBegin(tc.Content))
+                                {
+                                    string newLineText = (useHtml ? "<br />" : "\n\n") + text;
+                                    cell.AddText(newLineText, true);
+                                }
+                                else
+                                {
+                                    cell.AddText(text, true);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            cell.AddText(text, true);
+                        }
+                        
                         pageTextCells.Remove(tc);
+                        prev = tc;
                     }
                 }
             }
         }
+
+        public static bool IsNewParagraphBegin(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            text = text.Trim();
+            char c = text[0];
+            if (char.IsUpper(c))
+            {
+                return true;
+            }
+                
+            if (char.IsDigit(c))
+            {
+                return true;
+            }
+            
+            char[] paragraphSymbols = 
+            {
+                '•', '‣', '‧', '∙', '·', '●',
+                '▪', '▫', '■', '□', '▣',
+                '▤', '▥', '▦', '▧', '▨', '▩',
+                '→', '⇒', '➤', '▶', '➔', '➢',
+                '♦', '◆', '◇', '○',
+                '✓', '✔',
+                '✦', '★', '✧', '❖', '❑',
+                '-', '*', '+', '=', '~', 
+                '(', '[', '{', '（', '【', '《'
+            };
+
+            if (paragraphSymbols.Contains(c))
+            {
+                return true;
+            }
+
+            string[] listItemBeginTag = new[]
+            {
+                "i.", "ii.", "iii.", "iv.", "v.", "vi.", "vii.", "viii.", "ix.", "x.",
+                "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "10.",
+                "1)", "2)", "3)", "4)", "5)", "6)", "7)", "8)", "9)", "10)",
+                "1-", "2-", "3-", "4-", "5-",
+                "a.", "b.", "c.", "d.", "e.",
+                "a)", "b)", "c)", "d)", "e)",
+            };
+
+            foreach (var tag in listItemBeginTag)
+            {
+                if (text.StartsWith(tag + " ") || text.StartsWith(tag + "\t") || text == tag)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
 
         private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter)
         {
@@ -134,10 +218,46 @@ namespace Img2table.Sharp.Tabular
                     cells.Add(tc);
                 }
             }
-            cells = cells.OrderBy(c => c.X1).ToList();
-            cells = cells.OrderBy(c => c.Y1).ToList();
 
-            return cells;
+            var cellGroups = GroupCellsByLine(cells);
+            var lines = new List<Cell>();
+            foreach (var group in cellGroups)
+            {
+                lines.AddRange(group);
+            }
+            return lines;
+        }
+
+        public static List<List<Cell>> GroupCellsByLine(List<Cell> cells, float baselineTolerance = 3f)
+        {
+            var sorted = cells.OrderBy(c => c.Baseline).ToList();
+            var groups = new List<List<Cell>>();
+
+            foreach (var cell in sorted)
+            {
+                bool added = false;
+                foreach (var group in groups)
+                {
+                    if (Math.Abs(group[0].Baseline - cell.Baseline) <= baselineTolerance)
+                    {
+                        group.Add(cell);
+                        added = true;
+                        break;
+                    }
+                }
+
+                if (!added)
+                {
+                    groups.Add(new List<Cell> { cell });
+                }
+            }
+
+            foreach (var group in groups)
+            {
+                group.Sort((a, b) => a.X1.CompareTo(b.X1));
+            }
+
+            return groups;
         }
 
         private static bool IsContained(RectangleF container, RectangleF dst, TabularParameter parameter)

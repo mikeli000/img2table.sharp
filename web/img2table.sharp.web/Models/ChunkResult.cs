@@ -177,6 +177,40 @@ namespace img2table.sharp.web.Models
             return result;
         }
 
+        public static List<ChunkObject> FilterContainment(IEnumerable<ChunkObject> objects)
+        {
+            var result = new List<ChunkObject>();
+
+            var sorted = objects.OrderByDescending(obj => Area(obj.BoundingBox));
+            foreach (var obj in sorted)
+            {
+                bool isContained = result.Any(existing =>
+                    IsContainment(existing.BoundingBox, obj.BoundingBox));
+
+                if (!isContained)
+                {
+                    result.Add(obj);
+                }
+            }
+
+            return result;
+        }
+
+        public static bool IsContainment(double[] a, double[] b, double epsilon = 4.0)
+        {
+            return a[0] <= b[0] + epsilon &&
+                   a[1] <= b[1] + epsilon &&
+                   a[2] >= b[2] - epsilon &&
+                   a[3] >= b[3] - epsilon;  
+        }
+
+        public static double Area(double[] rect)
+        {
+            var width = rect[2] - rect[0];
+            var height = rect[3] - rect[1];
+            return width * height;
+        }
+
         public static List<ChunkObject> RebuildReadingOrder(IEnumerable<ChunkObject> objects)
         {
             var headers = objects.Where(c => c.Label == ChunkType.PageHeader).ToList().OrderBy(c => c.X1);

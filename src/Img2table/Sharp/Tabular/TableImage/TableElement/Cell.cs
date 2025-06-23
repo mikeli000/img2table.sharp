@@ -7,6 +7,9 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
         private StringBuilder _text = new StringBuilder();
         public string Content => _text.ToString();
 
+        public string HtmlContent { get; set; }
+        public int Baseline { get; set; }
+
         public Cell(int x1, int y1, int x2, int y2, string content = null)
             : base(x1, y1, x2, y2)
         {
@@ -63,6 +66,14 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
         public override string ToString()
         {
             return $"Cell(X1: {X1}, Y1: {Y1}, X2: {X2}, Y2: {Y2}, Content: {Content})";
+        }
+
+        public string CellKey
+        {
+            get
+            {
+                return $"{X1}_{Y1}_{X2}_{Y2}";
+            }
         }
     }
 }

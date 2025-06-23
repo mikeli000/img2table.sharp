@@ -74,10 +74,14 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 {
                     var cell = row.Items[j];
                     var cellNode = htmlDoc.CreateElement("td");
+                    if (cell.RowSpan > 1)
+                    {
+                        cellNode.SetAttributeValue("rowspan", cell.RowSpan.ToString());
+                    }
+
                     if (cell.ColSpan > 1)
                     {
                         cellNode.SetAttributeValue("colspan", cell.ColSpan.ToString());
-                        j += cell.ColSpan - 1;
                     }
                     cellNode.InnerHtml = ProcessNewline(cell.Content);
                     rowNode.AppendChild(cellNode);
@@ -154,7 +158,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
 
         private static string ProcessNewline(string text)
         {
-            text = text.Replace(Environment.NewLine, "<br />");
+            // text = text.Replace(Environment.NewLine, "<br />");
             return text;
         }
     }

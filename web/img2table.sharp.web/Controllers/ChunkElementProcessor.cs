@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text;
 using System;
 using System.IO;
+using Img2table.Sharp.Tabular;
+using Img2table.Sharp.Tabular.TableImage.TableElement;
 
 namespace img2table.sharp.web.Controllers
 {
@@ -14,10 +16,12 @@ namespace img2table.sharp.web.Controllers
 
         private MarkdownWriter _writer;
         private bool _userEmbeddedHtml;
+        private bool _ignoreMarginalia;
 
-        public ChunkElementProcessor(bool userEmbeddedHtml = false)
+        public ChunkElementProcessor(bool userEmbeddedHtml = false, bool ignoreMarginalia = false)
         {
             _userEmbeddedHtml = userEmbeddedHtml;
+            _ignoreMarginalia = ignoreMarginalia;
         }
 
         public string Process(ChunkElement chunkElement)
@@ -53,10 +57,16 @@ namespace img2table.sharp.web.Controllers
                     ProcessListItemChunk(chunkElement);
                     break;
                 case ChunkType.PageFooter:
-                    ProcessPageFooterChunk(chunkElement);
+                    if (!_ignoreMarginalia)
+                    {
+                        ProcessPageFooterChunk(chunkElement);
+                    }
                     break;
                 case ChunkType.PageHeader:
-                    ProcessPageHeaderChunk(chunkElement);
+                    if (!_ignoreMarginalia)
+                    {
+                        ProcessPageHeaderChunk(chunkElement);
+                    }
                     break;
                 case ChunkType.Text:
                     ProcessTextChunk(chunkElement);
@@ -155,10 +165,11 @@ namespace img2table.sharp.web.Controllers
             {
                 if (content.PageElement is ImageElement imageElement)
                 {
-                    // handle image element
+                    // TODO: handle image element
                 }
                 else if (content.PageElement is TextElement textElement)
                 {
+                    // TODO: group line
                     textElements.Add(content);
                 }
             }
@@ -172,7 +183,7 @@ namespace img2table.sharp.web.Controllers
                         continue;
                     }
 
-                    if (_userEmbeddedHtml && TryBuildHTMLPiece(content.PageElement, out string html))
+                    if (_userEmbeddedHtml && PDFTabular.TryBuildHTMLPiece(content.PageElement, out string html))
                     {
                         _writer.WriteText(html);
                     }
@@ -192,6 +203,8 @@ namespace img2table.sharp.web.Controllers
                 return;
             }
 
+            bool isFirstTextSpan = true;
+            TextElement prev = null;
             foreach (var content in contents)
             {
                 if (content.PageElement == null)
@@ -199,39 +212,53 @@ namespace img2table.sharp.web.Controllers
                     continue;
                 }
 
-                if (_userEmbeddedHtml && TryBuildHTMLPiece(content.PageElement, out string html))
-                {
-                    _writer.AppendText(html);
-                }
-                else if (content.PageElement is TextElement textElement)
-                {
-                    _writer.AppendText(textElement.GetText());
-                }
-            }
-        }
+                string text = null;
+                bool sameBaseline = false;
+                if (content.PageElement is TextElement textElement) 
+                { 
+                    text = textElement.GetText();
 
-        private bool TryBuildHTMLPiece(PageElement pageElement, out string html)
-        {
-            html = null;
-            if (pageElement is not TextElement)
-            {
-                return false;
-            }
-
-            var textElement = (TextElement)pageElement;
-            if (textElement.GetGState() != null)
-            {
-                string css = GraphicsStateToCssConverter.Convert(textElement.GetGState());
-                if (string.IsNullOrWhiteSpace(css))
-                {
-                    return false;
+                    if (prev != null)
+                    {
+                        if (Math.Round(prev.GetBaselineY()) == Math.Round(textElement.GetBaselineY()))
+                        {
+                            sameBaseline = true;
+                        }
+                    }
                 }
 
-                html = $"<span style=\"{css}\">{textElement.GetText()}</span>";
-                return true;
-            }
+                if (string.IsNullOrEmpty(text))
+                {
+                    continue;
+                }
 
-            return false;
+                string newLineText = text;
+                bool newline = false;
+                if (!isFirstTextSpan && !sameBaseline)
+                {
+                    newline = ImageTabular.IsNewParagraphBegin(text);
+                }
+                
+                if (_userEmbeddedHtml && PDFTabular.TryBuildHTMLPiece(content.PageElement, out string html))
+                {
+                    newLineText = newline ? ("<br />" + html) : html;
+                    _writer.AppendText(newLineText);
+                    _writer.AppendText(" ");
+                }
+                else
+                {
+                    newLineText = newline ? ("\n\n" + newLineText) : newLineText;
+                    _writer.AppendText(newLineText);
+                    _writer.AppendText(" ");
+                }
+
+                if (content.PageElement is TextElement)
+                {
+                    prev = content.PageElement as TextElement;
+                }
+                
+                isFirstTextSpan = false;
+            }
         }
     }
 
@@ -308,57 +335,6 @@ namespace img2table.sharp.web.Controllers
         public void SaveToFile(string path)
         {
             File.WriteAllText(path, GetContent());
-        }
-    }
-
-    public static class GraphicsStateToCssConverter
-    {
-        public static string Convert(GraphicsState g)
-        {
-            if (g == null || g.TextState == null)
-            { 
-                return string.Empty; 
-            } 
-
-            var sb = new StringBuilder();
-            if (g.NonStrokingColor != null)
-            {
-                var color = ConvertColor(g.NonStrokingColor);
-                if (color != null)
-                {
-                    sb.Append($"color: {color};");
-                }
-            }
-
-            if (g.TextState.FontSize > 0)
-            {
-                sb.Append($"font-size: {g.TextState.FontSize}pt;");
-            }
-
-            if (g.TextState.FontWeight >= 600)
-            {
-                sb.Append("font-weight: bold;");
-            }
-
-            if (Math.Abs(g.TextState.FontItalicAngle) > 0.1)
-            {
-                sb.Append("font-style: italic;");
-            }
-
-            return sb.ToString();
-        }
-
-        private static string ConvertColor(ColorState color)
-        {
-            if (color?.Components != null && color?.Components.Length == 4)
-            {
-                int r = (int)color.Components[0];
-                int g = (int)color.Components[1];
-                int b = (int)color.Components[2];
-                return $"rgb({r},{g},{b})";
-            }
-
-            return null;
         }
     }
 

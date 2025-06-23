@@ -50,7 +50,7 @@ namespace Img2table.Sharp.Tabular
 
                     if (!useOCR)
                     {
-                        LoadText(pdfDoc, i, pagedTable, _parameter.RenderResolution / 72f);
+                        LoadText(pdfDoc, page, pagedTable, _parameter.RenderResolution / 72f);
                     }
                 }
             }
@@ -170,41 +170,42 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
-        public void LoadText(PDFDocument pdfDoc, PDFPage pdfPage, PagedTable pagedTable, float ratio)
+        public void LoadText(PDFDocument pdfDoc, PDFPage pdfPage, PagedTable pagedTable, float ratio, bool useHtml = false)
         {
             var pageThread = pdfPage.BuildPageThread();
             var textThread = pageThread.GetTextThread();
             var textElements = new List<TextElement>(textThread.GetTextElements());
 
-            var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight());
+            var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight(), useHtml);
             foreach (var table in pagedTable.Tables)
             {
                 foreach (var row in table.Rows)
                 {
-                    ImageTabular.LoadRowText(row, pageTextCells, _parameter);
+                    ImageTabular.LoadRowText(row, pageTextCells, _parameter, useHtml);
                 }
             }
         }
 
-        private void LoadText(PDFDocument pdfDoc, int pageIndex, PagedTable pagedTable, float ratio)
-        {
-            var pdfPage = pdfDoc.LoadPage(pageIndex);
+        // remove
+        //private void LoadText(PDFDocument pdfDoc, int pageIndex, PagedTable pagedTable, float ratio)
+        //{
+        //    var pdfPage = pdfDoc.LoadPage(pageIndex);
 
-            var pageThread = pdfPage.BuildPageThread();
-            var textThread = pageThread.GetTextThread();
-            var textElements = new List<TextElement>(textThread.GetTextElements());
+        //    var pageThread = pdfPage.BuildPageThread();
+        //    var textThread = pageThread.GetTextThread();
+        //    var textElements = new List<TextElement>(textThread.GetTextElements());
 
-            var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight());
-            foreach (var table in pagedTable.Tables)
-            {
-                foreach (var row in table.Rows)
-                {
-                    ImageTabular.LoadRowText(row, pageTextCells, _parameter);
-                }
-            }
-        }
+        //    var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight(), false);
+        //    foreach (var table in pagedTable.Tables)
+        //    {
+        //        foreach (var row in table.Rows)
+        //        {
+        //            ImageTabular.LoadRowText(row, pageTextCells, _parameter);
+        //        }
+        //    }
+        //}
 
-        private List<Cell> ScaleToCells(List<TextElement> textElements, float ratio, double pageHeight)
+        private List<Cell> ScaleToCells(List<TextElement> textElements, float ratio, double pageHeight, bool usehtml)
         {
             List<Cell> cells = new List<Cell>();
             double ph = pageHeight * ratio;
@@ -216,10 +217,92 @@ namespace Img2table.Sharp.Tabular
                 int right = (int)Math.Round(ele.BBox.Right * ratio);
 
                 Cell c = new Cell(left, top, right, bottom, ele.GetText());
+                if (usehtml && TryBuildHTMLPiece(ele, out var html))
+                {
+                    c.HtmlContent = html;
+                }
+                c.Baseline = (int)Math.Round(ph - ele.GetBaselineY() * ratio - ele.GetBaselineY() * ratio);
+
                 cells.Add(c);
             }
 
             return cells;
+        }
+
+        // TODO move to PDFDict
+        public static bool TryBuildHTMLPiece(PageElement pageElement, out string html)
+        {
+            html = null;
+            if (pageElement is not TextElement)
+            {
+                return false;
+            }
+
+            var textElement = (TextElement)pageElement;
+            if (textElement.GetGState() != null)
+            {
+                string css = GraphicsStateToCssConverter.Convert(textElement.GetGState());
+                if (string.IsNullOrWhiteSpace(css))
+                {
+                    return false;
+                }
+
+                html = $"<span style=\"{css}\">{textElement.GetText()}</span>";
+                return true;
+            }
+
+            return false;
+        }
+
+        public static class GraphicsStateToCssConverter
+        {
+            public static string Convert(GraphicsState g)
+            {
+                if (g == null || g.TextState == null)
+                {
+                    return string.Empty;
+                }
+
+                var sb = new StringBuilder();
+                if (g.NonStrokingColor != null)
+                {
+                    var color = ConvertColor(g.NonStrokingColor);
+                    if (color != null)
+                    {
+                        sb.Append($"color: {color};");
+                    }
+                }
+
+                //if (g.TextState.FontSize > 0)
+                //{
+                //    sb.Append($"font-size: {g.TextState.FontSize}pt;");
+                //}
+
+                //if (g.TextState.FontWeight >= 600)
+                //{
+                //    sb.Append("font-weight: bold;");
+                //}
+
+                //if (Math.Abs(g.TextState.FontItalicAngle) > 0.1)
+                //{
+                //    sb.Append("font-style: italic;");
+                //}
+
+                return sb.ToString();
+            }
+
+            private static string ConvertColor(ColorState color)
+            {
+                if (color?.Components != null && color?.Components.Length == 4)
+                {
+                    int r = (int)color.Components[0];
+                    int g = (int)color.Components[1];
+                    int b = (int)color.Components[2];
+                    return $"rgb({r},{g},{b})";
+                }
+
+                return null;
+            }
         }
     }
 }
