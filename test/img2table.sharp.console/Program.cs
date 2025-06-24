@@ -17,9 +17,9 @@ namespace img2table.sharp.console
     {
         static void Main(string[] args)
         {
-            TabularPDF();
+            // TabularPDF();
 
-            // TabularImage();
+            TabularImage();
 
             // Paddle();
         }
@@ -120,11 +120,11 @@ namespace img2table.sharp.console
         {
             //string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/jd invoice.png");
             //string tempFile = @"C:\Users\MikeLi\Downloads\512a72c1-6936-47ac-93ea-58d29c84c7de.png";
-            string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/t4.png");
+            string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/a.png");
             Console.WriteLine(tempFile);
 
             var param = TabularParameter.AutoDetect;
-            param.CellTextOverlapRatio = 0.7f;
+            param.CellTextOverlapRatio = 0.6f;
             var tableImage = new ImageTabular(param);
             var ret = tableImage.Process(tempFile, true);
 

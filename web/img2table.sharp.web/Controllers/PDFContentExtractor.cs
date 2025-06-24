@@ -12,10 +12,8 @@ using System.Linq;
 using OpenCvSharp;
 using System.Collections.Generic;
 using PDFDict.SDK.Sharp.Core.Contents;
-using SharpCompress.Compressors.Xz;
 using System.Text.Json.Serialization;
 using System.Text;
-using static Img2table.Sharp.Tabular.TableImage.TableElement.Extraction;
 using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
 
@@ -101,11 +99,6 @@ namespace img2table.sharp.web.Controllers
                     }
 
                     int pageNumber = i + 1;
-                    //if (pageNumber != 1)
-                    //{
-                    //    continue;
-                    //}
-
                     var pageImageName = $"page_{pageNumber}.png";
                     string pageImagePath = Path.Combine(workFolder, pageImageName);
                     pdfDoc.RenderPage(pageImagePath, i, RenderDPI, backgroundColor: Color.White);
@@ -167,14 +160,14 @@ namespace img2table.sharp.web.Controllers
 
                 if (chunkType == ChunkType.Table)
                 {
-                    var tableImage = $"table_{Guid.NewGuid().ToString()}.png";
-                    string tableImagePath = Path.Combine(workFolder, tableImage);
+                    var tableImageName = $"table_{Guid.NewGuid().ToString()}.png";
+                    string tableImagePath = Path.Combine(workFolder, tableImageName);
                     ClipTableImage(pageImage, tableImagePath, chunkBox);
 
                     if (contentElements != null)
                     {
                         bool imagebaseTable = false;
-                        if (contentElements.Count() == 1 && contentElements[0].PageElement is ImageElement)
+                        if (contentElements.Count() == 0 || (contentElements.Count() == 1 && contentElements[0].PageElement is ImageElement))
                         {
                             imagebaseTable = true;
                         }
@@ -182,6 +175,8 @@ namespace img2table.sharp.web.Controllers
                         if (imagebaseTable)
                         {
                             var param = TabularParameter.AutoDetect;
+                            param.ImplicitRows = true;
+                            param.ImplicitColumns = true;
                             param.CellTextOverlapRatio = 0.7f;
                             var imageTabular = new ImageTabular(param);
                             var pagedTable = imageTabular.Process(tableImagePath, true);
@@ -276,12 +271,22 @@ namespace img2table.sharp.web.Controllers
             var eles = new List<ContentElement>();
             foreach (var tc in pageElements)
             {
-                var textRect = tc.Rect();
+                var tcRect = tc.Rect();
 
-                bool contained = IsContained(chunkBox, textRect);
+                bool contained = IsContained(chunkBox, tcRect);
                 if (contained)
                 {
                     eles.Add(tc);
+                }
+                else
+                {
+                    if (tc.PageElement.Type == PageElement.ElementType.Image)
+                    {
+                        if (IsContained(tcRect, chunkBox))
+                        {
+                            eles.Add(tc);
+                        }
+                    }
                 }
             }
             //chunks = chunks.OrderBy(c => c.Left).ToList();

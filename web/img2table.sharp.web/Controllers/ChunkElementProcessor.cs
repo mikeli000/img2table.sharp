@@ -6,7 +6,6 @@ using System.Text;
 using System;
 using System.IO;
 using Img2table.Sharp.Tabular;
-using Img2table.Sharp.Tabular.TableImage.TableElement;
 
 namespace img2table.sharp.web.Controllers
 {
@@ -116,10 +115,10 @@ namespace img2table.sharp.web.Controllers
             {
                 return;
             }
-            _writer.WriteListItemTag();
+            //_writer.WriteListItemTag();
             WriteText(chunkElement);
             _writer.AppendLine();
-        }
+        }   
 
         private void ProcessFormulaChunk(ChunkElement chunkElement)
         {
@@ -202,7 +201,7 @@ namespace img2table.sharp.web.Controllers
             {
                 return;
             }
-
+            
             bool isFirstTextSpan = true;
             TextElement prev = null;
             foreach (var content in contents)
