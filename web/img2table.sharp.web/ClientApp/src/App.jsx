@@ -9,6 +9,7 @@ const App = () => {
   const [documentChunks, setDocumentChunks] = useState([]);
   const [useHtml, setUseHtml] = useState(false);
   const [ignoreMarginalia, setIgnoreMarginalia] = useState(false);
+  const [docType, setDocType] = useState("slide");
 
   return (
     <div className="flex h-screen font-sans bg-gray-50">
@@ -16,7 +17,8 @@ const App = () => {
         <Sidebar 
           setDocumentChunks={setDocumentChunks} 
           useHtml={useHtml} 
-          ignoreMarginalia={ignoreMarginalia}/>
+          ignoreMarginalia={ignoreMarginalia}
+          docType={docType}/>
       </div>
       <div className="flex-1 flex flex-col">
         <div className="p-2 border-b bg-white">
@@ -25,6 +27,8 @@ const App = () => {
             setUseHtml={setUseHtml}
             ignoreMarginalia={ignoreMarginalia}
             setIgnoreMarginalia={setIgnoreMarginalia}
+            docType={docType}
+            setDocType={setDocType}
           />
         </div>
         <div className="flex flex-1 overflow-hidden">

@@ -3,6 +3,7 @@ using Img2table.Sharp.Tabular;
 using Img2table.Sharp.Tabular.TableImage;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
+using PDFDict.SDK.Sharp.Tools;
 using Sdcb.PaddleOCR;
 using Sdcb.PaddleOCR.Models;
 using Sdcb.PaddleOCR.Models.Local;
@@ -17,9 +18,11 @@ namespace img2table.sharp.console
     {
         static void Main(string[] args)
         {
+            PDFTools.Render(@"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577\toUnicodeMap.PDF",
+                @"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577");
             // TabularPDF();
 
-            TabularImage();
+            //TabularImage();
 
             // Paddle();
         }

@@ -10,8 +10,7 @@ import {
   FileText, ScrollText
 } from "lucide-react";
 
-const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia }) => {
-  const [docType, setDocType] = useState("slide");
+const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, docType, setDocType }) => {
 
   return (
     <div className="flex items-center gap-6 text-sm text-gray-700 px-4 py-2 border-b border-gray-200 bg-white shadow-sm">

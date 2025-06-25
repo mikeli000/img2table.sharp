@@ -17,53 +17,43 @@ using System.Text;
 using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
 
-namespace img2table.sharp.web.Controllers
+namespace img2table.sharp.web.Services
 {
     public class PDFContentExtractor
     {
         public static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
 
-        private static readonly string DocumentLayoutExtractorServiceUrl = "http://localhost:8000/detect";
         public static float DEFAULT_OVERLAP_RATIO = 0.8f;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
         private float RenderDPI = 300;
-        private float PredictConfidenceThreshold = 0.2f;
         private ChunkElementProcessor _chunkElementProcessor;
         private bool _useEmbeddedHtml;
+        private string _docCategory;
 
-        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml, bool ignoreMarginalia)
+        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml, bool ignoreMarginalia, string docCategory)
         {
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _rootFolder = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
 
             _useEmbeddedHtml = useEmbeddedHtml;
+            _docCategory = docCategory ?? LayoutDetectorFactory.DocumentCategory.SlideLike;
             _chunkElementProcessor = new ChunkElementProcessor(useEmbeddedHtml, ignoreMarginalia);
         }
 
         private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
         {
-            using var httpClient = _httpClientFactory.CreateClient();
-            using var formData = new MultipartFormDataContent();
-
-            var fileContent = new ByteArrayContent(pdfFileBytes);
-            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
-            formData.Add(fileContent, "file", pdfFileName);
-
-            formData.Add(new StringContent(RenderDPI + ""), "dpi");
-            formData.Add(new StringContent(PredictConfidenceThreshold + ""), "confidence");
-            var response = await httpClient.PostAsync(DocumentLayoutExtractorServiceUrl, formData);
-
-            if (!response.IsSuccessStatusCode)
+            var detector = new LayoutDetectorFactory(_httpClientFactory).Create(_docCategory);
+            if (detector == null)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new PDFContentExtractorException(response.StatusCode, errorContent);
+                throw new InvalidOperationException($"No layout detector found for category: {_docCategory}");
+            }
+            if (pdfFileBytes == null || pdfFileBytes.Length == 0)
+            {
+                throw new ArgumentException("PDF file bytes cannot be null or empty.", nameof(pdfFileBytes));
             }
 
-            var jsonResponse = await response.Content.ReadAsStringAsync();
-            var detectResult = JsonSerializer.Deserialize<ChunkResult>(jsonResponse);
-
-            return detectResult;
+            return await detector.DetectAsync(pdfFileBytes, pdfFileName);
         }
 
         private bool _drawPageChunks = true;
@@ -167,7 +157,7 @@ namespace img2table.sharp.web.Controllers
                     if (contentElements != null)
                     {
                         bool imagebaseTable = false;
-                        if (contentElements.Count() == 0 || (contentElements.Count() == 1 && contentElements[0].PageElement is ImageElement))
+                        if (contentElements.Count() == 0 || contentElements.Count() == 1 && contentElements[0].PageElement is ImageElement)
                         {
                             imagebaseTable = true;
                         }
@@ -181,33 +171,38 @@ namespace img2table.sharp.web.Controllers
                             var imageTabular = new ImageTabular(param);
                             var pagedTable = imageTabular.Process(tableImagePath, true);
 
-                            var tableDto = new PagedTableDTO(pagedTable).Tables.FirstOrDefault();
-                            if (tableDto == null)
+                            if (pagedTable != null)
                             {
-                                continue;
+                                var tables = new PagedTableDTO(pagedTable).Tables;
+                                for (int j = tables.Count - 1; j >= 0; j--) // TODO
+                                {
+                                    var table = tables[j];
+                                    TableHTML.Generate(table, out string htmlTable);
+                                    chunkElement.MarkdownText += htmlTable;
+                                }
                             }
-
-                            TableHTML.Generate(tableDto, out string html);
-                            chunkElement.MarkdownText = html;
                         }
                         else
                         {
                             var param = TabularParameter.AutoDetect;
                             param.CellTextOverlapRatio = 0.7f;
-                            
+
                             var imageTabular = new ImageTabular(param);
                             var pagedTable = imageTabular.Process(tableImagePath, false);
 
                             var pdfTabular = new PDFTabular(param);
                             pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml: _useEmbeddedHtml);
-                            var tableDto = new PagedTableDTO(pagedTable).Tables.FirstOrDefault();
-                            if (tableDto == null)
-                            {
-                                continue;
-                            }
 
-                            TableHTML.Generate(tableDto, out string html);
-                            chunkElement.MarkdownText = html;
+                            if (pagedTable != null)
+                            {
+                                var tables = new PagedTableDTO(pagedTable).Tables;
+                                for (int j = tables.Count - 1; j >= 0; j--) // TODO
+                                {
+                                    var table = tables[j];
+                                    TableHTML.Generate(table, out string htmlTable);
+                                    chunkElement.MarkdownText += htmlTable;
+                                }
+                            }
                         }
                     }
                 }

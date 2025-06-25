@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pdf2image
+opencv-python-headless
+pillow
+ultralytics
+python-multipart
+dill
+doclayout_yolo
+huggingface-hub
+
+

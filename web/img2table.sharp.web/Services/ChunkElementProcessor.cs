@@ -7,7 +7,7 @@ using System;
 using System.IO;
 using Img2table.Sharp.Tabular;
 
-namespace img2table.sharp.web.Controllers
+namespace img2table.sharp.web.Services
 {
     public class ChunkElementProcessor
     {
@@ -34,6 +34,21 @@ namespace img2table.sharp.web.Controllers
             _writer = new MarkdownWriter();
             switch (chunkType)
             {
+                case ChunkType.Abandon:
+                    if (!_ignoreMarginalia) 
+                    {
+                        ProcessTextChunk(chunkElement);
+                    }
+                    break;
+                case ChunkType.PlainText:
+                    ProcessTextChunk(chunkElement);
+                    break;
+                case ChunkType.TableCaption:
+                    ProcessTextChunk(chunkElement);
+                    break;
+                case ChunkType.TableFootnote:
+                    ProcessTextChunk(chunkElement);
+                    break;
                 case ChunkType.Table:
                     ProcessTableChunk(chunkElement);
                     break;
@@ -107,7 +122,7 @@ namespace img2table.sharp.web.Controllers
             WriteText(chunkElement);
             _writer.AppendLine();
         }
-        
+
         private void ProcessListItemChunk(ChunkElement chunkElement)
         {
             var contents = chunkElement.ContentElements;
@@ -118,7 +133,7 @@ namespace img2table.sharp.web.Controllers
             //_writer.WriteListItemTag();
             WriteText(chunkElement);
             _writer.AppendLine();
-        }   
+        }
 
         private void ProcessFormulaChunk(ChunkElement chunkElement)
         {
@@ -201,7 +216,7 @@ namespace img2table.sharp.web.Controllers
             {
                 return;
             }
-            
+
             bool isFirstTextSpan = true;
             TextElement prev = null;
             foreach (var content in contents)
@@ -213,8 +228,8 @@ namespace img2table.sharp.web.Controllers
 
                 string text = null;
                 bool sameBaseline = false;
-                if (content.PageElement is TextElement textElement) 
-                { 
+                if (content.PageElement is TextElement textElement)
+                {
                     text = textElement.GetText();
 
                     if (prev != null)
@@ -237,16 +252,16 @@ namespace img2table.sharp.web.Controllers
                 {
                     newline = ImageTabular.IsNewParagraphBegin(text);
                 }
-                
+
                 if (_userEmbeddedHtml && PDFTabular.TryBuildHTMLPiece(content.PageElement, out string html))
                 {
-                    newLineText = newline ? ("<br />" + html) : html;
+                    newLineText = newline ? "<br />" + html : html;
                     _writer.AppendText(newLineText);
                     _writer.AppendText(" ");
                 }
                 else
                 {
-                    newLineText = newline ? ("\n\n" + newLineText) : newLineText;
+                    newLineText = newline ? "\n\n" + newLineText : newLineText;
                     _writer.AppendText(newLineText);
                     _writer.AppendText(" ");
                 }
@@ -255,7 +270,7 @@ namespace img2table.sharp.web.Controllers
                 {
                     prev = content.PageElement as TextElement;
                 }
-                
+
                 isFirstTextSpan = false;
             }
         }

@@ -6,8 +6,8 @@ import rehypeRaw from 'rehype-raw';
 
 const ExtractionPane = ({ documentChunks }) => {
     return (
-    <Card className="h-full">
-      <CardContent className="p-4 h-full flex flex-col">
+    <Card className="w-full">
+      <CardContent className="p-4 flex flex-col">
         <Tabs defaultValue="markdown" className="flex flex-col flex-1">
           <TabsList className="flex space-x-2 bg-gray-100 p-1 rounded-md">
             <TabsTrigger
