@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import PreviewPane from './components/PreviewPane';
 import ExtractionPane from './components/ExtractionPane';
+import { Loader } from 'lucide-react'; 
 
 const App = () => {
   const [file, setFile] = useState(null);
@@ -10,15 +11,26 @@ const App = () => {
   const [useHtml, setUseHtml] = useState(false);
   const [ignoreMarginalia, setIgnoreMarginalia] = useState(false);
   const [docType, setDocType] = useState("slide");
+  const [uploading, setUploading] = useState(false);
 
   return (
     <div className="flex h-screen font-sans bg-gray-50">
+      {uploading && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white px-6 py-4 rounded shadow text-gray-800 text-sm flex items-center gap-2">
+            <Loader className="w-4 h-4 animate-spin" />
+            Processing document, please wait...
+          </div>
+        </div>
+      )}
       <div className="w-72 bg-white p-4 border-r overflow-auto">
         <Sidebar 
           setDocumentChunks={setDocumentChunks} 
           useHtml={useHtml} 
           ignoreMarginalia={ignoreMarginalia}
-          docType={docType}/>
+          docType={docType}
+          uploading={uploading}
+          setUploading={setUploading}/>
       </div>
       <div className="flex-1 flex flex-col">
         <div className="p-2 border-b bg-white">

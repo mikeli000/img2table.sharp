@@ -38,14 +38,12 @@ namespace img2table.sharp.web.Services
 
     public interface LayoutDetector
     {
-        Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName);
+        Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold);
     }
 
     public class Yolov8xDoclaynetLayoutDetector: LayoutDetector
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private float RenderDPI = 300;
-        private float PredictConfidenceThreshold = 0.2f;
         private static readonly string DocumentLayoutExtractorServiceUrl = "http://localhost:8000/detect";
 
         public Yolov8xDoclaynetLayoutDetector(IHttpClientFactory httpClientFactory)
@@ -53,7 +51,7 @@ namespace img2table.sharp.web.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
+        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
             using var formData = new MultipartFormDataContent();
@@ -62,8 +60,8 @@ namespace img2table.sharp.web.Services
             fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
             formData.Add(fileContent, "file", pdfFileName);
 
-            formData.Add(new StringContent(RenderDPI + ""), "dpi");
-            formData.Add(new StringContent(PredictConfidenceThreshold + ""), "confidence");
+            formData.Add(new StringContent(renderDPI + ""), "dpi");
+            formData.Add(new StringContent(predictConfidenceThreshold + ""), "confidence");
             var response = await httpClient.PostAsync(DocumentLayoutExtractorServiceUrl, formData);
 
             if (!response.IsSuccessStatusCode)
@@ -82,8 +80,6 @@ namespace img2table.sharp.web.Services
     public class DocStructBenchLayoutDetector : LayoutDetector
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private float RenderDPI = 300;
-        private float PredictConfidenceThreshold = 0.2f;
         private static readonly string DocumentLayoutExtractorServiceUrl = "http://localhost:8999/detect";
 
         public DocStructBenchLayoutDetector(IHttpClientFactory httpClientFactory)
@@ -91,7 +87,7 @@ namespace img2table.sharp.web.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
+        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
             using var formData = new MultipartFormDataContent();
@@ -100,8 +96,8 @@ namespace img2table.sharp.web.Services
             fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
             formData.Add(fileContent, "file", pdfFileName);
 
-            formData.Add(new StringContent(RenderDPI + ""), "dpi");
-            formData.Add(new StringContent(PredictConfidenceThreshold + ""), "confidence");
+            formData.Add(new StringContent(renderDPI + ""), "dpi");
+            formData.Add(new StringContent(predictConfidenceThreshold + ""), "confidence");
             var response = await httpClient.PostAsync(DocumentLayoutExtractorServiceUrl, formData);
 
             if (!response.IsSuccessStatusCode)

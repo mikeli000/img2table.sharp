@@ -16,6 +16,7 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
+using Img2table.Sharp.Tabular.TableImage.TableElement;
 
 namespace img2table.sharp.web.Services
 {
@@ -23,10 +24,13 @@ namespace img2table.sharp.web.Services
     {
         public static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
 
+        public float RenderDPI { get; set; } = 300;
+        public float PredictConfidenceThreshold { get; set; } = 0.2f;
+
         public static float DEFAULT_OVERLAP_RATIO = 0.8f;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
-        private float RenderDPI = 300;
+        
         private ChunkElementProcessor _chunkElementProcessor;
         private bool _useEmbeddedHtml;
         private string _docCategory;
@@ -53,7 +57,7 @@ namespace img2table.sharp.web.Services
                 throw new ArgumentException("PDF file bytes cannot be null or empty.", nameof(pdfFileBytes));
             }
 
-            return await detector.DetectAsync(pdfFileBytes, pdfFileName);
+            return await detector.DetectAsync(pdfFileBytes, pdfFileName, RenderDPI, PredictConfidenceThreshold);
         }
 
         private bool _drawPageChunks = true;
@@ -162,21 +166,21 @@ namespace img2table.sharp.web.Services
                             imagebaseTable = true;
                         }
 
+
+                        var param = TabularParameter.AutoDetect;
+                        //param.RenderResolution = RenderDPI;
+                        //param.DetectBorderlessTables = false;
+                        param.CellTextOverlapRatio = 0.7f;
                         if (imagebaseTable)
                         {
-                            var param = TabularParameter.AutoDetect;
-                            param.ImplicitRows = true;
-                            param.ImplicitColumns = true;
-                            param.CellTextOverlapRatio = 0.7f;
                             var imageTabular = new ImageTabular(param);
                             var pagedTable = imageTabular.Process(tableImagePath, true);
 
                             if (pagedTable != null)
                             {
                                 var tables = new PagedTableDTO(pagedTable).Tables;
-                                for (int j = tables.Count - 1; j >= 0; j--) // TODO
+                                foreach (var table in tables) // TODO
                                 {
-                                    var table = tables[j];
                                     TableHTML.Generate(table, out string htmlTable);
                                     chunkElement.MarkdownText += htmlTable;
                                 }
@@ -184,9 +188,6 @@ namespace img2table.sharp.web.Services
                         }
                         else
                         {
-                            var param = TabularParameter.AutoDetect;
-                            param.CellTextOverlapRatio = 0.7f;
-
                             var imageTabular = new ImageTabular(param);
                             var pagedTable = imageTabular.Process(tableImagePath, false);
 
@@ -196,9 +197,8 @@ namespace img2table.sharp.web.Services
                             if (pagedTable != null)
                             {
                                 var tables = new PagedTableDTO(pagedTable).Tables;
-                                for (int j = tables.Count - 1; j >= 0; j--) // TODO
+                                foreach(var table in tables) // TODO
                                 {
-                                    var table = tables[j];
                                     TableHTML.Generate(table, out string htmlTable);
                                     chunkElement.MarkdownText += htmlTable;
                                 }

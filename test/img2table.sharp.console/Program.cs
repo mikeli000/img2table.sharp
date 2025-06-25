@@ -18,8 +18,12 @@ namespace img2table.sharp.console
     {
         static void Main(string[] args)
         {
-            PDFTools.Render(@"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577\toUnicodeMap.PDF",
-                @"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577");
+            //PDFTools.Render(@"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577\toUnicodeMap.PDF",
+            //    @"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577");
+
+            var pp = new List<int[]>();
+            pp.Add(new int[] { 0, 4 });
+            PDFTools.SplitPDF(@"C:\dev\testfiles\ai_testsuite\pdf\toUnicodeMap.PDF", pp, @"C:\dev\testfiles\ai_testsuite\pdf\5_page_acdamic_sample.PDF");
             // TabularPDF();
 
             //TabularImage();

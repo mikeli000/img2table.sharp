@@ -44,10 +44,14 @@ namespace img2table.sharp.web.Services
                     ProcessTextChunk(chunkElement);
                     break;
                 case ChunkType.TableCaption:
-                    ProcessTextChunk(chunkElement);
+                    _writer.WriteTitleTag(4);
+                    WriteText(chunkElement);
+                    _writer.AppendLine();
                     break;
                 case ChunkType.TableFootnote:
-                    ProcessTextChunk(chunkElement);
+                    _writer.WriteTitleTag(5);
+                    WriteText(chunkElement);
+                    _writer.AppendLine();
                     break;
                 case ChunkType.Table:
                     ProcessTableChunk(chunkElement);

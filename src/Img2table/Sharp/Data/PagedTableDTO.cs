@@ -20,8 +20,13 @@ namespace img2table.sharp.Img2table.Sharp.Data
             PageIndex = pagedTable.PageIndex;
             PageCount = pagedTable.PageCount;
             PageImage = pagedTable.PageImage;
-            
-            Tables = pagedTable.Tables.Select(t => new TableDTO(t)).ToList();
+
+            var tables = pagedTable.Tables;
+            var sortedTables = tables
+                .OrderBy(t => t.Rows?.FirstOrDefault()?.Cells?.FirstOrDefault()?.Y1 ?? float.MaxValue)
+                .ToList();
+
+            Tables = sortedTables.Select(t => new TableDTO(t)).ToList();
         }
     }
 }

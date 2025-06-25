@@ -1,10 +1,9 @@
 import React, { useRef, useState } from 'react';
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType }) => {
+const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, uploading, setUploading }) => {
   const fileInputRef = useRef(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [uploading, setUploading] = useState(false);
 
   const handleDrop = (e) => {
     e.preventDefault();
