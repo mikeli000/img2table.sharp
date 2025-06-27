@@ -96,7 +96,7 @@ namespace img2table.sharp.web.Services
                     var pageImageName = $"page_{pageNumber}.png";
                     string pageImagePath = Path.Combine(workFolder, pageImageName);
                     pdfDoc.RenderPage(pageImagePath, i, RenderDPI, backgroundColor: Color.White);
-
+                     
                     var predictedPageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == i + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);

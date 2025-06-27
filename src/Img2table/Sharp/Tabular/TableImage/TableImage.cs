@@ -24,7 +24,7 @@ namespace Img2table.Sharp.Tabular.TableImage
 
             _thresh = ThresholdDarkAreas(_img, DefaultCharLength);
             var t = Metrics.ComputeImgMetrics(_thresh.Clone());
-            _charLength = t.Item1.Value;
+            _charLength = t.Item1 != null ? t.Item1.Value: DefaultCharLength;
             _medianLineSep = t.Item2;
             _contours = t.Item3;
         }

@@ -12,7 +12,12 @@ const App = () => {
   const [ignoreMarginalia, setIgnoreMarginalia] = useState(false);
   const [docType, setDocType] = useState("slide");
   const [uploading, setUploading] = useState(false);
+  const [highlight, setHighlight] = useState(null);
 
+  const handleChunkClick = (pageNumber, bbox) => {
+    setHighlight({ pageNumber, bbox });
+  };
+  
   return (
     <div className="flex h-screen font-sans bg-gray-50">
       {uploading && (
@@ -45,10 +50,10 @@ const App = () => {
         </div>
         <div className="flex flex-1 overflow-hidden">
           <div className="w-1/2 p-4 overflow-auto border-r bg-white">
-            <PreviewPane file={file} documentChunks={documentChunks} />
+            <PreviewPane file={file} documentChunks={documentChunks} highlight={highlight} />
           </div>
           <div className="w-1/2 p-4 overflow-auto bg-white">
-            <ExtractionPane documentChunks={documentChunks} />
+            <ExtractionPane documentChunks={documentChunks} handleChunkClick={handleChunkClick} />
           </div>
         </div>
       </div>

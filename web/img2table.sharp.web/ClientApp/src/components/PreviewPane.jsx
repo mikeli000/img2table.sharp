@@ -1,31 +1,77 @@
-import React from 'react';
 import { Card, CardContent } from './ui/card';
+import React, { useState, useRef, useEffect } from "react";
+
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-const PreviewPane = ({ file, documentChunks }) => {
-    if (!documentChunks) {
-    return (
-      <Card className="h-full">
-        <CardContent className="text-gray-500 p-4">Please upload a file to preview</CardContent>
-      </Card>
-    );
-  }
+const PreviewPane = ({ documentChunks, highlight }) => {
+  const [imageSizes, setImageSizes] = useState({});
+
+  const handleImageLoad = (e, pageNumber) => {
+    const img = e.target;
+    setImageSizes((prev) => ({
+      ...prev,
+      [pageNumber]: {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        clientWidth: img.clientWidth,
+        clientHeight: img.clientHeight,
+      },
+    }));
+  };
 
   return (
     <Card className="h-full overflow-auto">
-      <CardContent className="space-y-4 p-4">
-        {documentChunks?.pagedChunks?.map((chunk, index) => (
-          <div key={index} className="border rounded shadow">
-            <div className="bg-gray-100 px-2 py-1 text-sm text-gray-600">
-              Page {chunk.pageNumber}
+      <CardContent className="space-y-4 p-4 relative">
+        {documentChunks?.pagedChunks?.map((chunk, index) => {
+          const isHighlighted = highlight?.pageNumber === chunk.pageNumber;
+          const imageSize = imageSizes[chunk.pageNumber];
+
+          let boxStyle = {};
+
+          if (isHighlighted && imageSize) {
+            const scaleX = imageSize.clientWidth / imageSize.naturalWidth;
+            const scaleY = imageSize.clientHeight / imageSize.naturalHeight;
+
+            const [x0, y0, x1, y1] = highlight.bbox;
+            boxStyle = {
+              position: "absolute",
+              left: x0 * scaleX + "px",
+              top: y0 * scaleY + "px",
+              width: (x1 - x0) * scaleX + "px",
+              height: (y1 - y0) * scaleY + "px",
+              border: "1px dashed red",             // 细虚线
+              backgroundColor: "rgba(255, 0, 0, 0.1)", // 淡红色高亮，透明度 0.1
+              pointerEvents: "none",
+              boxSizing: "border-box",
+              zIndex: 10, // 确保在图片之上
+            };
+          }
+
+          return (
+            <div
+              key={index}
+              className="border rounded shadow relative"
+              style={{ width: "100%" }}
+            >
+              <div className="mb-4">
+                <div className="bg-gray-100 px-2 py-1 text-sm text-gray-600">
+                  Page {chunk.pageNumber}
+                </div>
+
+                <div className="relative w-full">
+                  <img
+                    src={`${baseUrl}${chunk.previewImagePath}`}
+                    className="w-full object-contain"
+                    onLoad={(e) => handleImageLoad(e, chunk.pageNumber)}
+                  />
+                  {isHighlighted && imageSize && (
+                    <div style={boxStyle}></div>
+                  )}
+                </div>
+              </div>
             </div>
-            <img
-              src={`${baseUrl}${chunk.previewImagePath}`}
-              alt={`Preview page ${chunk.pageNumber}`}
-              className="w-full max-w-full object-contain"
-            />
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
