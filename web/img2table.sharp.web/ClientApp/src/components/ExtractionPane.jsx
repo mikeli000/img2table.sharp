@@ -39,8 +39,8 @@ const ExtractionPane = ({ documentChunks, handleChunkClick }) => {
                       </div>
 
                       <div className="prose text-sm max-w-none">
-                        <ReactMarkdown>
-                          {chunk.markdownText}
+                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                          {chunk.markdownText} 
                         </ReactMarkdown>
                       </div>
                     </div>

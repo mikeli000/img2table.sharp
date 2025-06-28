@@ -5,6 +5,7 @@ using Sdcb.PaddleOCR.Models.Local;
 using Sdcb.PaddleOCR;
 using System.Drawing;
 using System.Text;
+using PDFDict.SDK.Sharp.Core.Contents;
 
 namespace Img2table.Sharp.Tabular
 {
@@ -164,46 +165,9 @@ namespace Img2table.Sharp.Tabular
             {
                 return true;
             }
-            
-            char[] paragraphSymbols = 
-            {
-                '•', '‣', '‧', '∙', '·', '●',
-                '▪', '▫', '■', '□', '▣',
-                '▤', '▥', '▦', '▧', '▨', '▩',
-                '→', '⇒', '➤', '▶', '➔', '➢',
-                '♦', '◆', '◇', '○',
-                '✓', '✔',
-                '✦', '★', '✧', '❖', '❑',
-                '-', '*', '+', '=', '~', 
-                '(', '[', '{', '（', '【', '《'
-            };
 
-            if (paragraphSymbols.Contains(c))
-            {
-                return true;
-            }
-
-            string[] listItemBeginTag = new[]
-            {
-                "i.", "ii.", "iii.", "iv.", "v.", "vi.", "vii.", "viii.", "ix.", "x.",
-                "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "10.",
-                "1)", "2)", "3)", "4)", "5)", "6)", "7)", "8)", "9)", "10)",
-                "1-", "2-", "3-", "4-", "5-",
-                "a.", "b.", "c.", "d.", "e.",
-                "a)", "b)", "c)", "d)", "e)",
-            };
-
-            foreach (var tag in listItemBeginTag)
-            {
-                if (text.StartsWith(tag + " ") || text.StartsWith(tag + "\t") || text == tag)
-                {
-                    return true;
-                }
-            }
-            return false;
+            return TextElement.IsListParagraphBegin(text);
         }
-
-
 
         private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter)
         {

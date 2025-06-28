@@ -207,8 +207,10 @@ namespace img2table.sharp.web.Services
                     }
                 }
 
-                _chunkElementProcessor.Process(chunkElement);
-                chunks.Add(chunkElement);
+                if (!string.IsNullOrEmpty(_chunkElementProcessor.Process(chunkElement)))
+                {
+                    chunks.Add(chunkElement);
+                }
             }
 
             return chunks;

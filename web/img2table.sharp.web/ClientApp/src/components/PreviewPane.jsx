@@ -39,11 +39,11 @@ const PreviewPane = ({ documentChunks, highlight }) => {
               top: y0 * scaleY + "px",
               width: (x1 - x0) * scaleX + "px",
               height: (y1 - y0) * scaleY + "px",
-              border: "1px dashed red",             // 细虚线
-              backgroundColor: "rgba(255, 0, 0, 0.1)", // 淡红色高亮，透明度 0.1
+              border: "1px dashed red",
+              backgroundColor: "rgba(255, 0, 0, 0.1)",
               pointerEvents: "none",
               boxSizing: "border-box",
-              zIndex: 10, // 确保在图片之上
+              zIndex: 10,
             };
           }
 

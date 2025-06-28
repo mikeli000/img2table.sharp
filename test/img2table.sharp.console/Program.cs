@@ -21,12 +21,12 @@ namespace img2table.sharp.console
             //PDFTools.Render(@"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577\toUnicodeMap.PDF",
             //    @"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577");
 
-            var pp = new List<int[]>();
-            pp.Add(new int[] { 0, 4 });
-            PDFTools.SplitPDF(@"C:\dev\testfiles\ai_testsuite\pdf\toUnicodeMap.PDF", pp, @"C:\dev\testfiles\ai_testsuite\pdf\5_page_acdamic_sample.PDF");
+            //var pp = new List<int[]>();
+            //pp.Add(new int[] { 0, 4 });
+            //PDFTools.SplitPDF(@"C:\dev\testfiles\ai_testsuite\pdf\toUnicodeMap.PDF", pp, @"C:\dev\testfiles\ai_testsuite\pdf\5_page_acdamic_sample.PDF");
             // TabularPDF();
 
-            //TabularImage();
+            TabularImage();
 
             // Paddle();
         }
@@ -128,6 +128,8 @@ namespace img2table.sharp.console
             //string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/jd invoice.png");
             //string tempFile = @"C:\Users\MikeLi\Downloads\512a72c1-6936-47ac-93ea-58d29c84c7de.png";
             string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/a.png");
+
+            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\line1.png";
             Console.WriteLine(tempFile);
 
             var param = TabularParameter.AutoDetect;

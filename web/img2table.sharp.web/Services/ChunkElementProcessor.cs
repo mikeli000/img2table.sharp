@@ -6,6 +6,7 @@ using System.Text;
 using System;
 using System.IO;
 using Img2table.Sharp.Tabular;
+using OpenCvSharp.LineDescriptor;
 
 namespace img2table.sharp.web.Services
 {
@@ -221,7 +222,6 @@ namespace img2table.sharp.web.Services
                 return;
             }
 
-            bool isFirstTextSpan = true;
             TextElement prev = null;
             foreach (var content in contents)
             {
@@ -230,52 +230,43 @@ namespace img2table.sharp.web.Services
                     continue;
                 }
 
-                string text = null;
-                bool sameBaseline = false;
-                if (content.PageElement is TextElement textElement)
+                if (content.PageElement is not TextElement)
                 {
-                    text = textElement.GetText();
-
-                    if (prev != null)
-                    {
-                        if (Math.Round(prev.GetBaselineY()) == Math.Round(textElement.GetBaselineY()))
-                        {
-                            sameBaseline = true;
-                        }
-                    }
-                }
-
-                if (string.IsNullOrEmpty(text))
-                {
+                    // TODO
                     continue;
                 }
 
-                string newLineText = text;
-                bool newline = false;
-                if (!isFirstTextSpan && !sameBaseline)
+                var curr = content.PageElement as TextElement;
+                string text = curr.GetText();
+                bool isListParagraphBegin = TextElement.IsListParagraphBegin(text);
+                if (prev != null)
                 {
-                    newline = ImageTabular.IsNewParagraphBegin(text);
+                    if (Math.Round(prev.GetBaselineY()) == Math.Round(curr.GetBaselineY()))
+                    {
+                        isListParagraphBegin = false;
+                    }
                 }
-
+                    
                 if (_userEmbeddedHtml && PDFTabular.TryBuildHTMLPiece(content.PageElement, out string html))
                 {
-                    newLineText = newline ? "<br />" + html : html;
+                    var newLineText = isListParagraphBegin ? "<br />" + html : html;
                     _writer.AppendText(newLineText);
-                    _writer.AppendText(" ");
                 }
                 else
                 {
-                    newLineText = newline ? "\n\n" + newLineText : newLineText;
+                    var newLineText = isListParagraphBegin ? "\n\n" + text : text;
                     _writer.AppendText(newLineText);
-                    _writer.AppendText(" ");
                 }
 
-                if (content.PageElement is TextElement)
+                if (!isListParagraphBegin && TextElement.IsSpaceBetween(prev, curr))
                 {
-                    prev = content.PageElement as TextElement;
+                    if (!_writer.IsEndWithSpace())
+                    {
+                        _writer.AppendText(" ");
+                    }
                 }
 
-                isFirstTextSpan = false;
+                prev = content.PageElement as TextElement;
             }
         }
     }
@@ -283,6 +274,17 @@ namespace img2table.sharp.web.Services
     public class MarkdownWriter
     {
         private readonly StringBuilder _sb = new StringBuilder();
+
+        public bool IsEndWithSpace()
+        {
+            if (_sb == null || _sb.Length == 0)
+            {
+                return false;
+            }
+            
+            char lastChar = _sb[_sb.Length - 1];
+            return lastChar == ' ' || lastChar == '\n';
+        }
 
         public void AppendText(string text)
         {
