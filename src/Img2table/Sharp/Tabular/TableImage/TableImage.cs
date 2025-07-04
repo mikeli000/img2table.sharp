@@ -26,12 +26,25 @@ namespace Img2table.Sharp.Tabular.TableImage
             var t = Metrics.ComputeImgMetrics(_thresh.Clone());
             _charLength = t.Item1 != null ? t.Item1.Value: DefaultCharLength;
             _medianLineSep = t.Item2;
-            _contours = t.Item3;
+            _contours = t.Item3?? new List<Cell>();
         }
 
-        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables)
+        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null)
         {
             ExtractBorderedTables(implicitRows, implicitColumns);
+            if (_tables != null && _tables.Count > 0)
+            {
+                return _tables;
+            }
+
+            if (tableBbox != null)
+            {
+                ExtractPositionedTable(tableBbox.Value);
+                if (_tables != null && _tables.Count > 0)
+                {
+                    return _tables;
+                }
+            }
 
             if (borderlessTables)
             {
@@ -39,6 +52,12 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
 
             return _tables;
+        }
+
+        private void ExtractPositionedTable(Rect tableBbox)
+        {
+            var (hLines, vLines) = PostionedTableCellDetector.DetectLines(_img, tableBbox);
+            CompsiteTable(hLines, vLines);
         }
 
         private void ExtractBorderlessTables()
@@ -57,18 +76,18 @@ namespace Img2table.Sharp.Tabular.TableImage
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Min(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
 
             var (hLines, vLines) = LineDetector.DetectLines(_img, _contours, _charLength, minLineLength);
+            CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+        }
+
+        private void CompsiteTable(List<Line> hLines, List<Line> vLines, bool implicitRows = false, bool implicitColumns = false)
+        {
             _lines = new List<Line>();
             _lines.AddRange(hLines);
             _lines.AddRange(vLines);
-
             var cells = GetCells(hLines, vLines);
-
             _tables = TableDetector.DetectTables(cells, _contours, _lines, _charLength);
-
             _tables = _tables.Select(table => Implicit.ImplicitContent(table, _contours, _charLength, implicitRows, implicitColumns)).ToList();
-
             _tables = Consecutive.MergeConsecutiveTables(_tables, _contours);
-
             _tables = _tables.Where(tb => Math.Min(tb.NbRows, tb.NbColumns) >= 2).ToList();
         }
 

@@ -5,6 +5,8 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 const PreviewPane = ({ documentChunks, highlight }) => {
   const [imageSizes, setImageSizes] = useState({});
+  const pageRefs = useRef({});
+
 
   const handleImageLoad = (e, pageNumber) => {
     const img = e.target;
@@ -18,6 +20,17 @@ const PreviewPane = ({ documentChunks, highlight }) => {
       },
     }));
   };
+
+  useEffect(() => {
+    if (highlight?.pageNumber && pageRefs.current[highlight.pageNumber]) {
+      pageRefs.current[highlight.pageNumber].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      console.log("Highlighting page:", highlight.pageNumber);
+    }
+  }, [highlight]);
 
   return (
     <Card className="h-full overflow-auto">
@@ -50,6 +63,7 @@ const PreviewPane = ({ documentChunks, highlight }) => {
           return (
             <div
               key={index}
+              ref={el => pageRefs.current[chunk.pageNumber] = el}
               className="border rounded shadow relative"
               style={{ width: "100%" }}
             >

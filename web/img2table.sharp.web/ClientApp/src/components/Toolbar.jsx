@@ -23,18 +23,19 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="slide">
-              <div className="flex items-center gap-2 whitespace-nowrap">
-                <LayoutTemplate className="w-4 h-4" />
-                <span>Slide-style</span>
-              </div>
-            </SelectItem>
             <SelectItem value="academic">
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <BookOpen className="w-4 h-4" />
                 <span>Academic Paper</span>
               </div>
             </SelectItem>
+            <SelectItem value="slide">
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <LayoutTemplate className="w-4 h-4" />
+                <span>Slide-style</span>
+              </div>
+            </SelectItem>
+
             <SelectItem value="spreadsheet">
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <FileSpreadsheet className="w-4 h-4" />

@@ -3,14 +3,11 @@ using Img2table.Sharp.Tabular;
 using Img2table.Sharp.Tabular.TableImage;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
-using PDFDict.SDK.Sharp.Tools;
 using Sdcb.PaddleOCR;
 using Sdcb.PaddleOCR.Models;
 using Sdcb.PaddleOCR.Models.Local;
 using Sdcb.PaddleOCR.Models.Online;
-using System;
-using System.Net.NetworkInformation;
-using static PDFDict.SDK.Sharp.Core.OCR.TesseractOCR;
+using System.Drawing;
 
 namespace img2table.sharp.console
 {
@@ -26,9 +23,110 @@ namespace img2table.sharp.console
             //PDFTools.SplitPDF(@"C:\dev\testfiles\ai_testsuite\pdf\toUnicodeMap.PDF", pp, @"C:\dev\testfiles\ai_testsuite\pdf\5_page_acdamic_sample.PDF");
             // TabularPDF();
 
-            TabularImage();
+            //pre();
+            //TabularImage();
 
-            // Paddle();
+            //TT();
+
+            //Paddle();
+           
+            var tableBbox = RectangleF.FromLTRB(248, 393, 2293, 721);
+            TabularImage(tableBbox);
+            //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
+        }
+
+        static void pre()
+        {
+            var tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\z.png";
+            using Mat src = Cv2.ImRead(tempFile);
+
+            //Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
+            //{
+            //    using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
+            //    all.Detector.UnclipRatio = 1.2f;
+            //    return all.Run(src);
+            //});
+            //PaddleOcrResult ocrResult = ocrResultTask.Result;
+
+            //for (int i = 0; i < ocrResult.Regions.Length; ++i)
+            //{
+            //    PaddleOcrResultRegion region = ocrResult.Regions[i];
+            //    Rect ocrBox = Extend(region.Rect.BoundingRect(), -2);
+            //    Cv2.Rectangle(src, ocrBox, Scalar.White, -1);
+            //    FillRectDashedVertical(src, ocrBox, Scalar.Black, 16, 8);
+            //}
+
+            Cv2.ImWrite(@"C:\temp\table-visualized_1.jpg", src);
+        }
+
+        static void FillRectDashedVertical(Mat img, Rect rect, Scalar color, int dashWidth = 10, int gap = 2)
+        {
+            for (int x = rect.Left; x < rect.Right; x += dashWidth + gap)
+            {
+                int xEnd = Math.Min(x + dashWidth, rect.Right);
+                var dashedRect = new Rect(x, rect.Top, xEnd - x, rect.Height);
+                Cv2.Rectangle(img, dashedRect, color, thickness: -1);
+            }
+        }
+
+        static void TT()
+        {
+            //string tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\line1.png";
+            string tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\line1.png";
+
+            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\g.png";
+            // 1. 读取图片
+            Mat src = Cv2.ImRead(tempFile, ImreadModes.Color);
+
+            // 2. 转为灰度图
+            Mat gray = new Mat();
+            Cv2.CvtColor(src, gray, ColorConversionCodes.BGR2GRAY);
+
+            // 3. 边缘检测
+            Mat edges = new Mat();
+            Cv2.Canny(gray, edges, 50, 150);
+
+            // 4. 霍夫直线检测
+            LineSegmentPoint[] lines = Cv2.HoughLinesP(
+                edges,           // 输入的二值图像
+                1,               // 距离分辨率
+                Math.PI / 180,   // 角度分辨率
+                400,             // 阈值
+                minLineLength: 10,
+                maxLineGap: 2   
+            );
+
+            // 5. 绘制检测到的直线
+            foreach (var line in lines)
+            {
+                Cv2.Line(src, line.P1, line.P2, new Scalar(0, 255, 0), 4);
+            }
+
+            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\temp.png", src);
+
+            // 6. 保存或显示结果
+            // 设定最大显示宽高
+            int maxWidth = 1200;
+            int maxHeight = 800;
+
+            // 获取原图尺寸
+            int width = src.Width;
+            int height = src.Height;
+
+            // 计算缩放比例
+            double scale = Math.Min((double)maxWidth / width, (double)maxHeight / height);
+            if (scale > 1) scale = 1; // 不放大
+
+            int newWidth = (int)(width * scale);
+            int newHeight = (int)(height * scale);
+
+            // 缩放图片
+            Mat resized = new Mat();
+            Cv2.Resize(src, resized, new OpenCvSharp.Size(newWidth, newHeight));
+
+            // 显示
+            Cv2.ImShow("Detected Lines", resized);
+            Cv2.WaitKey();
         }
 
         private static void Paddle()
@@ -39,6 +137,9 @@ namespace img2table.sharp.console
             using PaddleOcrTableRecognizer tableRec = new(tableModel);
 
             var tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/t1.png");
+            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\g.png";
+
+
             using Mat src = Cv2.ImRead(tempFile);
             TableDetectionResult result = tableRec.Run(src);
             
@@ -69,11 +170,11 @@ namespace img2table.sharp.console
                 Cv2.WaitKey();
             }
 
-            Cv2.ImWrite(@"C:\temp\table-visualized_1.jpg", src);
+            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\temp.png", src);
 
             Console.WriteLine(html);
             // output html to file
-            string htmlFile = @"C:\temp\table-visualized_1.html";
+            string htmlFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\temp.html";
             using (StreamWriter writer = new StreamWriter(htmlFile))
             {
                 writer.WriteLine(html);
@@ -123,19 +224,20 @@ namespace img2table.sharp.console
             return Rect.FromLTRB(rect.Left - extendLength, rect.Top - extendLength, rect.Right + extendLength, rect.Bottom + extendLength);
         }
 
-        private static void TabularImage()
+        private static void TabularImage(RectangleF tableRect)
         {
             //string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/jd invoice.png");
             //string tempFile = @"C:\Users\MikeLi\Downloads\512a72c1-6936-47ac-93ea-58d29c84c7de.png";
             string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/a.png");
 
-            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\line1.png";
+            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png";
             Console.WriteLine(tempFile);
 
             var param = TabularParameter.AutoDetect;
+            param.DetectBorderlessTables = false;
             param.CellTextOverlapRatio = 0.6f;
             var tableImage = new ImageTabular(param);
-            var ret = tableImage.Process(tempFile, true);
+            var ret = tableImage.Process(tempFile, tableRect, true);
 
             foreach (var t in ret.Tables)
             {
@@ -149,12 +251,47 @@ namespace img2table.sharp.console
             TableHTML.Generate(new PagedTableDTO(ret), html);
             Console.WriteLine(html);
 
-            string outputPath = @"C:/temp/img2table_data/borderless/temp.png";
+            string outputPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\temp.png";
             Cv2.ImWrite(outputPath, img);
-            using (new Window("dst image", img))
+            //using (new Window("dst image", img))
+            //{
+            //    Cv2.WaitKey();
+            //}
+        }
+
+        private static void TabularImage()
+        {
+            //string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/jd invoice.png");
+            //string tempFile = @"C:\Users\MikeLi\Downloads\512a72c1-6936-47ac-93ea-58d29c84c7de.png";
+            string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/a.png");
+
+            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\z (5).png";
+            Console.WriteLine(tempFile);
+
+            var param = TabularParameter.AutoDetect;
+            param.DetectBorderlessTables = false;
+            param.CellTextOverlapRatio = 0.6f;
+            var tableImage = new ImageTabular(param);
+            var ret = tableImage.Process(tempFile, loadText: false);
+
+            foreach (var t in ret.Tables)
             {
-                Cv2.WaitKey();
+                Console.WriteLine(t.ToString());
             }
+
+            using var img = new Mat(tempFile, ImreadModes.Color);
+            DrawTables(img, ret.Tables);
+
+            string html = Path.Combine(Environment.CurrentDirectory, @$"Files/b_{ret.PageIndex + 1}.html");
+            TableHTML.Generate(new PagedTableDTO(ret), html);
+            Console.WriteLine(html);
+
+            string outputPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\temp.png";
+            Cv2.ImWrite(outputPath, img);
+            //using (new Window("dst image", img))
+            //{
+            //    Cv2.WaitKey();
+            //}
         }
 
         private static void TestImage()

@@ -174,7 +174,7 @@ namespace img2table.sharp.web.Services
                         if (imagebaseTable)
                         {
                             var imageTabular = new ImageTabular(param);
-                            var pagedTable = imageTabular.Process(tableImagePath, true);
+                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, true);
 
                             if (pagedTable != null)
                             {
@@ -189,7 +189,7 @@ namespace img2table.sharp.web.Services
                         else
                         {
                             var imageTabular = new ImageTabular(param);
-                            var pagedTable = imageTabular.Process(tableImagePath, false);
+                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, false);
 
                             var pdfTabular = new PDFTabular(param);
                             pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml: _useEmbeddedHtml);
@@ -229,6 +229,8 @@ namespace img2table.sharp.web.Services
             roi = roi.Intersect(new Rect(0, 0, src.Width, src.Height));
             Mat whiteBg = new Mat(src.Size(), src.Type(), new Scalar(255, 255, 255));
             src[roi].CopyTo(whiteBg[roi]);
+
+            //Cv2.Rectangle(whiteBg, roi, new Scalar(0, 0, 0), thickness: 2);
 
             Cv2.ImWrite(clippedImage, whiteBg);
         }

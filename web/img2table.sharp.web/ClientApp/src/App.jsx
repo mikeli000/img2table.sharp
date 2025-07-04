@@ -10,7 +10,7 @@ const App = () => {
   const [documentChunks, setDocumentChunks] = useState([]);
   const [useHtml, setUseHtml] = useState(false);
   const [ignoreMarginalia, setIgnoreMarginalia] = useState(false);
-  const [docType, setDocType] = useState("slide");
+  const [docType, setDocType] = useState("academic");
   const [uploading, setUploading] = useState(false);
   const [highlight, setHighlight] = useState(null);
 

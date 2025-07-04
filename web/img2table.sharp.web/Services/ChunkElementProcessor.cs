@@ -195,14 +195,14 @@ namespace img2table.sharp.web.Services
 
             if (textElements.Count > 0)
             {
-                foreach (var content in contents)
+                foreach (var content in textElements)
                 {
                     if (content.PageElement == null)
                     {
                         continue;
                     }
 
-                    if (_userEmbeddedHtml && PDFTabular.TryBuildHTMLPiece(content.PageElement, out string html))
+                    if (_userEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
                     {
                         _writer.WriteText(html);
                     }
@@ -247,26 +247,50 @@ namespace img2table.sharp.web.Services
                     }
                 }
                     
-                if (_userEmbeddedHtml && PDFTabular.TryBuildHTMLPiece(content.PageElement, out string html))
+                if (_userEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
                 {
-                    var newLineText = isListParagraphBegin ? "<br />" + html : html;
+                    string newLineText = html;
+                    if (isListParagraphBegin)
+                    {
+                        newLineText = "<br />" + newLineText;
+                    }
+                    else
+                    {
+                        if (prev != null)
+                        {
+                            if (TextElement.IsSpaceBetween(prev, curr) || Math.Round(prev.GetBaselineY()) != Math.Round(curr.GetBaselineY()))
+                            {
+                                newLineText = " " + newLineText;
+                            }
+                        }
+                    }
+                    
                     _writer.AppendText(newLineText);
                 }
                 else
                 {
-                    var newLineText = isListParagraphBegin ? "\n\n" + text : text;
+                    string newLineText = text;
+                    if (isListParagraphBegin)
+                    {
+                        newLineText = "\n\n" + newLineText;
+                    }
+                    else
+                    {
+                        if (prev != null)
+                        {
+                            if (TextElement.IsSpaceBetween(prev, curr) || Math.Round(prev.GetBaselineY()) != Math.Round(curr.GetBaselineY()))
+                            {
+                                if (!_writer.IsEndWithSpace())
+                                {
+                                    newLineText = " " + newLineText;
+                                }
+                            }
+                        }
+                    }
                     _writer.AppendText(newLineText);
                 }
 
-                if (!isListParagraphBegin && TextElement.IsSpaceBetween(prev, curr))
-                {
-                    if (!_writer.IsEndWithSpace())
-                    {
-                        _writer.AppendText(" ");
-                    }
-                }
-
-                prev = content.PageElement as TextElement;
+                prev = curr;
             }
         }
     }

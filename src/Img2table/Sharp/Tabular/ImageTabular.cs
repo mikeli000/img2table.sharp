@@ -18,7 +18,7 @@ namespace Img2table.Sharp.Tabular
             _parameter = tabularParameter;
         }
 
-        public PagedTable Process(string imgFile, bool loadText = false)
+        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, bool loadText = false)
         {
             if (string.IsNullOrWhiteSpace(imgFile) || !File.Exists(imgFile))
             {
@@ -27,7 +27,17 @@ namespace Img2table.Sharp.Tabular
 
             using var img = new Mat(imgFile, ImreadModes.Color);
             var tableImage = new TableImage.TableImage(img);
-            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables);
+
+            Rect? tableRect = null;
+            if (tableBbox != null)
+            {
+                tableRect = new Rect(
+                    (int)tableBbox.Value.X,
+                    (int)tableBbox.Value.Y,
+                    (int)tableBbox.Value.Width,
+                    (int)tableBbox.Value.Height);
+            }
+            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect);
 
             if (loadText)
             {
@@ -56,7 +66,6 @@ namespace Img2table.Sharp.Tabular
             });
             PaddleOcrResult ocrResult = ocrResultTask.Result;
 
-            var buf = new StringBuilder();
             var pageTextCells = ocrResult.Regions.Select(word =>
             {
                 var left = word.Rect.BoundingRect().Left;
@@ -64,11 +73,11 @@ namespace Img2table.Sharp.Tabular
                 var right = word.Rect.BoundingRect().Right;
                 var bottom = word.Rect.BoundingRect().Bottom;
 
-                buf.Append($"{word.Text}");
-                return new Cell(left, top, right, bottom, word.Text);
+                var c = new Cell(left, top, right, bottom, word.Text);
+                c.Baseline = bottom;
+                return c;
             }).ToList();
 
-            Console.WriteLine(buf.ToString());
             foreach (var table in tables)
             {
                 foreach (var row in table.Rows)
@@ -113,35 +122,87 @@ namespace Img2table.Sharp.Tabular
                 if (oneTextCells.Count > 0)
                 {
                     Cell prev = null;
-                    foreach (var tc in oneTextCells)
+                    foreach (var curr in oneTextCells)
                     {
-                        string text = useHtml ? tc.HtmlContent : tc.Content;
+                        bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content);
                         if (prev != null)
                         {
-                            if (prev.Baseline == tc.Baseline)
+                            if (prev.Baseline == curr.Baseline)
                             {
-                                cell.AddText(text, true);
+                                isListParagraphBegin = false;
+                            }
+                        }
+
+                        if (useHtml && !string.IsNullOrEmpty(curr.HtmlContent))
+                        {
+                            string newLineText = curr.HtmlContent;
+                            if (isListParagraphBegin)
+                            {
+                                newLineText = "<br />" + newLineText;
                             }
                             else
                             {
-                                if (IsNewParagraphBegin(tc.Content))
+                                if (prev != null)
                                 {
-                                    string newLineText = (useHtml ? "<br />" : "\n\n") + text;
-                                    cell.AddText(newLineText, true);
-                                }
-                                else
-                                {
-                                    cell.AddText(text, true);
+                                    if (Cell.IsSpaceBetween(prev, curr) || prev.Baseline != curr.Baseline)
+                                    {
+                                        newLineText = " " + newLineText;
+                                    }
                                 }
                             }
+                            cell.AddText(newLineText);
                         }
                         else
                         {
-                            cell.AddText(text, true);
+                            string newLineText = curr.Content;
+                            if (isListParagraphBegin)
+                            {
+                                newLineText = "\n\n" + newLineText;
+                            }
+                            else
+                            {
+                                if (prev != null)
+                                {
+                                    if (Cell.IsSpaceBetween(prev, curr) || prev.Baseline != curr.Baseline)
+                                    {
+                                        newLineText = " " + newLineText;
+                                    }
+                                }
+                            }
+                            cell.AddText(newLineText);
                         }
+
+                        pageTextCells.Remove(curr);
+                        prev = curr;
+
+
+                        //string text = useHtml ? tc.HtmlContent : tc.Content;
+                        //if (prev != null)
+                        //{
+                        //    if (prev.Baseline == tc.Baseline)
+                        //    {
+                        //        cell.AddText(text, true);
+                        //    }
+                        //    else
+                        //    {
+                        //        if (IsNewParagraphBegin(tc.Content))
+                        //        {
+                        //            string newLineText = (useHtml ? "<br />" : "\n\n") + text;
+                        //            cell.AddText(newLineText, true);
+                        //        }
+                        //        else
+                        //        {
+                        //            cell.AddText(text, true);
+                        //        }
+                        //    }
+                        //}
+                        //else
+                        //{
+                        //    cell.AddText(text, true);
+                        //}
                         
-                        pageTextCells.Remove(tc);
-                        prev = tc;
+                        //pageTextCells.Remove(tc);
+                        //prev = tc;
                     }
                 }
             }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using PDFDict.SDK.Sharp.Core.Contents;
+using System.Text;
 
 namespace Img2table.Sharp.Tabular.TableImage.TableElement
 {
@@ -74,6 +75,16 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
             {
                 return $"{X1}_{Y1}_{X2}_{Y2}";
             }
+        }
+
+        public static bool IsSpaceBetween(Cell left, Cell right, int threshold = 5)
+        {
+            if (left == null || right == null)
+            {
+                return false;
+            }
+
+            return Math.Abs(right.X1 - right.X2) >= threshold;
         }
     }
 }
