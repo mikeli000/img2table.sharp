@@ -46,6 +46,7 @@ namespace Img2table.Sharp.Data
         {
             var colSpanCellDict = new Dictionary<string, CellDTO>();
             Items = new List<CellDTO>();
+            var temp = new Dictionary<string, CellDTO>();
 
             for (var i = 0; i < row.Cells.Count; i++)
             {
@@ -67,12 +68,20 @@ namespace Img2table.Sharp.Data
                 {
                     continue;
                 }
-                var currDTO = new CellDTO(cell);
-                rowSpanCellDict[cell.CellKey] = currDTO;
-                colSpanCellDict[cell.CellKey] = currDTO;
 
+                var currDTO = new CellDTO(cell);
+                colSpanCellDict[cell.CellKey] = currDTO;
+                temp[cell.CellKey] = currDTO;
                 Items.Add(currDTO);
             }
+
+            foreach (var v in temp)
+            {
+                if (!rowSpanCellDict.ContainsKey(v.Key))
+                {
+                    rowSpanCellDict[v.Key] = v.Value;
+                }
+            }   
         }
 
         public Row ToRow()
