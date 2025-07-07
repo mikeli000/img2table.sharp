@@ -238,7 +238,7 @@ namespace img2table.sharp.web.Services
 
                 var curr = content.PageElement as TextElement;
                 string text = curr.GetText();
-                bool isListParagraphBegin = TextElement.IsListParagraphBegin(text);
+                bool isListParagraphBegin = TextElement.IsListParagraphBegin(text) || curr.IsWingdingFont();
                 if (prev != null)
                 {
                     if (Math.Round(prev.GetBaselineY()) == Math.Round(curr.GetBaselineY()))
@@ -270,9 +270,15 @@ namespace img2table.sharp.web.Services
                 else
                 {
                     string newLineText = text;
+                    bool removeBulletChar = true;
+
                     if (isListParagraphBegin)
                     {
-                        newLineText = "\n\n" + newLineText;
+                        if (removeBulletChar)
+                        {
+                            newLineText = newLineText.Substring(1);
+                        }
+                        newLineText = "\n\n" + "- " + newLineText;
                     }
                     else
                     {
