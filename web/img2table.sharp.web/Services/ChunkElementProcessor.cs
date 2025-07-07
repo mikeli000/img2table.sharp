@@ -17,11 +17,17 @@ namespace img2table.sharp.web.Services
         private MarkdownWriter _writer;
         private bool _userEmbeddedHtml;
         private bool _ignoreMarginalia;
+        private bool _outputFigureAsImage;
+        private string _workFolder;
+        private string _jobFolderName;
 
-        public ChunkElementProcessor(bool userEmbeddedHtml = false, bool ignoreMarginalia = false)
+        public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool _utputFigureAsImage = false)
         {
             _userEmbeddedHtml = userEmbeddedHtml;
             _ignoreMarginalia = ignoreMarginalia;
+            _outputFigureAsImage = _utputFigureAsImage;
+            _workFolder = workFolder ?? throw new ArgumentNullException(nameof(workFolder));
+            _jobFolderName = jobFolderName ?? throw new ArgumentNullException(nameof(jobFolderName));
         }
 
         public string Process(ChunkElement chunkElement)
@@ -185,6 +191,15 @@ namespace img2table.sharp.web.Services
                 if (content.PageElement is ImageElement imageElement)
                 {
                     // TODO: handle image element
+                    if (this._outputFigureAsImage)
+                    {
+                        var imageName = $"{Guid.NewGuid().ToString()}.png";
+                        string imageFile = Path.Combine(_workFolder, imageName);
+
+                        var imagePath = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                        imageElement.PDFImage.Save(imageFile);
+                        _writer.WritePicture(imagePath);
+                    }
                 }
                 else if (content.PageElement is TextElement textElement)
                 {

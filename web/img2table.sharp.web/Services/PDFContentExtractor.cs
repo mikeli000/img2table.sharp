@@ -33,16 +33,19 @@ namespace img2table.sharp.web.Services
         
         private ChunkElementProcessor _chunkElementProcessor;
         private bool _useEmbeddedHtml;
+        private bool _ignoreMarginalia;
+        private bool _outputFigureAsImage;
         private string _docCategory;
 
-        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml, bool ignoreMarginalia, string docCategory)
+        public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, bool useEmbeddedHtml, bool ignoreMarginalia, bool outputFigureAsImage, string docCategory)
         {
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _rootFolder = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
 
             _useEmbeddedHtml = useEmbeddedHtml;
+            _ignoreMarginalia = ignoreMarginalia;
+            _outputFigureAsImage = outputFigureAsImage;
             _docCategory = docCategory ?? LayoutDetectorFactory.DocumentCategory.SlideLike;
-            _chunkElementProcessor = new ChunkElementProcessor(useEmbeddedHtml, ignoreMarginalia);
         }
 
         private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
@@ -74,6 +77,7 @@ namespace img2table.sharp.web.Services
                 Directory.CreateDirectory(workFolder);
             }
 
+            _chunkElementProcessor = new ChunkElementProcessor(workFolder, jobFolderName, _useEmbeddedHtml, _ignoreMarginalia, _outputFigureAsImage);
             string pdfFile = Path.Combine(workFolder, pdfFileName);
             await File.WriteAllBytesAsync(pdfFile, pdfFileBytes);
             using (PDFDocument pdfDoc = PDFDocument.Load(pdfFile))
@@ -101,6 +105,7 @@ namespace img2table.sharp.web.Services
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
+
 
                     var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, filteredChunks, RenderDPI / 72f);
                     var pageChunks = new PagedChunk

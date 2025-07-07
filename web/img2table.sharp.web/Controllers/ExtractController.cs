@@ -36,7 +36,7 @@ namespace img2table.sharp.web.Controllers
                 fileBytes = ms.ToArray();
             }
 
-            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, useEmbeddedHtml, ignoreMarginalia, docType);
+            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, useEmbeddedHtml, ignoreMarginalia, true, docType);
             var res = await extractor.ExtractAsync(fileBytes, uploadFile.FileName);
 
             return Ok(res);

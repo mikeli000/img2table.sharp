@@ -164,6 +164,10 @@ public class PostionedTableCellDetector
     private static List<int> ScanForGapsBetweenBoxes(List<Rect> ocrBoxes, Rect tableRect)
     {
         var gaps = new List<int>();
+        if (ocrBoxes == null || ocrBoxes.Count == 0)
+        {
+            return gaps;
+        }
 
         int step = 1;
         int minGapW = 5;
