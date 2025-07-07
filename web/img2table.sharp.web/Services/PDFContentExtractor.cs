@@ -168,8 +168,6 @@ namespace img2table.sharp.web.Services
 
 
                         var param = TabularParameter.AutoDetect;
-                        //param.RenderResolution = RenderDPI;
-                        //param.DetectBorderlessTables = false;
                         param.CellTextOverlapRatio = 0.7f;
                         if (imagebaseTable)
                         {

@@ -95,6 +95,8 @@ public class PostionedTableCellDetector
             else
             {
                 verLines.Add(new Line(line.P1.X, line.P1.Y, line.P2.X, line.P2.Y));
+
+                Cv2.Line(linesMat, line.P1, line.P2, Scalar.White, 1);
             }
         }
 
@@ -145,12 +147,9 @@ public class PostionedTableCellDetector
             .Where(box => IsContains(box, tableRect))
             .ToList();
         var columnPositions = ScanForGapsBetweenBoxes(filteredBoxes, tableRect);
-        if (columnPositions.Count > 2)
-        {
-            columnPositions[0] = tableRect.Left;
-            columnPositions[columnPositions.Count - 1] = tableRect.Right;
-        }
-        
+        columnPositions.Insert(0, tableRect.Left);
+        columnPositions.Insert(columnPositions.Count, tableRect.Right);
+
         return columnPositions;
     }
 
@@ -165,48 +164,71 @@ public class PostionedTableCellDetector
     private static List<int> ScanForGapsBetweenBoxes(List<Rect> ocrBoxes, Rect tableRect)
     {
         var gaps = new List<int>();
-        
-        int currentX = tableRect.Left;
-        while (currentX < tableRect.Right)
+
+        int step = 1;
+        int minGapW = 5;
+
+        var ocrBoxesCopy = new List<Rect>(ocrBoxes);
+        int minX = ocrBoxesCopy.Min(r => r.Left);
+        int maxX = ocrBoxesCopy.Max(r => r.Right);
+
+        int currentX = minX + 1;
+        while (currentX < maxX)
         {
-            var intersectingBox = GetIntersectingBox(currentX, ocrBoxes);
-            
-            if (intersectingBox.HasValue)
+            if (TryGetIntersectingBox(currentX, ocrBoxesCopy, out var intersectingBox))
             {
-                currentX = intersectingBox.Value.Right + 1;
+                currentX = intersectingBox.Right + 1;
+                ocrBoxesCopy.RemoveAll(box => box.Right <= currentX);
             }
             else
             {
                 int gapStart = currentX;
                 
-                while (currentX < tableRect.Right && !GetIntersectingBox(currentX, ocrBoxes).HasValue)
+                while (currentX < maxX)
                 {
-                    currentX += 5;
+                    if (TryGetIntersectingBox(currentX, ocrBoxesCopy, out intersectingBox))
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        currentX += step;
+                    }
+                }
+
+                if (currentX == maxX - 1)
+                {
+                    break;
                 }
                 
                 int gapEnd = currentX - 1;
                 int gapWidth = gapEnd - gapStart + 1;
-                if (gapWidth >= 5)
+                if (gapWidth >= minGapW)
                 {
                     int gapCenter = (gapStart + gapEnd) / 2;
                     gaps.Add(gapCenter);
                 }
+
+                currentX = intersectingBox.Right + 1;
+                ocrBoxesCopy.RemoveAll(box => box.Right <= currentX);
             }
         }
         
         return gaps;
     }
 
-    private static Rect? GetIntersectingBox(int x, List<Rect> ocrBoxes)
+    private static bool TryGetIntersectingBox(int x, List<Rect> ocrBoxes, out Rect intersectBox)
     {
+        intersectBox = default;
         foreach (var box in ocrBoxes)
         {
             if (x >= box.Left && x <= box.Right)
             {
-                return box;
+                intersectBox = box;
+                return true;
             }
         }
-        return null;
+        return false;
     }
 
     private static LineSegmentPoint[] RemoveNearbyLines(LineSegmentPoint[] lines, Rect tableBbox, double distanceThreshold = 10.0, double angleThreshold = 5.0)
