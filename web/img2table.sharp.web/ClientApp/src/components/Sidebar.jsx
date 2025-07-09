@@ -116,6 +116,39 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, upload
         <ul className="text-sm text-gray-700 space-y-2">
           <li>
             <a
+              href={`${baseUrl}/showcase/Aura Copilot at Shift 2024.pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+              onClick={e => handleShowcaseClick(e, 'Aura Copilot at Shift 2024.pdf')}
+            >
+              <span className="truncate text-blue-700 group-hover:underline">Aura Copilot at Shift 2024.pdf</span>
+            </a>
+          </li>
+          <li>
+            <a
+              href={`${baseUrl}/showcase/OutSystems Leaves Highspot.pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+              onClick={e => handleShowcaseClick(e, 'OutSystems Leaves Highspot.pdf')}
+            >
+              <span className="truncate text-blue-700 group-hover:underline">OutSystems Leaves Highspot.pdf</span>
+            </a>
+          </li>
+          <li>
+            <a
+              href={`${baseUrl}/showcase/Seismic vs. Highspot Deck_Premier Ed.pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+              onClick={e => handleShowcaseClick(e, 'Seismic vs. Highspot Deck_Premier Ed.pdf')}
+            >
+              <span className="truncate text-blue-700 group-hover:underline">Seismic vs. Highspot Deck_Premier Ed.pdf</span>
+            </a>
+          </li>
+          <li>
+            <a
               href={`${baseUrl}/showcase/CMS 3.0 Introduction.pdf`}
               target="_blank"
               rel="noopener noreferrer"

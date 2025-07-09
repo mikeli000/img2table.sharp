@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using System.Globalization;
+using System.Threading;
 
 namespace img2table.sharp.web.Services
 {
@@ -61,19 +63,10 @@ namespace img2table.sharp.web.Services
 
                 if (overlapped.Count > 1)
                 {
-                    var maxHeightBox = overlapped.OrderByDescending(o => o.Obj.Y1 - o.Obj.Y0).First();
-                    foreach (var o in sorted)
+                    var bottomBox = TryRecursiseLook(overlapped, curr, sorted, overlapThreshold);
+                    while (bottomBox != null)
                     {
-                        if (overlapped.Contains(o))
-                        {
-                            continue;
-                        }
-
-                        if (IsYOverlap(maxHeightBox.Obj, o.Obj, overlapThreshold))
-                        {
-                            o.Used = true;
-                            overlapped.Add(o);
-                        }
+                        bottomBox = TryRecursiseLook(overlapped, bottomBox, sorted, overlapThreshold);
                     }
                 }
 
@@ -119,6 +112,31 @@ namespace img2table.sharp.web.Services
             }
 
             return lineSegs;
+        }
+
+        private static AnchoredChunkObject TryRecursiseLook(List<AnchoredChunkObject> overlapped, AnchoredChunkObject curr, List<AnchoredChunkObject> sorted, float overlapThreshold)
+        {
+            bool found = false;
+            var bottomBox = overlapped.OrderByDescending(o => o.Obj.Y1).First();
+            if (bottomBox != curr)
+            {
+                foreach (var o in sorted)
+                {
+                    if (overlapped.Contains(o))
+                    {
+                        continue;
+                    }
+
+                    if (IsYOverlap(bottomBox.Obj, o.Obj, overlapThreshold))
+                    {
+                        o.Used = true;
+                        overlapped.Add(o);
+                        found = true;
+                    }
+                }
+            }
+
+            return found? bottomBox: null;
         }
         
         class AnchoredChunkObject
