@@ -11,6 +11,17 @@ import {
 } from "lucide-react";
 
 const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, docType, setDocType }) => {
+  const handleDocTypeChange = (value) => {
+    const unsupportedTypes = ['spreadsheet', 'form', 'plain'];
+    
+    if (unsupportedTypes.includes(value)) {
+      alert('This document type is not supported yet. Please select another option.');
+      setDocType('academic');
+      return;
+    }
+    
+    setDocType(value);
+  };
 
   return (
     <div className="flex items-center gap-6 text-sm text-gray-700 px-4 py-2 border-b border-gray-200 bg-white shadow-sm">
@@ -18,7 +29,7 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
       {/* 文档类型选择 */}
       <div className="flex items-center gap-2">
         <span className="font-medium">Document Type:</span>
-        <Select value={docType} onValueChange={setDocType}>
+        <Select value={docType} onValueChange={handleDocTypeChange}>
           <SelectTrigger className="w-[220px]">
             <SelectValue />
           </SelectTrigger>

@@ -71,12 +71,34 @@ namespace img2table.sharp.web.Services
             return result;
         }
 
-        public static bool IsContainment(double[] a, double[] b, double epsilon = 4.0)
+        public static bool IsContainment(double[] bigRect, double[] smallArea, double epsilon = 2.0, double containmentThreshold = 0.9)
         {
-            return a[0] <= b[0] + epsilon &&
-                   a[1] <= b[1] + epsilon &&
-                   a[2] >= b[2] - epsilon &&
-                   a[3] >= b[3] - epsilon;
+            bool ret =  bigRect[0] <= smallArea[0] + epsilon &&
+                   bigRect[1] <= smallArea[1] + epsilon &&
+                   bigRect[2] >= smallArea[2] - epsilon &&
+                   bigRect[3] >= smallArea[3] - epsilon;
+            if (ret)
+            {
+                return true;
+            }
+
+            double bArea = Area(smallArea);
+            if (bArea <= 0)
+            {
+                return false;
+            }
+
+            double intersectionLeft = Math.Max(bigRect[0], smallArea[0]);
+            double intersectionTop = Math.Max(bigRect[1], smallArea[1]);
+            double intersectionRight = Math.Min(bigRect[2], smallArea[2]);
+            double intersectionBottom = Math.Min(bigRect[3], smallArea[3]);
+
+            double intersectionWidth = Math.Max(0, intersectionRight - intersectionLeft);
+            double intersectionHeight = Math.Max(0, intersectionBottom - intersectionTop);
+            double intersectionArea = intersectionWidth * intersectionHeight;
+
+            double containmentRatio = intersectionArea / bArea;
+            return containmentRatio >= containmentThreshold;
         }
 
         public static double Area(double[] rect)
@@ -90,12 +112,15 @@ namespace img2table.sharp.web.Services
         {
             var headers = objects.Where(c => c.Label == ChunkType.PageHeader).ToList().OrderBy(c => c.X1);
             var footers = objects.Where(c => c.Label == ChunkType.PageFooter).ToList().OrderBy(c => c.X1);
-            var body = objects.Except(headers).Except(footers).ToList().OrderBy(c => c.Y1);
+
+            var artifacts = objects.Where(c => c.Label == ChunkType.Abandon).ToList().OrderBy(c => c.X1);
+            //var body = objects.Except(headers).Except(footers).ToList().OrderBy(c => c.Y1);
+            var body = objects.Except(headers).Except(footers).Except(artifacts).ToList();
 
             var result = new List<ChunkObject>();
 
             result.AddRange(headers);
-            result.AddRange(body);
+            result.AddRange(Columnizer.SortByColumns(body));
             result.AddRange(footers);
 
             return result;

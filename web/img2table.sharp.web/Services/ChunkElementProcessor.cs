@@ -21,11 +21,11 @@ namespace img2table.sharp.web.Services
         private string _workFolder;
         private string _jobFolderName;
 
-        public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool _utputFigureAsImage = false)
+        public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool outputFigureAsImage = false)
         {
             _userEmbeddedHtml = userEmbeddedHtml;
             _ignoreMarginalia = ignoreMarginalia;
-            _outputFigureAsImage = _utputFigureAsImage;
+            _outputFigureAsImage = outputFigureAsImage;
             _workFolder = workFolder ?? throw new ArgumentNullException(nameof(workFolder));
             _jobFolderName = jobFolderName ?? throw new ArgumentNullException(nameof(jobFolderName));
         }

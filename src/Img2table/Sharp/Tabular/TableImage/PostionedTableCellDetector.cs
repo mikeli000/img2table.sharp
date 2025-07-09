@@ -69,18 +69,18 @@ public class PostionedTableCellDetector
                 {
                     if (columnPositions.Contains(p))
                     {
-                        Cv2.Line(srcImage, new Point(p, tableBbox.Top), new Point(p, tableBbox.Bottom), Scalar.Blue, 1);
+                        //Cv2.Line(srcImage, new Point(p, tableBbox.Top), new Point(p, tableBbox.Bottom), Scalar.Blue, 1);
                         continue;
                     }
 
                     columns.Add(new LineSegmentPoint(new Point(p, tbodyBbox.Top), new Point(p, tbodyBbox.Bottom)));
 
-                    Cv2.Line(srcImage, new Point(p, tbodyBbox.Top), new Point(p, tbodyBbox.Bottom), Scalar.Red, 1);
+                    //Cv2.Line(srcImage, new Point(p, tbodyBbox.Top), new Point(p, tbodyBbox.Bottom), Scalar.Red, 1);
                 }
             }
         }
 
-        Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\cols.png", srcImage);
+        //Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\cols.png", srcImage);
 
 
         lines = lines.Concat(columns).ToArray();
@@ -100,7 +100,7 @@ public class PostionedTableCellDetector
             }
         }
 
-        Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\lines_only.png", linesMat);
+        //Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\lines_only.png", linesMat);
         Console.WriteLine($"detect {lines.Length} X {columnPositions.Count} lines");
 
         return (horLines, verLines);

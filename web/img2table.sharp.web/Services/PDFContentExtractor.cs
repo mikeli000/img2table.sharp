@@ -97,6 +97,15 @@ namespace img2table.sharp.web.Services
                     }
 
                     int pageNumber = i + 1;
+
+
+                    //if (pageNumber != 3)
+                    //{
+                    //    continue;
+                    //}
+
+
+
                     var pageImageName = $"page_{pageNumber}.png";
                     string pageImagePath = Path.Combine(workFolder, pageImageName);
                     pdfDoc.RenderPage(pageImagePath, i, RenderDPI, backgroundColor: Color.White);
@@ -105,7 +114,6 @@ namespace img2table.sharp.web.Services
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
-
 
                     var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, filteredChunks, RenderDPI / 72f);
                     var pageChunks = new PagedChunk

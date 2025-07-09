@@ -9,7 +9,7 @@ const App = () => {
   const [file, setFile] = useState(null);
   const [documentChunks, setDocumentChunks] = useState([]);
   const [useHtml, setUseHtml] = useState(false);
-  const [ignoreMarginalia, setIgnoreMarginalia] = useState(false);
+  const [ignoreMarginalia, setIgnoreMarginalia] = useState(true);
   const [docType, setDocType] = useState("academic");
   const [uploading, setUploading] = useState(false);
   const [highlight, setHighlight] = useState(null);
