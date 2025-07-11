@@ -22,7 +22,8 @@ namespace img2table.sharp.web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromForm] IFormFile uploadFile, [FromForm] bool useEmbeddedHtml = false, [FromForm] bool ignoreMarginalia = false, [FromForm] string docType = "slide")
+        public async Task<IActionResult> Post([FromForm] IFormFile uploadFile, [FromForm] bool useEmbeddedHtml = false, 
+            [FromForm] bool ignoreMarginalia = false, [FromForm] bool autoOCR = false, [FromForm] string docType = "slide")
         {
             if (uploadFile == null || uploadFile.Length == 0)
             {
@@ -36,7 +37,15 @@ namespace img2table.sharp.web.Controllers
                 fileBytes = ms.ToArray();
             }
 
-            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, useEmbeddedHtml, ignoreMarginalia, true, docType);
+            ExtractOptions extractOptions = new ExtractOptions
+            {
+                UseEmbeddedHtml = useEmbeddedHtml,
+                IgnoreMarginalia = ignoreMarginalia,
+                OutputFigureAsImage = true,
+                DocCategory = docType,
+                EnableOCR = autoOCR,
+            };
+            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, extractOptions);
             var res = await extractor.ExtractAsync(fileBytes, uploadFile.FileName);
 
             return Ok(res);

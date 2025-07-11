@@ -13,6 +13,7 @@ const App = () => {
   const [docType, setDocType] = useState("academic");
   const [uploading, setUploading] = useState(false);
   const [highlight, setHighlight] = useState(null);
+  const [autoOcr, setAutoOcr] = useState(false);
 
   const handleChunkClick = (pageNumber, bbox) => {
     setHighlight({ pageNumber, bbox });
@@ -33,7 +34,9 @@ const App = () => {
           setDocumentChunks={setDocumentChunks} 
           useHtml={useHtml} 
           ignoreMarginalia={ignoreMarginalia}
+          autoOcr={autoOcr}
           docType={docType}
+          setHighlight={setHighlight}
           uploading={uploading}
           setUploading={setUploading}/>
       </div>
@@ -46,6 +49,8 @@ const App = () => {
             setIgnoreMarginalia={setIgnoreMarginalia}
             docType={docType}
             setDocType={setDocType}
+            autoOcr={autoOcr} 
+            setAutoOcr={setAutoOcr}
           />
         </div>
         <div className="flex flex-1 overflow-hidden">

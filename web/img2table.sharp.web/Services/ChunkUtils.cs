@@ -1,6 +1,8 @@
 ﻿using img2table.sharp.web.Models;
+using OpenCvSharp;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 
 namespace img2table.sharp.web.Services
@@ -157,5 +159,37 @@ namespace img2table.sharp.web.Services
                 .ThenBy(b => b.X0)
                 .ToList();
         }
+
+        public static void ClipChunkRectImage(string pageImage, string clippedImage, ChunkObject chunkObject, bool useOriginalSize = true)
+        {
+            var chunkBox = RectangleF.FromLTRB((float)chunkObject.BoundingBox[0], (float)chunkObject.BoundingBox[1], (float)chunkObject.BoundingBox[2], (float)chunkObject.BoundingBox[3]);
+            ClipImage(pageImage, clippedImage, chunkBox, useOriginalSize);
+        }
+
+        public static void ClipImage(string pageImage, string clippedImage, RectangleF tableBbox, bool useOriginalSize = true)
+        {
+            using Mat src = Cv2.ImRead(pageImage);
+            Rect roi = new Rect(
+                (int)Math.Floor(tableBbox.X),
+                (int)Math.Floor(tableBbox.Y),
+                (int)Math.Ceiling(tableBbox.Width),
+                (int)Math.Ceiling(tableBbox.Height)
+            );
+
+            roi = roi.Intersect(new Rect(0, 0, src.Width, src.Height));
+
+            if (useOriginalSize)
+            {
+                Mat whiteBg = new Mat(src.Size(), src.Type(), new Scalar(255, 255, 255));
+                src[roi].CopyTo(whiteBg[roi]);
+                Cv2.ImWrite(clippedImage, whiteBg);
+            }
+            else
+            {
+                Mat clipped = new Mat(src, roi);
+                Cv2.ImWrite(clippedImage, clipped);
+            }
+        }
+
     }
 }

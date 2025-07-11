@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, uploading, setUploading }) => {
+const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, autoOcr, docType, setHighlight, uploading, setUploading }) => {
   const fileInputRef = useRef(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
@@ -20,9 +20,6 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, upload
   };
 
   const handleFileChange = (e) => {
-
-    console.log('useHtml:', useHtml);
-
     const file = e.target.files[0];
     if (file && file.type === 'application/pdf') {
       uploadFile(file);
@@ -37,6 +34,7 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, upload
     formData.append('uploadFile', file);
     formData.append("useEmbeddedHtml", useHtml ? "true" : "false");
     formData.append("ignoreMarginalia", ignoreMarginalia ? "true" : "false");
+    formData.append("autoOcr", autoOcr ? "true" : "false");
     formData.append("docType", docType || "slide");
 
     try {
@@ -46,6 +44,7 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, upload
       });
       const result = await response.json();
       setDocumentChunks(result || []);
+      setHighlight(null);
 
       console.log('pagedChunks:', result);
 
@@ -77,7 +76,6 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, docType, upload
 
   return (
     <div>
-      {/* 上传区域 */}
       <div
         className="border-dashed border-2 border-gray-300 rounded-md p-4 text-center hover:bg-gray-50 cursor-pointer transition"
         onClick={handleUploadClick}

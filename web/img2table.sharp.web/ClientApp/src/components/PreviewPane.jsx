@@ -52,11 +52,13 @@ const PreviewPane = ({ documentChunks, highlight }) => {
               top: y0 * scaleY + "px",
               width: (x1 - x0) * scaleX + "px",
               height: (y1 - y0) * scaleY + "px",
-              border: "1px dashed red",
-              backgroundColor: "rgba(255, 0, 0, 0.1)",
+              border: "2px solid red",
+              backgroundColor: "rgba(255, 0, 0, 0.2)",
+              boxShadow: "0 0 4px 2px rgba(255, 0, 0, 0.6)",
               pointerEvents: "none",
               boxSizing: "border-box",
               zIndex: 10,
+              animation: "pulse 1s infinite",
             };
           }
 

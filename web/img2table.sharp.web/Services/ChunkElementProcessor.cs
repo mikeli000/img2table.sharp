@@ -5,8 +5,7 @@ using System.Linq;
 using System.Text;
 using System;
 using System.IO;
-using Img2table.Sharp.Tabular;
-using OpenCvSharp.LineDescriptor;
+using img2table.sharp.Img2table.Sharp.Tabular;
 
 namespace img2table.sharp.web.Services
 {
@@ -20,18 +19,22 @@ namespace img2table.sharp.web.Services
         private bool _outputFigureAsImage;
         private string _workFolder;
         private string _jobFolderName;
+        private string _pageImagePath;
+        private bool _enableOCR = true;
 
-        public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool outputFigureAsImage = false)
+        public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool outputFigureAsImage = false, bool enableOCR = false)
         {
             _userEmbeddedHtml = userEmbeddedHtml;
             _ignoreMarginalia = ignoreMarginalia;
             _outputFigureAsImage = outputFigureAsImage;
             _workFolder = workFolder ?? throw new ArgumentNullException(nameof(workFolder));
             _jobFolderName = jobFolderName ?? throw new ArgumentNullException(nameof(jobFolderName));
+            _enableOCR = enableOCR;
         }
 
-        public string Process(ChunkElement chunkElement)
+        public string Process(ChunkElement chunkElement, string pageImagePath)
         {
+            _pageImagePath = pageImagePath;
             var chunkType = ChunkType.MappingChunkType(chunkElement.ChunkObject.Label);
             if (chunkType == ChunkType.Unknown)
             {
@@ -191,15 +194,15 @@ namespace img2table.sharp.web.Services
                 if (content.PageElement is ImageElement imageElement)
                 {
                     // TODO: handle image element
-                    if (this._outputFigureAsImage)
-                    {
-                        var imageName = $"{Guid.NewGuid().ToString()}.png";
-                        string imageFile = Path.Combine(_workFolder, imageName);
+                    //if (this._outputFigureAsImage)
+                    //{
+                        //var imageName = $"{Guid.NewGuid().ToString()}.png";
+                        //string imageFile = Path.Combine(_workFolder, imageName);
 
-                        var imagePath = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
-                        imageElement.PDFImage.Save(imageFile);
-                        _writer.WritePicture(imagePath);
-                    }
+                        //var imagePath = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                        //imageElement.PDFImage.Save(imageFile);
+                        //_writer.WritePicture(imagePath);
+                    //}
                 }
                 else if (content.PageElement is TextElement textElement)
                 {
@@ -210,33 +213,24 @@ namespace img2table.sharp.web.Services
 
             if (textElements.Count > 0)
             {
-                foreach (var content in textElements)
+                WriteText(textElements);
+            }
+            else
+            {
+                if (_outputFigureAsImage)
                 {
-                    if (content.PageElement == null)
-                    {
-                        continue;
-                    }
+                    var imageName = $"img_{Guid.NewGuid().ToString()}.png";
+                    string tempImagePath = Path.Combine(_workFolder, imageName);
+                    ChunkUtils.ClipChunkRectImage(_pageImagePath, tempImagePath, chunkElement.ChunkObject, false);
 
-                    if (_userEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
-                    {
-                        _writer.WriteText(html);
-                    }
-                    else if (content.PageElement is TextElement textElement)
-                    {
-                        _writer.WriteText(textElement.GetText());
-                    }
+                    var imageUrl = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                    _writer.WritePicture(imageUrl);
                 }
             }
         }
 
-        private void WriteText(ChunkElement chunkElement)
+        private void WriteText(IEnumerable<ContentElement> contents)
         {
-            var contents = chunkElement.ContentElements;
-            if (contents == null || contents.Count() == 0)
-            {
-                return;
-            }
-
             TextElement prev = null;
             foreach (var content in contents)
             {
@@ -245,74 +239,121 @@ namespace img2table.sharp.web.Services
                     continue;
                 }
 
-                if (content.PageElement is not TextElement)
+                if (content.PageElement is ImageElement)
                 {
-                    // TODO
-                    continue;
-                }
+                    //var imageName = $"img_{Guid.NewGuid().ToString()}.png";
+                    //string tableImagePath = Path.Combine(_workFolder, imageName);
+                    //ChunkUtils.ClipTableImage(_pageImagePath, tableImagePath, chunkElement.ChunkObject);
 
-                var curr = content.PageElement as TextElement;
-                string text = curr.GetText();
-                bool isListParagraphBegin = TextElement.IsListParagraphBegin(text) || curr.IsWingdingFont();
-                if (prev != null)
-                {
-                    if (Math.Round(prev.GetBaselineY()) == Math.Round(curr.GetBaselineY()))
-                    {
-                        isListParagraphBegin = false;
-                    }
+                    //string text = OCRUtils.PaddleOCRText(tableImagePath);
+                    //if (!string.IsNullOrWhiteSpace(text))
+                    //{
+                    //    _writer.AppendText(text);
+                    //}
                 }
-                    
-                if (_userEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
+                else if (content.PageElement is TextElement)
                 {
-                    string newLineText = html;
-                    if (isListParagraphBegin)
+                    var curr = content.PageElement as TextElement;
+                    string text = curr.GetText();
+                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(text) || curr.IsWingdingFont();
+                    if (prev != null)
                     {
-                        newLineText = "<br />" + newLineText;
-                    }
-                    else
-                    {
-                        if (prev != null)
+                        if (Math.Round(prev.GetBaselineY()) == Math.Round(curr.GetBaselineY()))
                         {
-                            if (TextElement.IsSpaceBetween(prev, curr) || Math.Round(prev.GetBaselineY()) != Math.Round(curr.GetBaselineY()))
-                            {
-                                newLineText = " " + newLineText;
-                            }
+                            isListParagraphBegin = false;
                         }
                     }
-                    
-                    _writer.AppendText(newLineText);
-                }
-                else
-                {
-                    string newLineText = text;
-                    bool removeBulletChar = true;
 
-                    if (isListParagraphBegin)
+                    if (_userEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
                     {
-                        if (removeBulletChar)
+                        string newLineText = html;
+                        if (isListParagraphBegin)
                         {
-                            newLineText = newLineText.Substring(1);
+                            newLineText = "<br />" + newLineText;
                         }
-                        newLineText = "\n\n" + "- " + newLineText;
-                    }
-                    else
-                    {
-                        if (prev != null)
+                        else
                         {
-                            if (TextElement.IsSpaceBetween(prev, curr) || Math.Round(prev.GetBaselineY()) != Math.Round(curr.GetBaselineY()))
+                            if (prev != null)
                             {
-                                if (!_writer.IsEndWithSpace())
+                                if (TextElement.IsSpaceBetween(prev, curr) || Math.Round(prev.GetBaselineY()) != Math.Round(curr.GetBaselineY()))
                                 {
                                     newLineText = " " + newLineText;
                                 }
                             }
                         }
+
+                        _writer.AppendText(newLineText);
                     }
-                    _writer.AppendText(newLineText);
+                    else
+                    {
+                        string newLineText = text;
+                        bool removeBulletChar = true;
+
+                        if (isListParagraphBegin)
+                        {
+                            if (removeBulletChar)
+                            {
+                                newLineText = newLineText.Substring(1);
+                            }
+                            newLineText = "\n\n" + "- " + newLineText;
+                        }
+                        else
+                        {
+                            if (prev != null)
+                            {
+                                if (TextElement.IsSpaceBetween(prev, curr) || Math.Round(prev.GetBaselineY()) != Math.Round(curr.GetBaselineY()))
+                                {
+                                    if (!_writer.IsEndWithSpace())
+                                    {
+                                        newLineText = " " + newLineText;
+                                    }
+                                }
+                            }
+                        }
+                        _writer.AppendText(newLineText);
+                    }
+
+                    prev = curr;
+                }
+            }
+        }
+
+        private void WriteText(ChunkElement chunkElement)
+        {
+            var contents = chunkElement.ContentElements;
+            bool tryOCR = false;
+            if (contents == null || contents.Count() == 0)
+            {
+                tryOCR = true;
+            }
+
+            if (contents.Count() == 1)
+            {
+                tryOCR = contents.ElementAt(0).PageElement is ImageElement;
+            }
+
+            if (tryOCR)
+            {
+                var imageName = $"img_{Guid.NewGuid().ToString()}.png";
+                string tempImagePath = Path.Combine(_workFolder, imageName);
+                ChunkUtils.ClipChunkRectImage(_pageImagePath, tempImagePath, chunkElement.ChunkObject, false);
+
+                var text = OCRUtils.PaddleOCRText(tempImagePath);
+
+                if (_enableOCR && !string.IsNullOrEmpty(text))
+                {
+                    _writer.AppendText(text);
+                }
+                else
+                {
+                    var imagePath = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                    _writer.WritePicture(imagePath);
                 }
 
-                prev = curr;
+                return;
             }
+
+            WriteText(contents);
         }
     }
 

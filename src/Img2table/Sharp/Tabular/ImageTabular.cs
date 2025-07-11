@@ -6,6 +6,7 @@ using Sdcb.PaddleOCR;
 using System.Drawing;
 using System.Text;
 using PDFDict.SDK.Sharp.Core.Contents;
+using img2table.sharp.Img2table.Sharp.Tabular;
 
 namespace Img2table.Sharp.Tabular
 {
@@ -57,27 +58,7 @@ namespace Img2table.Sharp.Tabular
 
         private void PaddleOCR(string imageFile, List<Table> tables)
         {
-            using Mat src = Cv2.ImRead(imageFile);
-            Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
-            {
-                using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
-                all.Detector.UnclipRatio = 1.2f;
-                return all.Run(src);
-            });
-            PaddleOcrResult ocrResult = ocrResultTask.Result;
-
-            var pageTextCells = ocrResult.Regions.Select(word =>
-            {
-                var left = word.Rect.BoundingRect().Left;
-                var top = word.Rect.BoundingRect().Top;
-                var right = word.Rect.BoundingRect().Right;
-                var bottom = word.Rect.BoundingRect().Bottom;
-
-                var c = new Cell(left, top, right, bottom, word.Text);
-                c.Baseline = bottom;
-                return c;
-            }).ToList();
-
+            var pageTextCells = OCRUtils.PaddleOCR(imageFile);
             foreach (var table in tables)
             {
                 foreach (var row in table.Rows)
