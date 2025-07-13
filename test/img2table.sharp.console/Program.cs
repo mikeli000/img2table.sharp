@@ -3,6 +3,7 @@ using Img2table.Sharp.Tabular;
 using Img2table.Sharp.Tabular.TableImage;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
+using PDFDict.SDK.Sharp.Tools;
 using Sdcb.PaddleOCR;
 using Sdcb.PaddleOCR.Models;
 using Sdcb.PaddleOCR.Models.Local;
@@ -18,9 +19,7 @@ namespace img2table.sharp.console
             //PDFTools.Render(@"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577\toUnicodeMap.PDF",
             //    @"C:\Users\MikeLi\AppData\Local\Temp\image2table_9966acf1-c43b-465c-bf7f-dd3c30394676\c46fc46e-ac94-4458-8e6b-7213e3ce5577");
 
-            //var pp = new List<int[]>();
-            //pp.Add(new int[] { 0, 4 });
-            //PDFTools.SplitPDF(@"C:\dev\testfiles\ai_testsuite\pdf\toUnicodeMap.PDF", pp, @"C:\dev\testfiles\ai_testsuite\pdf\5_page_acdamic_sample.PDF");
+
             // TabularPDF();
 
             //pre();
@@ -29,10 +28,21 @@ namespace img2table.sharp.console
             //TT();
 
             //Paddle();
-           
-            var tableBbox = RectangleF.FromLTRB(248, 393, 2293, 721);
-            TabularImage(tableBbox);
+
+            //var tableBbox = RectangleF.FromLTRB(248, 393, 2293, 721);
+            //TabularImage(tableBbox);
             //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
+
+            SplitPDF();
+        }
+
+        static void SplitPDF()
+        {
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Illumina COVIDSeq Test.pdf";
+            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Illumina COVIDSeq Test_split";
+            var range = new List<int[]>();
+            range.Add(new int[] { 0, 4, 22, 23 });
+            PDFTools.SplitPDF(src, range, dst);
         }
 
         static void pre()
