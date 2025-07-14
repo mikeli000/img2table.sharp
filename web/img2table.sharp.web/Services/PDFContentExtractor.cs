@@ -3,9 +3,7 @@ using System;
 using System.Net.Http;
 using img2table.sharp.web.Models;
 using PDFDict.SDK.Sharp.Core;
-using System.Text.Json;
 using System.Threading.Tasks;
-using System.Net.Http.Headers;
 using System.Net;
 using System.Drawing;
 using System.Linq;
@@ -16,7 +14,6 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
-using Img2table.Sharp.Tabular.TableImage.TableElement;
 
 namespace img2table.sharp.web.Services
 {
@@ -183,7 +180,7 @@ namespace img2table.sharp.web.Services
                                 var tables = new PagedTableDTO(pagedTable).Tables;
                                 foreach (var table in tables) // TODO
                                 {
-                                    TableHTML.Generate(table, out string htmlTable);
+                                    TableHTML.Generate(table, out string htmlTable, true);
                                     chunkElement.MarkdownText += htmlTable;
                                 }
                             }
@@ -201,7 +198,7 @@ namespace img2table.sharp.web.Services
                                 var tables = new PagedTableDTO(pagedTable).Tables;
                                 foreach(var table in tables) // TODO
                                 {
-                                    TableHTML.Generate(table, out string htmlTable);
+                                    TableHTML.Generate(table, out string htmlTable, true);
                                     chunkElement.MarkdownText += htmlTable;
                                 }
                             }

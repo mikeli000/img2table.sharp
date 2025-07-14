@@ -43,10 +43,10 @@ namespace img2table.sharp.Img2table.Sharp.Data
             }
         }
 
-        public static void Generate(TableDTO tableDTO, out string tableHtml)
+        public static void Generate(TableDTO tableDTO, out string tableHtml, bool firstRowAsTH = false)
         {
             var htmlDoc = new HtmlDocument();
-            GenerateHtmlTable(tableDTO, htmlDoc);
+            GenerateHtmlTable(tableDTO, htmlDoc, firstRowAsTH);
             using (var sw = new StringWriter())
             {
                 htmlDoc.Save(sw);
@@ -54,7 +54,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
             }
         }
 
-        private static void GenerateHtmlTable(TableDTO tableDto, HtmlDocument htmlDoc)
+        private static void GenerateHtmlTable(TableDTO tableDto, HtmlDocument htmlDoc, bool firstRowAsTH = false)
         {
             var tableNode = htmlDoc.CreateElement("table");
             if (!string.IsNullOrEmpty(tableDto.Title))
@@ -67,26 +67,53 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 tableNode.AppendChild(captionNode);
             }
 
-            foreach (var row in tableDto.Items)
+            for (int i = 0; i < tableDto.Items.Count; i++)
             {
-                var rowNode = htmlDoc.CreateElement("tr");
-                for (int j = 0; j < row.Items.Count; j++)
+                var row = tableDto.Items[i];
+                if (firstRowAsTH && i == 0)
                 {
-                    var cell = row.Items[j];
-                    var cellNode = htmlDoc.CreateElement("td");
-                    if (cell.RowSpan > 1)
+                    var theadNode = htmlDoc.CreateElement("thead");
+                    var rowNode = htmlDoc.CreateElement("tr");
+                    for (int j = 0; j < row.Items.Count; j++)
                     {
-                        cellNode.SetAttributeValue("rowspan", cell.RowSpan.ToString());
-                    }
+                        var cell = row.Items[j];
+                        var cellNode = htmlDoc.CreateElement("th");
+                        if (cell.RowSpan > 1)
+                        {
+                            cellNode.SetAttributeValue("rowspan", cell.RowSpan.ToString());
+                        }
 
-                    if (cell.ColSpan > 1)
-                    {
-                        cellNode.SetAttributeValue("colspan", cell.ColSpan.ToString());
+                        if (cell.ColSpan > 1)
+                        {
+                            cellNode.SetAttributeValue("colspan", cell.ColSpan.ToString());
+                        }
+                        cellNode.InnerHtml = ProcessNewline(cell.Content);
+                        rowNode.AppendChild(cellNode);
                     }
-                    cellNode.InnerHtml = ProcessNewline(cell.Content);
-                    rowNode.AppendChild(cellNode);
+                    theadNode.AppendChild(rowNode);
+                    tableNode.AppendChild(theadNode);
                 }
-                tableNode.AppendChild(rowNode);
+                else
+                {
+                    var rowNode = htmlDoc.CreateElement("tr");
+                    for (int j = 0; j < row.Items.Count; j++)
+                    {
+                        var cell = row.Items[j];
+                        var cellNode = htmlDoc.CreateElement("td");
+                        if (cell.RowSpan > 1)
+                        {
+                            cellNode.SetAttributeValue("rowspan", cell.RowSpan.ToString());
+                        }
+
+                        if (cell.ColSpan > 1)
+                        {
+                            cellNode.SetAttributeValue("colspan", cell.ColSpan.ToString());
+                        }
+                        cellNode.InnerHtml = ProcessNewline(cell.Content);
+                        rowNode.AppendChild(cellNode);
+                    }
+                    tableNode.AppendChild(rowNode);
+                }
             }
 
             htmlDoc.DocumentNode.AppendChild(tableNode);
