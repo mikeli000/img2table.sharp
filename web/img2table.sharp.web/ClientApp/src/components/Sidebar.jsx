@@ -64,6 +64,8 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, autoOcr, docTyp
   const handleShowcaseClick = async (e, fileName) => {
     e.preventDefault();
     try {
+      console.log(`${baseUrl}/showcase/${fileName}`);
+
       const res = await fetch(`${baseUrl}/showcase/${fileName}`);
       const blob = await res.blob();
       const file = new File([blob], fileName, { type: 'application/pdf' });
@@ -113,70 +115,144 @@ const Sidebar = ({ setDocumentChunks, useHtml, ignoreMarginalia, autoOcr, docTyp
         </h2>
         <ul className="text-sm text-gray-700 space-y-2">
           <li>
-            <a
-              href={`${baseUrl}/showcase/Aura Copilot at Shift 2024.pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
-              onClick={e => handleShowcaseClick(e, 'Aura Copilot at Shift 2024.pdf')}
-            >
-              <span className="truncate text-blue-700 group-hover:underline">Aura Copilot at Shift 2024.pdf</span>
-            </a>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/Aura Copilot at Shift 2024.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'Aura Copilot at Shift 2024.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">Aura Copilot at Shift 2024.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">title</span>
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">list</span>
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">reading order</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
           </li>
+
+
           <li>
-            <a
-              href={`${baseUrl}/showcase/OutSystems Leaves Highspot.pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
-              onClick={e => handleShowcaseClick(e, 'OutSystems Leaves Highspot.pdf')}
-            >
-              <span className="truncate text-blue-700 group-hover:underline">OutSystems Leaves Highspot.pdf</span>
-            </a>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/OutSystems Leaves Highspot.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'OutSystems Leaves Highspot.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">OutSystems Leaves Highspot.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">smart ocr</span>
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">list</span>
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">reading order</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
           </li>
+
+
+
           <li>
-            <a
-              href={`${baseUrl}/showcase/Seismic vs. Highspot Deck_Premier Ed.pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
-              onClick={e => handleShowcaseClick(e, 'Seismic vs. Highspot Deck_Premier Ed.pdf')}
-            >
-              <span className="truncate text-blue-700 group-hover:underline">Seismic vs. Highspot Deck_Premier Ed.pdf</span>
-            </a>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/Seismic vs. Highspot Deck_Premier Ed.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'Seismic vs. Highspot Deck_Premier Ed.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">Seismic vs. Highspot Deck_Premier Ed.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded">table</span>
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">list</span>
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">reading order</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
           </li>
+
           <li>
-            <a
-              href={`${baseUrl}/showcase/CMS 3.0 Introduction.pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
-              onClick={e => handleShowcaseClick(e, 'CMS 3.0 Introduction.pdf')}
-            >
-              <span className="truncate text-blue-700 group-hover:underline">CMS 3.0 Introduction.pdf</span>
-            </a>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/CMS 3.0 Introduction.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'CMS 3.0 Introduction.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">CMS 3.0 Introduction.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded">image</span>
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">title</span>
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">reading order</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
           </li>
+
           <li>
-            <a
-              href={`${baseUrl}/showcase/Illumina COVIDSeq Test.pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
-              onClick={e => handleShowcaseClick(e, 'Illumina COVIDSeq Test.pdf')}
-            >
-              <span className="truncate text-blue-700 group-hover:underline">Illumina COVIDSeq Test.pdf</span>
-            </a>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/Illumina COVIDSeq Test.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'Illumina COVIDSeq Test.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">Illumina COVIDSeq Test.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded">table</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
           </li>
+
+
+
           <li>
-            <a
-              href={`${baseUrl}/showcase/PDFUA-Ref-2-02_Invoice.pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
-              onClick={e => handleShowcaseClick(e, 'PDFUA-Ref-2-02_Invoice.pdf')}
-            >
-              <span className="truncate text-blue-700 group-hover:underline">PDFUA-Ref-2-02_Invoice.pdf</span>
-            </a>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/PDFUA-Ref-2-02_Invoice.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'PDFUA-Ref-2-02_Invoice.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">PDFUA-Ref-2-02_Invoice.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">smart ocr</span>
+                <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded">table</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
+          </li>
+
+          <li>
+            <div className="flex flex-col">
+              <a
+                href={`${baseUrl}/showcase/Why Customers Choose Seismic for Sales Readiness.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded hover:bg-blue-50 transition group"
+                onClick={e => handleShowcaseClick(e, 'Why Customers Choose Seismic for Sales Readiness.pdf')}
+              >
+                <span className="truncate text-blue-700 group-hover:underline">Why Customers Choose Seismic for Sales Readiness.pdf</span>
+              </a>
+              <div className="flex gap-2 mb-1 justify-end">
+                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">title</span>
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">reading order</span>
+              </div>
+            </div>
+            <hr className="my-2 border-gray-200" />
           </li>
 
         </ul>

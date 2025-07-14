@@ -35,6 +35,30 @@ const PreviewPane = ({ documentChunks, highlight }) => {
   return (
     <Card className="h-full overflow-auto">
       <CardContent className="space-y-4 p-4 relative">
+        {/* Watermark */}
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(50% + 200px)",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            fontSize: "3rem",
+            color: "#2563eb",
+            fontWeight: "bold",
+            opacity: 0.13,
+            userSelect: "none",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            letterSpacing: "0em",
+            zIndex: 5,
+            width: "100%",
+            textAlign: "center",
+          }}
+          unselectable="on"
+        >
+          bianlian.ai
+        </div>
+        {/* End Watermark */}
         {documentChunks?.pagedChunks?.map((chunk, index) => {
           const isHighlighted = highlight?.pageNumber === chunk.pageNumber;
           const imageSize = imageSizes[chunk.pageNumber];
