@@ -82,6 +82,8 @@ namespace img2table.sharp.web.Services
             {
                 var documentChunks = new DocumentChunks();
                 documentChunks.DocumentName = pdfFileName;
+                documentChunks.JobId = jobFolderName;
+
                 var pagedChunks = new List<PagedChunk>();
 
                 int pageCount = pdfDoc.GetPageCount();
@@ -126,6 +128,14 @@ namespace img2table.sharp.web.Services
                 }
 
                 documentChunks.PagedChunks = pagedChunks;
+
+                bool _saveMarkdownToFile = true;
+                if (_saveMarkdownToFile)
+                {
+                    string mdFile = Path.Combine(workFolder, pdfFileName + ".md");
+                    File.WriteAllBytes(mdFile, Encoding.UTF8.GetBytes(documentChunks.Markdown));
+                }
+
                 return documentChunks;
             }
         }
@@ -393,6 +403,8 @@ namespace img2table.sharp.web.Services
     {
         public string DocumentName { get; set; }
         public IEnumerable<PagedChunk> PagedChunks { get; set; }
+        public string JobId { get; set; }
+
         public string Markdown
         {
             get

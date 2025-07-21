@@ -38,10 +38,10 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Illumina COVIDSeq Test.pdf";
-            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Illumina COVIDSeq Test_split";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\quake\Commercial Lease Rates - CBG_v87.0.PDF";
+            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\quake";
             var range = new List<int[]>();
-            range.Add(new int[] { 0, 4, 22, 23 });
+            range.Add(new int[] { 18 });
             PDFTools.SplitPDF(src, range, dst);
         }
 

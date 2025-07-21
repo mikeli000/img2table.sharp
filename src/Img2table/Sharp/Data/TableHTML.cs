@@ -67,6 +67,19 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 tableNode.AppendChild(captionNode);
             }
 
+            var firstRow = tableDto.Items.FirstOrDefault();
+            if (firstRow != null)
+            {
+                foreach (var cell in firstRow.Items)
+                {
+                    if (cell.RowSpan > 1)
+                    {
+                        firstRowAsTH = false;
+                        break;
+                    }
+                }
+            }
+
             for (int i = 0; i < tableDto.Items.Count; i++)
             {
                 var row = tableDto.Items[i];

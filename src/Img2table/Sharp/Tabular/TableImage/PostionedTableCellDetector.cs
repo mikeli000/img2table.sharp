@@ -2,6 +2,7 @@
 using Sdcb.PaddleOCR.Models.Local;
 using Sdcb.PaddleOCR;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
+using Img2table.Sharp.Tabular.TableImage;
 
 public class PostionedTableCellDetector
 {
@@ -42,13 +43,6 @@ public class PostionedTableCellDetector
         var topLine = hLines[0];
         LineSegmentPoint? secLine = hLines.Length > 1 ? hLines[1] : null;
 
-        using Mat linesMat = Mat.Zeros(gray.Size(), MatType.CV_8UC1);
-        foreach (var line in lines)
-        {
-            Cv2.Line(linesMat, line.P1, line.P2, Scalar.White, 1);
-        }
-        DrawOCRBoxes(ocrBoxes, linesMat);
-
         var columnPositions = DetectVerLines(ocrBoxes, tableBbox);
         List<LineSegmentPoint> columns = columnPositions
             .Select(x => new LineSegmentPoint(new Point(x, tableBbox.Top), new Point(x, tableBbox.Bottom)))
@@ -69,19 +63,13 @@ public class PostionedTableCellDetector
                 {
                     if (columnPositions.Contains(p))
                     {
-                        //Cv2.Line(srcImage, new Point(p, tableBbox.Top), new Point(p, tableBbox.Bottom), Scalar.Blue, 1);
                         continue;
                     }
 
                     columns.Add(new LineSegmentPoint(new Point(p, tbodyBbox.Top), new Point(p, tbodyBbox.Bottom)));
-
-                    //Cv2.Line(srcImage, new Point(p, tbodyBbox.Top), new Point(p, tbodyBbox.Bottom), Scalar.Red, 1);
                 }
             }
         }
-
-        //Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\cols.png", srcImage);
-
 
         lines = lines.Concat(columns).ToArray();
         var horLines = new List<Line>();
@@ -95,24 +83,33 @@ public class PostionedTableCellDetector
             else
             {
                 verLines.Add(new Line(line.P1.X, line.P1.Y, line.P2.X, line.P2.Y));
-
-                Cv2.Line(linesMat, line.P1, line.P2, Scalar.White, 1);
             }
         }
 
-        //Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\lines_only.png", linesMat);
-        Console.WriteLine($"detect {lines.Length} X {columnPositions.Count} lines");
+        if (TableImage.Debug)
+        {
+            var debugImage = srcImage.Clone();
+            DrawOCRBoxes(ocrBoxes, debugImage);
+
+            foreach (var line in lines)
+            {
+                Cv2.Line(debugImage, line.P1, line.P2, Scalar.Red, 2);  
+            }
+
+            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\lines_only.png", debugImage);
+
+            Console.WriteLine($"detect {lines.Length} X {columnPositions.Count} lines");
+        }
 
         return (horLines, verLines);
     }
 
-    private static List<Rect> MaskTexts(Mat srcImage)
+    public static List<Rect> MaskTexts(Mat srcImage, float scale = 1.0f)
     {
         var ocrBoxes = new List<Rect>();
         Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
         {
             using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
-            all.Detector.UnclipRatio = 1.2f;
             return all.Run(srcImage);
         });
 
@@ -120,7 +117,7 @@ public class PostionedTableCellDetector
         for (int i = 0; i < ocrResult.Regions.Length; ++i)
         {
             PaddleOcrResultRegion region = ocrResult.Regions[i];
-            Rect ocrBox = Extend(region.Rect.BoundingRect(), -1);
+            Rect ocrBox = Extend(region.Rect.BoundingRect(), -2);
             ocrBoxes.Add(ocrBox);
         }
         
@@ -136,7 +133,7 @@ public class PostionedTableCellDetector
         }
     }
 
-    public static Rect Extend(in Rect rect, int extendLength)
+    public static Rect Extend(Rect rect, int extendLength)
     {
         return Rect.FromLTRB(rect.Left - extendLength, rect.Top - extendLength, rect.Right + extendLength, rect.Bottom + extendLength);
     }
