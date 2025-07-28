@@ -4,6 +4,8 @@ using Img2table.Sharp.Tabular.TableImage.TableElement;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout;
+using PDFDict.SDK.Sharp.Core.OCR;
+using System.Text;
 
 namespace Img2table.Sharp.Tabular.TableImage
 {
@@ -18,11 +20,14 @@ namespace Img2table.Sharp.Tabular.TableImage
         private List<Line> _lines;
         private List<Table> _tables;
         private bool _shouldOCR = false;
-
+        private string _tempDir;
         public static bool Debug = false;
 
         public TableImage(Mat img)
         {
+            _tempDir = Path.Combine(Path.GetTempPath(), "img2table");
+            Directory.CreateDirectory(_tempDir);
+
             Prepare(img);
         }
 
@@ -43,6 +48,26 @@ namespace Img2table.Sharp.Tabular.TableImage
             ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
             if (_tables != null && _tables.Count > 0)
             {
+                if (tableBbox != null)
+                {
+                    bool reCompsiteTable = false;
+                    if (_tables[0].NbRows <= 1)
+                    {
+                        implicitRows = true;
+                    }
+                    if (_tables[0].NbColumns <= 1)
+                    {
+                        implicitColumns = true;
+                    }
+                    reCompsiteTable = implicitRows || implicitColumns;
+                    _shouldOCR = implicitRows || implicitColumns;
+                    if (reCompsiteTable)
+                    {
+                        textBoxes = T_MaskTexts(_img, _tempDir);
+                        ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
+                    }
+                }
+
                 return _tables;
             }
 
@@ -74,7 +99,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             {
                 if (textBoxes == null)
                 {
-                    textBoxes = PostionedTableCellDetector.T_MaskTexts(_img);
+                    textBoxes = T_MaskTexts(_img, _tempDir);
                 }
 
                 RemoveLinesInBox(hLines, textBoxes);
@@ -84,18 +109,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                 vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes);
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
-
-                //int uniqueVCount = vLines.Select(line => line.X1)
-                //    .Concat(vLines.Select(line => line.X2))
-                //    .Distinct()
-                //    .Count();
-
-                //if (uniqueVCount <= 2)
-                //{
-                //    //implicitColumns = true;
-                //    var plines = PostionedTableCellDetector.DetectLines(_img, tableBbox.Value, textBoxes);
-                //    vLines = plines.Item2;
-                //}
 
                 if (/*Debug*/ true)
                 {
@@ -122,9 +135,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                     Cv2.ImWrite(file, debugImage);
                 }
 
-                implicitRows = hLines.Count <= 2;
-                implicitColumns = vLines.Count <= 2;
-                _shouldOCR = implicitRows || implicitColumns;
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
             }
             else
@@ -450,6 +460,28 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
 
             return thresh;
+        }
+
+        public static List<Rect> T_MaskTexts(Mat srcImage, string tempDir)
+        {
+            string path = Path.Combine(tempDir, $"{Guid.NewGuid().ToString()}.png");
+
+            Cv2.ImWrite(path, srcImage);
+            var wordList = TesseractOCR.OCRBlockLevel(path);
+
+            var ocrBoxes = new List<Rect>();
+            var buf = new StringBuilder();
+            foreach (var word in wordList)
+            {
+                var left = (int)Math.Round(word.BBox.Left);
+                var top = (int)Math.Round(word.BBox.Top);
+                var right = (int)Math.Round(word.BBox.Right);
+                var bottom = (int)Math.Round(word.BBox.Bottom);
+                Rect wordRect = new Rect(left, top, right - left, bottom - top);
+                ocrBoxes.Add(wordRect);
+            }
+
+            return ocrBoxes;
         }
     }
 }

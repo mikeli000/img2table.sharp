@@ -38,12 +38,12 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc\bmsax-blackrock-income-fund-factsheet-us09260b7055-us-en-individual.pdf";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc\Fact-Sheet-Clarion-Partners-Real-Estate-Income-Fund-92083-FF.pdf";
             var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
             range.Add(new int[] { 0 });
-            //range.Add(new int[] { 20 });
+            range.Add(new int[] { 1 });
             //range.Add(new int[] { 104, 105, 106, 107, 108, 109, 110, 111 });
             PDFTools.SplitPDF(src, range, dst);
         }

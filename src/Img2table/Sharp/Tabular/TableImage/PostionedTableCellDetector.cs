@@ -7,15 +7,17 @@ using System.Text;
 
 public class PostionedTableCellDetector
 {
-    public static void DetectTableCells(string imagePath, Rect tableBbox)
-    {
-        using Mat img = Cv2.ImRead(imagePath);
-        DetectLines(img, tableBbox);
-    }
-
     public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> ocrBoxes)
     {
-        var topLine = hLines[0];
+        Line topLine = null;
+        if (hLines.Count == 0)
+        {
+            topLine = new Line(tableBbox.Left, tableBbox.Top, tableBbox.Right, tableBbox.Bottom);
+        }
+        else
+        {
+            topLine = hLines[0];
+        }
         Line? secLine = hLines.Count > 2 ? hLines[1] : null;
 
         var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox);
@@ -59,19 +61,13 @@ public class PostionedTableCellDetector
 
     private static List<Line> RemoveRedundantLines(List<Line> vLines, IEnumerable<Rect> ocrBoxes)
     {
-        // 如果相邻 两根 线 之间 没有 box，则删除 纵向比较短的那根; 如果两根长度一样，则删除左边的那根
-
         vLines = vLines.OrderBy(vl => vl.X1).ToList();
         for (int i = 0; i < vLines.Count - 1; i++)
         {
             var line1 = vLines[i];
             var line2 = vLines[i + 1];
 
-            //bool hasBoxBetween = ocrBoxes.Any(box => box.Left > line1.X1 && box.Right < line2.X1);
-            List<Rect> bx = ocrBoxes
-                .Where(box => box.Left > line1.X1 && box.Right < line2.X1)
-                .ToList();
-            //if (!hasBoxBetween)
+            List<Rect> bx = ocrBoxes.Where(box => box.Left > line1.X1 && box.Right < line2.X1).ToList();
             if (bx.Count() == 0)
             {
                 if (line1.Height < line2.Height)
@@ -104,101 +100,6 @@ public class PostionedTableCellDetector
         return first.SequenceEqual(second);
     }
 
-    public static (List<Line>, List<Line>) DetectLines(Mat srcImage, Rect tableBbox, IEnumerable<Rect> ocrBoxes = null)
-    {
-        using Mat gray = srcImage.Channels() == 3 
-            ? new Mat() 
-            : srcImage.Clone();
-        
-        if (srcImage.Channels() == 3)
-        {
-            Cv2.CvtColor(srcImage, gray, ColorConversionCodes.BGR2GRAY);
-        }
-
-        Cv2.Rectangle(gray, tableBbox, Scalar.Black, 1);
-        using Mat edges = new Mat();
-        Cv2.Canny(gray, edges, 50, 150);
-        var lines = Cv2.HoughLinesP(
-            edges,
-            rho: 1,              
-            theta: Math.PI / 180,
-            threshold: 80,       
-            minLineLength: tableBbox.Width / 8,
-            maxLineGap: 10
-        ).ToList();
-
-        if (ocrBoxes == null)
-        {
-            ocrBoxes = T_MaskTexts(srcImage);
-        }
-        
-        lines = RemoveNearbyLines(lines, tableBbox, distanceThreshold: 15.0, angleThreshold: 10.0);
-        RemoveLinesInBox(lines, ocrBoxes);
-        lines = lines.OrderBy(line => line.P1.Y).ToList();
-        var hLines = lines.Where(line => IsHorizontalLine(line, angleThreshold: 10.0)).ToArray();
-        var topLine = hLines[0];
-        LineSegmentPoint? secLine = hLines.Length > 2 ? hLines[1] : null;
-
-        var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox);
-        List<LineSegmentPoint> columns = columnPositions
-            .Select(x => new LineSegmentPoint(new Point(x, tableBbox.Top), new Point(x, tableBbox.Bottom)))
-            .ToList();
-
-        if (secLine != null)
-        {
-            var tbodyBbox = new Rect();
-            tbodyBbox.Left = tableBbox.Left;
-            tbodyBbox.Top = secLine.Value.P1.Y;
-            tbodyBbox.Width = tableBbox.Width;
-            tbodyBbox.Height = tableBbox.Bottom - secLine.Value.P1.Y;
-
-            var secPositions = DetectBodyVerLines(ocrBoxes, tbodyBbox, columnPositions);
-            if (secPositions.Count > columnPositions.Count)
-            {
-                foreach (var p in secPositions)
-                {
-                    if (columnPositions.Contains(p))
-                    {
-                        continue;
-                    }
-
-                    columns.Add(new LineSegmentPoint(new Point(p, tbodyBbox.Top), new Point(p, tbodyBbox.Bottom)));
-                }
-            }
-        }
-
-        lines = lines.Concat(columns).ToList();
-        var horLines = new List<Line>();
-        var verLines = new List<Line>();
-        foreach (var line in lines)
-        {
-            if (Math.Abs(line.P1.Y - line.P2.Y) < Math.Abs(line.P1.X - line.P2.X))
-            {
-                horLines.Add(new Line(line.P1.X, line.P1.Y, line.P2.X, line.P2.Y));
-            }
-            else
-            {
-                verLines.Add(new Line(line.P1.X, line.P1.Y, line.P2.X, line.P2.Y));
-            }
-        }
-
-        if (/*TableImage.Debug*/ true)
-        {
-            var debugImage = srcImage.Clone();
-            DrawOCRBoxes(ocrBoxes, debugImage);
-
-            foreach (var line in lines)
-            {
-                Cv2.Line(debugImage, line.P1, line.P2, Scalar.Red, 2);
-            }
-
-            var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
-            Cv2.ImWrite(file, debugImage);
-        }
-
-        return (horLines, verLines);
-    }
-
     private static void RemoveLinesInBox(List<LineSegmentPoint> hLines, IEnumerable<Rect> textBoxes)
     {
         hLines.RemoveAll(line =>
@@ -217,13 +118,6 @@ public class PostionedTableCellDetector
     public static List<Rect> MaskTexts(Mat srcImage, float scale = 1.0f)
     {
         var ocrBoxes = new List<Rect>();
-        //Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
-        //{
-        //    using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
-        //    return all.Run(srcImage);
-        //});
-        //PaddleOcrResult ocrResult = ocrResultTask.Result;
-
         using PaddleOcrAll paddle = new PaddleOcrAll(LocalFullModels.ChineseV3);
         PaddleOcrResult ocrResult = paddle.Run(srcImage);
 
@@ -234,27 +128,6 @@ public class PostionedTableCellDetector
             ocrBoxes.Add(ocrBox);
         }
         
-        return ocrBoxes;
-    }
-
-    public static List<Rect> T_MaskTexts(Mat srcImage)
-    {
-        string path = @"C:\temp\img2table\xxx.png";
-        Cv2.ImWrite(path, srcImage);
-        var wordList = TesseractOCR.OCRBlockLevel(path);
-
-        var ocrBoxes = new List<Rect>();
-        var buf = new StringBuilder();
-        foreach (var word in wordList)
-        {
-            var left = (int)Math.Round(word.BBox.Left);
-            var top = (int)Math.Round(word.BBox.Top);
-            var right = (int)Math.Round(word.BBox.Right);
-            var bottom = (int)Math.Round(word.BBox.Bottom);
-            Rect wordRect = new Rect(left, top, right - left, bottom - top);
-            ocrBoxes.Add(wordRect);
-        }
-
         return ocrBoxes;
     }
 
