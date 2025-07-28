@@ -21,6 +21,7 @@ namespace img2table.sharp.web.Services
         private string _jobFolderName;
         private string _pageImagePath;
         private bool _enableOCR = true;
+        private bool _removeBulletChar = false;
 
         public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool outputFigureAsImage = false, bool enableOCR = false)
         {
@@ -40,6 +41,7 @@ namespace img2table.sharp.web.Services
             {
                 return "";
             }
+            chunkElement.ChunkObject.Label = chunkType;
 
             _writer = new MarkdownWriter();
             switch (chunkType)
@@ -67,12 +69,16 @@ namespace img2table.sharp.web.Services
                     ProcessTableChunk(chunkElement);
                     break;
                 case ChunkType.Picture:
+                case ChunkType.Figure:
+                case ChunkType.Chart:
                     ProcessPictureChunk(chunkElement);
                     break;
                 case ChunkType.SectionHeader:
+                case ChunkType.ParagraphTitle:
                     ProcessSectionHeaderChunk(chunkElement);
                     break;
                 case ChunkType.Caption:
+                case ChunkType.FigureCaption:
                     ProcessCaptionChunk(chunkElement);
                     break;
                 case ChunkType.Footnote:
@@ -96,6 +102,7 @@ namespace img2table.sharp.web.Services
                         ProcessPageHeaderChunk(chunkElement);
                     }
                     break;
+                case ChunkType.PageNumber:
                 case ChunkType.Text:
                     ProcessTextChunk(chunkElement);
                     break;
@@ -255,7 +262,7 @@ namespace img2table.sharp.web.Services
                 {
                     var curr = content.PageElement as TextElement;
                     string text = curr.GetText();
-                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(text) || curr.IsWingdingFont();
+                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(text, out var listTag) || curr.IsWingdingFont();
                     if (prev != null)
                     {
                         if (Math.Round(prev.GetBaselineY()) == Math.Round(curr.GetBaselineY()))
@@ -287,13 +294,12 @@ namespace img2table.sharp.web.Services
                     else
                     {
                         string newLineText = text;
-                        bool removeBulletChar = true;
 
                         if (isListParagraphBegin)
                         {
-                            if (removeBulletChar)
+                            if (_removeBulletChar)
                             {
-                                newLineText = newLineText.Substring(1);
+                                newLineText = newLineText.Substring(listTag == null ? 0 : listTag.Length);
                             }
                             newLineText = "\n\n" + "- " + newLineText;
                         }

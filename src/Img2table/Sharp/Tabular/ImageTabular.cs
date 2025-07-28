@@ -19,7 +19,7 @@ namespace Img2table.Sharp.Tabular
             _parameter = tabularParameter;
         }
 
-        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, bool loadText = false)
+        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<RectangleF> textBoxes = null, bool loadText = false)
         {
             if (string.IsNullOrWhiteSpace(imgFile) || !File.Exists(imgFile))
             {
@@ -38,11 +38,27 @@ namespace Img2table.Sharp.Tabular
                     (int)tableBbox.Value.Width,
                     (int)tableBbox.Value.Height);
             }
-            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect);
 
-            if (loadText)
+
+            List<Rect> boxes = null;
+            if (textBoxes != null)
             {
-                PaddleOCR(imgFile, tables);
+                boxes = new List<Rect>();
+                foreach (var rect in textBoxes)
+                {
+                    boxes.Add(new Rect(
+                        (int)rect.X,
+                        (int)rect.Y,
+                        (int)rect.Width,
+                        (int)rect.Height));
+                }
+            }
+
+            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, boxes);
+
+            if (loadText || tableImage.ShouldOCR)
+            {
+                OCRText(imgFile, tables);
             }
             
             var pagedTable = new PagedTable
@@ -56,33 +72,17 @@ namespace Img2table.Sharp.Tabular
             return pagedTable;
         }
 
-        private void PaddleOCR(string imageFile, List<Table> tables)
+        private void OCRText(string imageFile, List<Table> tables, bool paddle = false)
         {
-            var pageTextCells = OCRUtils.PaddleOCR(imageFile);
-            foreach (var table in tables)
+            List<Cell> pageTextCells;
+            if (paddle)
             {
-                foreach (var row in table.Rows)
-                {
-                    LoadRowText(row, pageTextCells, _parameter);
-                }
+                pageTextCells = OCRUtils.PaddleOCR(imageFile);
             }
-        }
-
-        private void LoadText(string imageFile, List<Table> tables)
-        {
-            var wordList = TesseractOCR.OCRWordLevel(imageFile);
-
-            var buf = new StringBuilder();
-            var pageTextCells = wordList.Select(word =>
+            else
             {
-                var left = (int)Math.Round(word.BBox.Left);
-                var top = (int)Math.Round(word.BBox.Top);
-                var right = (int)Math.Round(word.BBox.Right);
-                var bottom = (int)Math.Round(word.BBox.Bottom);
-
-                buf.Append($"{word.Text}");
-                return new Cell(left, top, right, bottom, word.Text);
-            }).ToList();
+                pageTextCells = OCRUtils.TesseractOCR(imageFile);
+            }
 
             foreach (var table in tables)
             {
@@ -97,6 +97,11 @@ namespace Img2table.Sharp.Tabular
         {
             foreach (var cell in row.Cells)
             {
+                if (!string.IsNullOrEmpty(cell.Content))
+                {
+                    continue;
+                }
+
                 var cellRect = cell.Rect();
                 var oneTextCells = FindTextElement(cellRect, pageTextCells, parameter);
 
@@ -105,7 +110,7 @@ namespace Img2table.Sharp.Tabular
                     Cell prev = null;
                     foreach (var curr in oneTextCells)
                     {
-                        bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content);
+                        bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content, out var listTag);
                         if (prev != null)
                         {
                             if (prev.Baseline == curr.Baseline)
@@ -151,6 +156,11 @@ namespace Img2table.Sharp.Tabular
                                 }
                             }
                             cell.AddText(newLineText);
+
+                            if (newLineText.StartsWith("Volatility Target"))
+                            {
+                                Console.WriteLine();
+                            }
                         }
 
                         pageTextCells.Remove(curr);
@@ -208,7 +218,7 @@ namespace Img2table.Sharp.Tabular
                 return true;
             }
 
-            return TextElement.IsListParagraphBegin(text);
+            return TextElement.IsListParagraphBegin(text, out _);
         }
 
         private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter)

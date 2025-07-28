@@ -54,9 +54,16 @@ namespace img2table.sharp.Img2table.Sharp.Data
             }
         }
 
-        private static void GenerateHtmlTable(TableDTO tableDto, HtmlDocument htmlDoc, bool firstRowAsTH = false)
+        private const string BorderStyle = "border: 1px solid lightgray; border-collapse: collapse;";
+
+        private static void GenerateHtmlTable(TableDTO tableDto, HtmlDocument htmlDoc, bool firstRowAsTH = false, bool addBorderStyle = true)
         {
             var tableNode = htmlDoc.CreateElement("table");
+            if (addBorderStyle)
+            {
+                tableNode.SetAttributeValue("style", BorderStyle);
+            }
+
             if (!string.IsNullOrEmpty(tableDto.Title))
             {
                 tableNode.SetAttributeValue("borderless", tableDto.Borderless.ToString());
@@ -87,10 +94,21 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 {
                     var theadNode = htmlDoc.CreateElement("thead");
                     var rowNode = htmlDoc.CreateElement("tr");
+
+                    if (addBorderStyle)
+                    {
+                        rowNode.SetAttributeValue("style", BorderStyle);
+                    }
+
                     for (int j = 0; j < row.Items.Count; j++)
                     {
                         var cell = row.Items[j];
                         var cellNode = htmlDoc.CreateElement("th");
+                        if (addBorderStyle)
+                        {
+                            cellNode.SetAttributeValue("style", BorderStyle);
+                        }
+
                         if (cell.RowSpan > 1)
                         {
                             cellNode.SetAttributeValue("rowspan", cell.RowSpan.ToString());
@@ -109,10 +127,20 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 else
                 {
                     var rowNode = htmlDoc.CreateElement("tr");
+                    if (addBorderStyle)
+                    {
+                        rowNode.SetAttributeValue("style", BorderStyle);
+                    }
+
                     for (int j = 0; j < row.Items.Count; j++)
                     {
                         var cell = row.Items[j];
                         var cellNode = htmlDoc.CreateElement("td");
+                        if (addBorderStyle)
+                        {
+                            cellNode.SetAttributeValue("style", BorderStyle);
+                        }
+
                         if (cell.RowSpan > 1)
                         {
                             cellNode.SetAttributeValue("rowspan", cell.RowSpan.ToString());

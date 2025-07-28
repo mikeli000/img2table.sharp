@@ -38,10 +38,13 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\quake\Commercial Lease Rates - CBG_v87.0.PDF";
-            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\quake";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc\bmsax-blackrock-income-fund-factsheet-us09260b7055-us-en-individual.pdf";
+            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc";
             var range = new List<int[]>();
-            range.Add(new int[] { 18 });
+            //range.Add(new int[] { 0 });
+            range.Add(new int[] { 0 });
+            //range.Add(new int[] { 20 });
+            //range.Add(new int[] { 104, 105, 106, 107, 108, 109, 110, 111 });
             PDFTools.SplitPDF(src, range, dst);
         }
 
@@ -247,7 +250,7 @@ namespace img2table.sharp.console
             param.DetectBorderlessTables = false;
             param.CellTextOverlapRatio = 0.6f;
             var tableImage = new ImageTabular(param);
-            var ret = tableImage.Process(tempFile, tableRect, true);
+            var ret = tableImage.Process(tempFile, tableRect, null, true);
 
             foreach (var t in ret.Tables)
             {

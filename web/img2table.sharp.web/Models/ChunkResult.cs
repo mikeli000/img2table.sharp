@@ -51,14 +51,19 @@ namespace img2table.sharp.web.Models
         public const string Caption = "Caption";
         public const string Footnote = "Footnote";
         public const string Formula = "Formula";
+        public const string Chart = "Chart";
         public const string ListItem = "List-item";
         public const string PageFooter = "Page-footer";
         public const string PageHeader = "Page-header";
+        public const string Header = "header";
+        public const string Footer = "footer";
         public const string Picture = "Picture";
         public const string SectionHeader = "Section-header";
         public const string Table = "Table";
         public const string Text = "Text";
         public const string Title = "Title";
+        public const string DocTitle = "doc_title";
+        public const string ParagraphTitle = "paragraph_title";
 
         /**
             label_map = {
@@ -75,13 +80,18 @@ namespace img2table.sharp.web.Models
             }
          */
         public const string PlainText = "plain text";
+        public const string Abstract = "abstract";
         public const string Abandon = "abandon";
         public const string Figure = "figure";
+        public const string Image = "image";
         public const string FigureCaption = "figure_caption";
+        public const string FigureTitle = "figure_title";
         public const string TableCaption = "table_caption";
         public const string TableFootnote = "table_footnote";
         public const string IsolateFormula = "isolate_formula";
         public const string FormulaCaption = "formula_caption";
+        public const string Number = "number";
+        public const string PageNumber = "page_number";
 
         public const string Unknown = "Unknown";
 
@@ -103,24 +113,31 @@ namespace img2table.sharp.web.Models
             {
                 return ListItem;
             }
-            else if (string.Equals(label, PageFooter, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(label, PageFooter, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, Footer, StringComparison.OrdinalIgnoreCase))
             {
                 return PageFooter;
             }
-            else if (string.Equals(label, PageHeader, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(label, PageHeader, StringComparison.OrdinalIgnoreCase) 
+                || string.Equals(label, Header, StringComparison.OrdinalIgnoreCase))
             {
                 return PageHeader;
             }
             else if (string.Equals(label, Picture, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(label, Figure, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(label, Figure, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, Image, StringComparison.OrdinalIgnoreCase))
             {
                 return Picture;
             }
-            else if (string.Equals(label, FigureCaption, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(label, FigureCaption, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, FigureTitle, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, FormulaCaption, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, TableCaption, StringComparison.OrdinalIgnoreCase))
             {
-                return FigureCaption;
+                return Caption;
             }
-            else if (string.Equals(label, SectionHeader, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(label, SectionHeader, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, ParagraphTitle, StringComparison.OrdinalIgnoreCase))
             {
                 return SectionHeader;
             }
@@ -128,20 +145,22 @@ namespace img2table.sharp.web.Models
             {
                 return Table;
             }
-            else if (string.Equals(label, TableCaption, StringComparison.OrdinalIgnoreCase))
-            {
-                return TableCaption;
-            }
             else if (string.Equals(label, TableFootnote, StringComparison.OrdinalIgnoreCase))
             {
                 return TableFootnote;
             }
             else if (string.Equals(label, Text, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(label, PlainText, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(label, PlainText, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, Abstract, StringComparison.OrdinalIgnoreCase))
             {
                 return Text;
             }
-            else if (string.Equals(label, Title, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(label, Number, StringComparison.OrdinalIgnoreCase))
+            {
+                return PageNumber;
+            }
+            else if (string.Equals(label, Title, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, DocTitle, StringComparison.OrdinalIgnoreCase))
             {
                 return Title;
             }
@@ -153,9 +172,9 @@ namespace img2table.sharp.web.Models
             {
                 return IsolateFormula;
             }
-            else if (string.Equals(label, FormulaCaption, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(label, Chart, StringComparison.OrdinalIgnoreCase))
             {
-                return FormulaCaption;
+                return Chart;
             }
             else
             {

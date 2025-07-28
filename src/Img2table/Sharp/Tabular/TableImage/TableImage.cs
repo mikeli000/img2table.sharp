@@ -4,9 +4,6 @@ using Img2table.Sharp.Tabular.TableImage.TableElement;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout;
-using Sdcb.PaddleOCR;
-using static Img2table.Sharp.Tabular.TableImage.TableElement.Extraction;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Img2table.Sharp.Tabular.TableImage
 {
@@ -20,23 +17,30 @@ namespace Img2table.Sharp.Tabular.TableImage
         private List<Cell> _contours;
         private List<Line> _lines;
         private List<Table> _tables;
+        private bool _shouldOCR = false;
 
         public static bool Debug = false;
 
         public TableImage(Mat img)
         {
-            _img = img;
-
-            _thresh = ThresholdDarkAreas(_img, DefaultCharLength);
-            var t = Metrics.ComputeImgMetrics(_thresh.Clone());
-            _charLength = t.Item1 != null ? t.Item1.Value: DefaultCharLength;
-            _medianLineSep = t.Item2;
-            _contours = t.Item3?? new List<Cell>();
+            Prepare(img);
         }
 
-        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null)
+        private void Prepare(Mat img)
         {
-            ExtractBorderedTables(implicitRows, implicitColumns, tableBbox);
+            _img = img;
+            _thresh = ThresholdDarkAreas(_img, DefaultCharLength);
+            var t = Metrics.ComputeImgMetrics(_thresh.Clone());
+            _charLength = t.Item1 != null ? t.Item1.Value : DefaultCharLength;
+            _medianLineSep = t.Item2;
+            _contours = t.Item3 ?? new List<Cell>();
+        }
+
+        public bool ShouldOCR => _shouldOCR;
+
+        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<Rect> textBoxes = null)
+        {
+            ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
             if (_tables != null && _tables.Count > 0)
             {
                 return _tables;
@@ -50,12 +54,6 @@ namespace Img2table.Sharp.Tabular.TableImage
             return _tables;
         }
 
-        private void ExtractPositionedTable(Rect tableBbox)
-        {
-            var (hLines, vLines) = PostionedTableCellDetector.DetectLines(_img, tableBbox);
-            CompsiteTable(hLines, vLines);
-        }
-
         private void ExtractBorderlessTables()
         {
             if (_medianLineSep != null)
@@ -67,106 +65,309 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null)
+        private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<Rect> textBoxes = null)
         {
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Min(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
             var (hLines, vLines) = LineDetector.DetectLines(_img, _contours, _charLength, minLineLength);
 
             if (tableBbox != null)
             {
-                int uniqueVCount = vLines.Select(line => line.X1)
-                    .Concat(vLines.Select(line => line.X2))
-                    .Distinct()
-                    .Count();
-
-                if (uniqueVCount <= 2)
+                if (textBoxes == null)
                 {
-                    implicitColumns = true;
-                    var plines = PostionedTableCellDetector.DetectLines(_img, tableBbox.Value);
-                    vLines = plines.Item2;
+                    textBoxes = PostionedTableCellDetector.T_MaskTexts(_img);
                 }
 
-                var boxes = PostionedTableCellDetector.MaskTexts(_img);
-                bool IsPointInBox(int x, int y, Rect box)
-                {
-                    return (x >= box.Left) && (x <= box.Right) && (y >= box.Top) && (y <= box.Bottom);
-                }
+                RemoveLinesInBox(hLines, textBoxes);
+                RemoveLinesInBox(vLines, textBoxes);
+                ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
+                hLines = hLines.OrderBy(hl => hl.Y1).ToList();
+                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes);
+                vLines = vLines.OrderBy(vl => vl.X1).ToList();
+                AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
-                hLines.RemoveAll(line =>
-                    boxes.Any(box =>
-                        IsPointInBox(line.X1, line.Y1, box) &&
-                        IsPointInBox(line.X2, line.Y2, box)
-                    )
-                );
+                //int uniqueVCount = vLines.Select(line => line.X1)
+                //    .Concat(vLines.Select(line => line.X2))
+                //    .Distinct()
+                //    .Count();
 
-                int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Value.Top;
-                int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Value.Bottom;
-                int leftmost = vLines.Min(l => Math.Min(l.X1, l.X2));
-                int tableLeft = tableBbox.Value.Left;
-                if (tableLeft >= leftmost)
-                {
-                    // TODO
-                }
-                else
-                {
-                    int intervalWidth = leftmost - tableLeft;
-                    var boxInGap = boxes.Where(b => b.Left >= tableLeft && b.Right <= leftmost);
+                //if (uniqueVCount <= 2)
+                //{
+                //    //implicitColumns = true;
+                //    var plines = PostionedTableCellDetector.DetectLines(_img, tableBbox.Value, textBoxes);
+                //    vLines = plines.Item2;
+                //}
 
-                    if (boxInGap.Count() > 0)
-                    {
-                        var newVLine = new Line(tableLeft, topmost, tableLeft, bottommost);
-                        vLines.Add(newVLine);
-
-                        foreach (var hl in hLines)
-                        {
-                            if (leftmost - hl.X1 >= 10)
-                            {
-                                hl.X1 = tableLeft;
-                            }
-                        }
-                    }
-                }
-
-                foreach (var hl in hLines)
-                {
-                    if (hl.Y1 == topmost && hl.Y2 == topmost)
-                    {
-                        hl.X1 = tableLeft;
-                    }
-                    else if (hl.Y1 == bottommost && hl.Y2 == bottommost)
-                    {
-                        hl.X1 = tableLeft;
-                    }
-                }
-
-                foreach (var vl in vLines)
-                {
-                    if (leftmost == vl.X1)
-                    {
-                        vl.Y1 = topmost;
-                        vl.Y2 = bottommost;
-                    }
-                }
-
-                if (Debug)
+                if (/*Debug*/ true)
                 {
                     var debugImage = _img.Clone();
                     foreach (var line in hLines)
                     {
-                        Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Red, 1);
+                        Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Red, 2);
                     }
                     foreach (var line in vLines)
                     {
-                        Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Blue, 1);
+                        Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Green, 2);
                     }
-                    Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\lines_only_1.png", debugImage);
+
+                    //Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
+                    if (textBoxes != null)
+                    {
+                        foreach (var box in textBoxes)
+                        {
+                            Cv2.Rectangle(debugImage, box, Scalar.Blue, 1);
+                        }
+                    }
+
+                    var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
+                    Cv2.ImWrite(file, debugImage);
                 }
 
+                implicitRows = hLines.Count <= 2;
+                implicitColumns = vLines.Count <= 2;
+                _shouldOCR = implicitRows || implicitColumns;
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
             }
             else
             {
+                implicitRows = hLines.Count <= 2;
+                implicitColumns = vLines.Count <= 2;
+                _shouldOCR = implicitRows || implicitColumns;
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+            }
+        }
+
+        private void RemoveLinesInBox(List<Line> hLines, IEnumerable<Rect> textBoxes)
+        {
+            hLines.RemoveAll(line =>
+                textBoxes.Any(box =>
+                    IsPointInBox(line.X1, line.Y1, box) &&
+                    IsPointInBox(line.X2, line.Y2, box)
+                )
+            );
+        }
+
+        private bool IsPointInBox(int x, int y, Rect box)
+        {
+            return (x >= box.Left) && (x <= box.Right) && (y >= box.Top) && (y <= box.Bottom);
+        }
+
+        private void AlignTableBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes)
+        {
+            AlignLeft(hLines, vLines, tableBbox, boxes);
+            AlignTop(hLines, vLines, tableBbox, boxes);
+            AlignBottom(hLines, vLines, tableBbox, boxes);
+            AlignRight(hLines, vLines, tableBbox, boxes);
+        }
+
+        private void AlignLeft(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        {
+            int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
+            int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Bottom;
+            int leftmost = vLines.Count > 0 ? vLines.Min(l => Math.Min(l.X1, l.X2)) : tableBbox.Left;
+            int tableLeft = tableBbox.Left;
+
+            foreach (var hl in hLines)
+            {
+                if (Math.Abs(leftmost - hl.X1) <= minGap)
+                {
+                    hl.X1 = leftmost;
+                }
+            }
+
+            if (tableLeft < leftmost)
+            {
+                var boxInGap = boxes.Where(b => {
+                    int centerX = (b.Left + b.Right) / 2;
+                    return centerX > tableLeft && centerX < leftmost;
+                });
+
+                if (boxInGap.Count() > 0)
+                {
+                    var newVLine = new Line(tableLeft, topmost, tableLeft, bottommost);
+                    vLines.Add(newVLine);
+
+                    foreach (var hl in hLines)
+                    {
+                        if (Math.Abs(leftmost - hl.X1) <= 1 && IntersectBoxes(hl, boxInGap.ToList()))
+                        {
+                            hl.X1 = tableLeft;
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool IntersectBoxes(Line line, List<Rect> boxes, bool vertical = false)
+        {
+            foreach (var box in boxes)
+            {
+                if (vertical)
+                {
+                    if (line.X1 >= box.Left && line.X1 <= box.Right)
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    if (line.Y1 > box.Top && line.Y1 < box.Bottom)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void ResolveTopBottomBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes)
+        {
+            int leftmost = tableBbox.Left;
+            int rightmost = tableBbox.Right;
+            int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
+            int tableTop = tableBbox.Top;
+            if (tableTop < topmost)
+            {
+                var boxInGap = boxes.Where(b =>
+                {
+                    int centerY = (b.Top + b.Bottom) / 2;
+                    return centerY > tableTop && centerY < topmost;
+                });
+                if (boxInGap.Count() > 0)
+                {
+                    var newHLine = new Line(leftmost, tableTop, rightmost, tableTop);
+                    hLines.Add(newHLine);
+                }
+            }
+
+            int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Bottom;
+            int tableBottom = tableBbox.Bottom;
+            if (tableBottom > bottommost)
+            {
+                var boxInGap = boxes.Where(b => {
+                    int centerY = (b.Top + b.Bottom) / 2;
+                    return centerY > bottommost && centerY < tableBottom;
+                });
+
+                if (boxInGap.Count() > 0)
+                {
+                    var newHLine = new Line(leftmost, tableBottom, rightmost, tableBottom);
+                    hLines.Add(newHLine);
+                }
+            }
+
+            AlignLeft(hLines, vLines, tableBbox, boxes);
+            AlignRight(hLines, vLines, tableBbox, boxes);
+        }
+
+        private void AlignTop(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        {
+            int leftmost = vLines.Count > 0 ? vLines.Min(l => Math.Min(l.X1, l.X2)) : tableBbox.Left;
+            int rightmost = vLines.Count > 0 ? vLines.Max(l => Math.Max(l.X1, l.X2)) : tableBbox.Right;
+            int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
+            int tableTop = tableBbox.Top;
+
+            foreach (var vl in vLines)
+            {
+                if (Math.Abs(topmost - vl.Y1) <= minGap)
+                {
+                    vl.Y1 = topmost;
+                }
+            }
+
+            if (tableTop < topmost)
+            {
+                var boxInGap = boxes.Where(b => {
+                    int centerY = (b.Top + b.Bottom) / 2;
+                    return centerY > tableTop && centerY < topmost;
+                });
+                if (boxInGap.Count() > 0)
+                {
+                    var newHLine = new Line(leftmost, tableTop, rightmost, tableTop);
+                    hLines.Add(newHLine);
+
+                    foreach (var vl in vLines)
+                    {
+                        if (Math.Abs(vl.Y1 - topmost) <= 1 && IntersectBoxes(vl, boxInGap.ToList(), true))
+                        {
+                            vl.Y1 = tableTop;
+                        }
+                    }
+                }
+            }
+        }
+        private void AlignBottom(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        {
+            int leftmost = vLines.Count > 0 ? vLines.Min(l => Math.Min(l.X1, l.X2)) : tableBbox.Left;
+            int rightmost = vLines.Count > 0 ? vLines.Max(l => Math.Max(l.X1, l.X2)) : tableBbox.Right;
+            int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Bottom;
+            int tableBottom = tableBbox.Bottom;
+
+            foreach (var vl in vLines)
+            {
+                if (Math.Abs(bottommost - vl.Y2) <= minGap)
+                {
+                    vl.Y2 = bottommost;
+                }
+            }
+
+            if (tableBottom > bottommost)
+            {
+                var boxInGap = boxes.Where(b => {
+                    int centerY = (b.Top + b.Bottom) / 2;
+                    return centerY > bottommost && centerY < tableBottom;
+                });
+
+                if (boxInGap.Count() > 0)
+                {
+                    var newHLine = new Line(leftmost, tableBottom, rightmost, tableBottom);
+                    hLines.Add(newHLine);
+
+                    foreach (var vl in vLines)
+                    {
+                        if (Math.Abs(vl.Y2 - bottommost) <= 1 && IntersectBoxes(vl, boxInGap.ToList(), true))
+                        {
+                            vl.Y2 = tableBottom;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void AlignRight(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        {
+            int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
+            int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Bottom;
+            int rightmost = vLines.Count > 0 ? vLines.Max(l => Math.Max(l.X1, l.X2)) : tableBbox.Right;
+            int tableRight = tableBbox.Right;
+
+            foreach (var hl in hLines)
+            {
+                if (Math.Abs(rightmost - hl.X2) <= minGap)
+                {
+                    hl.X2 = rightmost;
+                }
+            }
+
+            if (tableRight > rightmost)
+            {
+                var boxInGap = boxes.Where(b => {
+                    int centerX = (b.Left + b.Right) / 2;
+                    return centerX > rightmost && centerX < tableRight;
+                });
+
+                if (boxInGap.Count() > 0)
+                {
+                    var newVLine = new Line(tableRight, topmost, tableRight, bottommost);
+                    vLines.Add(newVLine);
+
+                    foreach (var hl in hLines)
+                    {
+                        if (Math.Abs(hl.X2 - rightmost) <= 1 && IntersectBoxes(hl, boxInGap.ToList()))
+                        {
+                            hl.X2 = tableRight;
+                        }
+                    }
+                }
             }
         }
 

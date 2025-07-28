@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using img2table.sharp.web.Services;
+using System.Diagnostics;
+using static img2table.sharp.web.Services.LayoutDetectorFactory;
 
 namespace img2table.sharp.web.Controllers
 {
@@ -37,6 +39,7 @@ namespace img2table.sharp.web.Controllers
                 fileBytes = ms.ToArray();
             }
 
+            docType = DocumentCategory.PPDocLayoutPlusL;
             ExtractOptions extractOptions = new ExtractOptions
             {
                 UseEmbeddedHtml = useEmbeddedHtml,
@@ -45,6 +48,7 @@ namespace img2table.sharp.web.Controllers
                 DocCategory = docType,
                 EnableOCR = autoOCR,
             };
+
             PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, extractOptions);
             var res = await extractor.ExtractAsync(fileBytes, uploadFile.FileName);
 

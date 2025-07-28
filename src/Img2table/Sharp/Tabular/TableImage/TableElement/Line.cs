@@ -7,7 +7,8 @@
         public Line(int x1, int y1, int x2, int y2, int? thickness = null)
             : base(x1, y1, x2, y2)
         {
-            Thickness = thickness?? 1;
+            //Thickness = thickness?? 1;
+            Thickness = 1;
         }
 
         public double Angle

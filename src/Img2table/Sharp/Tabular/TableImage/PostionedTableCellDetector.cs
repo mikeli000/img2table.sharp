@@ -2,7 +2,8 @@
 using Sdcb.PaddleOCR.Models.Local;
 using Sdcb.PaddleOCR;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
-using Img2table.Sharp.Tabular.TableImage;
+using PDFDict.SDK.Sharp.Core.OCR;
+using System.Text;
 
 public class PostionedTableCellDetector
 {
@@ -12,10 +13,99 @@ public class PostionedTableCellDetector
         DetectLines(img, tableBbox);
     }
 
-    public static (List<Line>, List<Line>) DetectLines(Mat srcImage, Rect tableBbox)
+    public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> ocrBoxes)
     {
-        Cv2.Rectangle(srcImage, tableBbox, Scalar.Black, 1);
+        var topLine = hLines[0];
+        Line? secLine = hLines.Count > 2 ? hLines[1] : null;
 
+        var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox);
+        var exists = vLines.Select(line => line.X1).ToList();
+        foreach (var p in columnPositions)
+        {
+            if (exists.Contains(p))
+            {
+                continue;
+            }
+            vLines.Add(new Line(p, tableBbox.Top, p, tableBbox.Bottom));
+            exists.Add(p);
+        }
+
+        vLines = RemoveRedundantLines(vLines, ocrBoxes);
+        exists = vLines.Select(line => line.X1).ToList();
+        if (secLine != null)
+        {
+            var tbodyBbox = new Rect();
+            tbodyBbox.Left = tableBbox.Left;
+            tbodyBbox.Top = secLine.Y1;
+            tbodyBbox.Width = tableBbox.Width;
+            tbodyBbox.Height = tableBbox.Bottom - secLine.Y1;
+
+            var secPositions = DetectBodyVerLines(ocrBoxes, tbodyBbox, columnPositions);
+            if (!PostionEqual(columnPositions, secPositions))
+            {
+                foreach (var p in secPositions)
+                {
+                    if (exists.Contains(p))
+                    {
+                        continue;
+                    }
+                    vLines.Add(new Line(p, tbodyBbox.Top, p, tbodyBbox.Bottom));
+                }
+            }
+        }
+
+        return vLines;
+    }
+
+    private static List<Line> RemoveRedundantLines(List<Line> vLines, IEnumerable<Rect> ocrBoxes)
+    {
+        // 如果相邻 两根 线 之间 没有 box，则删除 纵向比较短的那根; 如果两根长度一样，则删除左边的那根
+
+        vLines = vLines.OrderBy(vl => vl.X1).ToList();
+        for (int i = 0; i < vLines.Count - 1; i++)
+        {
+            var line1 = vLines[i];
+            var line2 = vLines[i + 1];
+
+            //bool hasBoxBetween = ocrBoxes.Any(box => box.Left > line1.X1 && box.Right < line2.X1);
+            List<Rect> bx = ocrBoxes
+                .Where(box => box.Left > line1.X1 && box.Right < line2.X1)
+                .ToList();
+            //if (!hasBoxBetween)
+            if (bx.Count() == 0)
+            {
+                if (line1.Height < line2.Height)
+                {
+                    vLines.RemoveAt(i);
+                    i--;
+                }
+                else
+                {
+                    vLines.RemoveAt(i + 1);
+                }
+            }
+        }
+
+        return vLines;
+    }
+
+    private static bool PostionEqual(List<int> first, List<int> second)
+    {
+        if (first == null && second == null)
+        {
+            return true;
+        }
+            
+        if (first == null || second == null)
+        {
+            return false;
+        }
+            
+        return first.SequenceEqual(second);
+    }
+
+    public static (List<Line>, List<Line>) DetectLines(Mat srcImage, Rect tableBbox, IEnumerable<Rect> ocrBoxes = null)
+    {
         using Mat gray = srcImage.Channels() == 3 
             ? new Mat() 
             : srcImage.Clone();
@@ -25,25 +115,31 @@ public class PostionedTableCellDetector
             Cv2.CvtColor(srcImage, gray, ColorConversionCodes.BGR2GRAY);
         }
 
+        Cv2.Rectangle(gray, tableBbox, Scalar.Black, 1);
         using Mat edges = new Mat();
         Cv2.Canny(gray, edges, 50, 150);
-        LineSegmentPoint[] lines = Cv2.HoughLinesP(
+        var lines = Cv2.HoughLinesP(
             edges,
             rho: 1,              
             theta: Math.PI / 180,
             threshold: 80,       
             minLineLength: tableBbox.Width / 8,
             maxLineGap: 10
-        );
+        ).ToList();
 
-        var ocrBoxes = MaskTexts(srcImage);
+        if (ocrBoxes == null)
+        {
+            ocrBoxes = T_MaskTexts(srcImage);
+        }
+        
         lines = RemoveNearbyLines(lines, tableBbox, distanceThreshold: 15.0, angleThreshold: 10.0);
-        lines = lines.OrderBy(line => line.P1.Y).ToArray();
+        RemoveLinesInBox(lines, ocrBoxes);
+        lines = lines.OrderBy(line => line.P1.Y).ToList();
         var hLines = lines.Where(line => IsHorizontalLine(line, angleThreshold: 10.0)).ToArray();
         var topLine = hLines[0];
-        LineSegmentPoint? secLine = hLines.Length > 1 ? hLines[1] : null;
+        LineSegmentPoint? secLine = hLines.Length > 2 ? hLines[1] : null;
 
-        var columnPositions = DetectVerLines(ocrBoxes, tableBbox);
+        var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox);
         List<LineSegmentPoint> columns = columnPositions
             .Select(x => new LineSegmentPoint(new Point(x, tableBbox.Top), new Point(x, tableBbox.Bottom)))
             .ToList();
@@ -56,7 +152,7 @@ public class PostionedTableCellDetector
             tbodyBbox.Width = tableBbox.Width;
             tbodyBbox.Height = tableBbox.Bottom - secLine.Value.P1.Y;
 
-            var secPositions = DetectVerLines(ocrBoxes, tbodyBbox);
+            var secPositions = DetectBodyVerLines(ocrBoxes, tbodyBbox, columnPositions);
             if (secPositions.Count > columnPositions.Count)
             {
                 foreach (var p in secPositions)
@@ -71,7 +167,7 @@ public class PostionedTableCellDetector
             }
         }
 
-        lines = lines.Concat(columns).ToArray();
+        lines = lines.Concat(columns).ToList();
         var horLines = new List<Line>();
         var verLines = new List<Line>();
         foreach (var line in lines)
@@ -86,34 +182,51 @@ public class PostionedTableCellDetector
             }
         }
 
-        if (TableImage.Debug)
+        if (/*TableImage.Debug*/ true)
         {
             var debugImage = srcImage.Clone();
             DrawOCRBoxes(ocrBoxes, debugImage);
 
             foreach (var line in lines)
             {
-                Cv2.Line(debugImage, line.P1, line.P2, Scalar.Red, 2);  
+                Cv2.Line(debugImage, line.P1, line.P2, Scalar.Red, 2);
             }
 
-            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\lines_only.png", debugImage);
-
-            Console.WriteLine($"detect {lines.Length} X {columnPositions.Count} lines");
+            var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
+            Cv2.ImWrite(file, debugImage);
         }
 
         return (horLines, verLines);
     }
 
+    private static void RemoveLinesInBox(List<LineSegmentPoint> hLines, IEnumerable<Rect> textBoxes)
+    {
+        hLines.RemoveAll(line =>
+            textBoxes.Any(box =>
+                IsPointInBox(line.P1.X, line.P1.Y, box) &&
+                IsPointInBox(line.P2.X, line.P2.Y, box)
+            )
+        );
+    }
+
+    private static bool IsPointInBox(int x, int y, Rect box)
+    {
+        return (x >= box.Left) && (x <= box.Right) && (y >= box.Top) && (y <= box.Bottom);
+    }
+
     public static List<Rect> MaskTexts(Mat srcImage, float scale = 1.0f)
     {
         var ocrBoxes = new List<Rect>();
-        Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
-        {
-            using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
-            return all.Run(srcImage);
-        });
+        //Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
+        //{
+        //    using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
+        //    return all.Run(srcImage);
+        //});
+        //PaddleOcrResult ocrResult = ocrResultTask.Result;
 
-        PaddleOcrResult ocrResult = ocrResultTask.Result;
+        using PaddleOcrAll paddle = new PaddleOcrAll(LocalFullModels.ChineseV3);
+        PaddleOcrResult ocrResult = paddle.Run(srcImage);
+
         for (int i = 0; i < ocrResult.Regions.Length; ++i)
         {
             PaddleOcrResultRegion region = ocrResult.Regions[i];
@@ -124,12 +237,33 @@ public class PostionedTableCellDetector
         return ocrBoxes;
     }
 
-    static void DrawOCRBoxes(List<Rect> ocrBoxes, Mat dstImage)
+    public static List<Rect> T_MaskTexts(Mat srcImage)
     {
-        for (int i = 0; i < ocrBoxes.Count; ++i)
+        string path = @"C:\temp\img2table\xxx.png";
+        Cv2.ImWrite(path, srcImage);
+        var wordList = TesseractOCR.OCRBlockLevel(path);
+
+        var ocrBoxes = new List<Rect>();
+        var buf = new StringBuilder();
+        foreach (var word in wordList)
         {
-            Rect ocrBox = Extend(ocrBoxes[i], -1);
-            Cv2.Rectangle(dstImage, ocrBox, Scalar.White, -1);
+            var left = (int)Math.Round(word.BBox.Left);
+            var top = (int)Math.Round(word.BBox.Top);
+            var right = (int)Math.Round(word.BBox.Right);
+            var bottom = (int)Math.Round(word.BBox.Bottom);
+            Rect wordRect = new Rect(left, top, right - left, bottom - top);
+            ocrBoxes.Add(wordRect);
+        }
+
+        return ocrBoxes;
+    }
+
+    static void DrawOCRBoxes(IEnumerable<Rect> ocrBoxes, Mat dstImage)
+    {
+        for (int i = 0; i < ocrBoxes.Count(); ++i)
+        {
+            Rect ocrBox = Extend(ocrBoxes.ElementAt(i), -1);
+            Cv2.Rectangle(dstImage, ocrBox, Scalar.Gray, -1);
         }
     }
 
@@ -138,12 +272,83 @@ public class PostionedTableCellDetector
         return Rect.FromLTRB(rect.Left - extendLength, rect.Top - extendLength, rect.Right + extendLength, rect.Bottom + extendLength);
     }
 
-    private static List<int> DetectVerLines(List<Rect> ocrBoxes, Rect tableRect)
+    private static List<int> DetectBodyVerLines(IEnumerable<Rect> ocrBoxes, Rect bodyRect, List<int> topColumnPositions)
     {
-        var filteredBoxes = ocrBoxes
-            .Where(box => IsContains(box, tableRect))
-            .ToList();
-        var columnPositions = ScanForGapsBetweenBoxes(filteredBoxes, tableRect);
+        var bodyBoxes = ocrBoxes.Where(box => IsContains(box, bodyRect)).ToList();
+        var bodyColumnPositions = DetectColumnPositions(bodyBoxes, bodyRect);
+
+        // 计算 topColumnPositions 跟 bodyColumnPositions
+        var validBodyPositions = new List<int>();
+
+        // 循环 bodyColumnPositions, 如果 topColumnPositions 中也有该点则 continue
+        foreach (var pos in bodyColumnPositions)
+        {
+            if (topColumnPositions.Contains(pos))
+            {
+                continue;
+            }
+
+            // 如果两点不重合，则判断当前 pos 在 topColumnPositions 左右两个相邻点
+            int leftNeighbor = -1;
+            int rightNeighbor = -1;
+
+            // 找到相邻的左右两个点
+            for (int i = 0; i < topColumnPositions.Count; i++)
+            {
+                if (topColumnPositions[i] < pos)
+                {
+                    leftNeighbor = topColumnPositions[i];
+                }
+                else if (topColumnPositions[i] > pos && rightNeighbor == -1)
+                {
+                    rightNeighbor = topColumnPositions[i];
+                    break;
+                }
+            }
+
+            // 分别判断当前点和相邻点的左右两个区间是否包含 bodyBoxes 里的 box
+            bool hasBoxInLeftRegion = false;
+            bool hasBoxInRightRegion = false;
+
+            foreach (var box in bodyBoxes)
+            {
+                // 检查左区间 (leftNeighbor 到 pos)
+                if (leftNeighbor != -1)
+                {
+                    if (box.X >= leftNeighbor && box.X + box.Width <= pos)
+                    {
+                        hasBoxInLeftRegion = true;
+                    }
+                }
+
+                // 检查右区间 (pos 到 rightNeighbor)
+                if (rightNeighbor != -1)
+                {
+                    if (box.X >= pos && box.X + box.Width <= rightNeighbor)
+                    {
+                        hasBoxInRightRegion = true;
+                    }
+                }
+            }
+
+            // 如果都有则保留当前点; 否则不保留
+            if (hasBoxInLeftRegion && hasBoxInRightRegion)
+            {
+                validBodyPositions.Add(pos);
+            }
+        }
+
+        // 将所有保留的点按从小到大插入到 topColumnPositions 中
+        var result = new List<int>(topColumnPositions);
+        result.AddRange(validBodyPositions);
+        result.Sort();
+
+        return result;
+    }
+
+    private static List<int> DetectColumnPositions(IEnumerable<Rect> ocrBoxes, Rect tableRect)
+    {
+        var columnPositions = ScanForGapsBetweenBoxes(ocrBoxes, tableRect);
         columnPositions.Insert(0, tableRect.Left);
         columnPositions.Insert(columnPositions.Count, tableRect.Right);
 
@@ -152,16 +357,16 @@ public class PostionedTableCellDetector
 
     private static bool IsContains(Rect box, Rect tableRect)
     {
-        return box.X >= tableRect.X &&
-               box.Y >= tableRect.Y &&
-               box.X + box.Width <= tableRect.X + tableRect.Width &&
-               box.Y + box.Height <= tableRect.Y + tableRect.Height;
+        return box.X >= tableRect.X 
+            && box.Y >= tableRect.Y 
+            && box.X + box.Width <= tableRect.X + tableRect.Width 
+            && box.Y + box.Height <= tableRect.Y + tableRect.Height;
     }
 
-    private static List<int> ScanForGapsBetweenBoxes(List<Rect> ocrBoxes, Rect tableRect)
+    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<Rect> ocrBoxes, Rect tableRect)
     {
         var gaps = new List<int>();
-        if (ocrBoxes == null || ocrBoxes.Count == 0)
+        if (ocrBoxes == null || ocrBoxes.Count() == 0)
         {
             return gaps;
         }
@@ -232,16 +437,16 @@ public class PostionedTableCellDetector
         return false;
     }
 
-    private static LineSegmentPoint[] RemoveNearbyLines(LineSegmentPoint[] lines, Rect tableBbox, double distanceThreshold = 10.0, double angleThreshold = 5.0)
+    private static List<LineSegmentPoint> RemoveNearbyLines(List<LineSegmentPoint> lines, Rect tableBbox, double distanceThreshold = 10.0, double angleThreshold = 5.0)
     {
-        if (lines.Length <= 1) 
+        if (lines.Count <= 1) 
         { 
             return lines; 
         }
         
         var filteredLines = new List<LineSegmentPoint>();
-        var processed = new bool[lines.Length];
-        for (int i = 0; i < lines.Length; i++)
+        var processed = new bool[lines.Count];
+        for (int i = 0; i < lines.Count; i++)
         {
             if (processed[i])
             {
@@ -252,7 +457,7 @@ public class PostionedTableCellDetector
             var similarLines = new List<LineSegmentPoint> { currentLine };
             processed[i] = true;
 
-            for (int j = i + 1; j < lines.Length; j++)
+            for (int j = i + 1; j < lines.Count; j++)
             {
                 if (processed[j]) 
                 {
@@ -271,7 +476,7 @@ public class PostionedTableCellDetector
             filteredLines.Add(mergedLine);
         }
 
-        return filteredLines.ToArray();
+        return filteredLines;
     }
 
     private static bool IsLinesNearby(LineSegmentPoint line1, LineSegmentPoint line2, double distanceThreshold, double angleThreshold)

@@ -179,9 +179,11 @@ namespace Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout
 
             Table table = new Table(listRows, borderless);
 
-            Table processedTable = RemoveUnwantedElements(table, elements);
-
-            return processedTable;
+            return table;
+            
+            // remove empty rows/cols, redeisng algo
+            //Table processedTable = RemoveUnwantedElements(table, elements);
+            //return processedTable;
         }
 
         private static bool IsContainedCell(Cell innerCell, Cell outerCell, double percentage)

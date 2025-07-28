@@ -14,6 +14,9 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables.Layout;
 
 namespace img2table.sharp.web.Services
 {
@@ -34,8 +37,8 @@ namespace img2table.sharp.web.Services
         private bool _outputFigureAsImage;
         private bool _enableOCR;
         private string _docCategory;
-        private bool _drawPageChunks = false;
-        private bool _saveDectectImage = false;
+        private bool _drawPageChunks = true;
+        private bool _saveDectectImage = true;
 
         public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, ExtractOptions extractOptions)
         {
@@ -66,6 +69,8 @@ namespace img2table.sharp.web.Services
 
         public async Task<DocumentChunks> ExtractAsync(byte[] pdfFileBytes, string pdfFileName)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             ChunkResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
 
             string jobFolderName = Guid.NewGuid().ToString();
@@ -84,13 +89,23 @@ namespace img2table.sharp.web.Services
                 documentChunks.DocumentName = pdfFileName;
                 documentChunks.JobId = jobFolderName;
 
-                var pagedChunks = new List<PagedChunk>();
-
+                var pagedChunks = new ConcurrentBag<PagedChunk>();
                 int pageCount = pdfDoc.GetPageCount();
 
+                var partition = Partition(pdfDoc, pageCount);
+                if (partition.Count > 1)
+                {
+                    var tasks = partition.Select(pageList => ExtractPagesAsync(pdfDoc, pageList, workFolder, detectResult, jobFolderName, pagedChunks)).ToArray();
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    await ExtractPagesAsync(pdfDoc, partition[0], workFolder, detectResult, jobFolderName, pagedChunks);
+                }
+
+                /***
                 for (int i = 0; i < pageCount; i++)
                 {
-                    // step 1: check if page is tagged, if yes, use tagged content
                     var page = pdfDoc.LoadPage(i);
                     if (page.IsTagged())
                     {
@@ -126,8 +141,9 @@ namespace img2table.sharp.web.Services
                         await SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
                     }
                 }
+                */
 
-                documentChunks.PagedChunks = pagedChunks;
+                documentChunks.PagedChunks = pagedChunks.OrderBy(t => t.PageNumber);
 
                 bool _saveMarkdownToFile = true;
                 if (_saveMarkdownToFile)
@@ -136,8 +152,89 @@ namespace img2table.sharp.web.Services
                     File.WriteAllBytes(mdFile, Encoding.UTF8.GetBytes(documentChunks.Markdown));
                 }
 
+                stopwatch.Stop();
+                documentChunks.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
                 return documentChunks;
             }
+        }
+
+        private List<List<Tuple<int, PDFPage>>> Partition(PDFDocument pdfDoc, int pageCount)
+        {
+            int coreCount = Environment.ProcessorCount;
+            int threadCount = Math.Min(pageCount, coreCount / 2);
+            threadCount = threadCount > 3 ? 3 : threadCount;
+            threadCount = threadCount <= 0 ? 1 : threadCount;
+
+            // debug
+            threadCount = 1;
+
+            var partition = new List<List<Tuple<int, PDFPage>>>();
+            for (int i = 0; i < threadCount; i++)
+            {
+                partition.Add(new List<Tuple<int, PDFPage>>());
+            }
+
+            for (int i = 0; i < pageCount; i++)
+            {
+                int threadIndex = i % threadCount;
+                partition[threadIndex].Add(new (i, pdfDoc.LoadPage(i)));
+            }
+
+            return partition;
+        }
+
+        private readonly object _renderLock = new object();
+
+        private Task ExtractPagesAsync(PDFDocument pdfDoc, List<Tuple<int, PDFPage>> pageList, string workFolder, 
+            ChunkResult detectResult, string jobFolderName, ConcurrentBag<PagedChunk> pagedChunks)
+        {
+            return Task.Run(async () =>
+            {
+                foreach (var pageT in pageList)
+                {
+                    int pageIdx = pageT.Item1;
+                    var page = pageT.Item2;
+
+                    //var page = pdfDoc.LoadPage(pageIdx);
+                    if (page.IsTagged())
+                    {
+                    }
+
+                    int pageNumber = pageIdx + 1;
+                    var pageImageName = $"page_{pageNumber}.png";
+                    string pageImagePath = Path.Combine(workFolder, pageImageName);
+                    lock (_renderLock)
+                    {
+                        pdfDoc.RenderPage(pageImagePath, pageIdx, RenderDPI, backgroundColor: Color.White);
+                    }
+
+
+                    var predictedPageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
+                    var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
+                    filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
+                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
+
+                    var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, filteredChunks, RenderDPI / 72f);
+                    var pageChunks = new PagedChunk
+                    {
+                        PageNumber = pageNumber,
+                        PreviewImagePath = $"{WorkDirectoryOptions.RequestPath}/{jobFolderName}/{pageImageName}",
+                        Chunks = chunks
+                    };
+                    pagedChunks.Add(pageChunks);
+
+                    if (_drawPageChunks)
+                    {
+                        DrawPageChunks(pageImagePath, filteredChunks);
+                    }
+                    if (_saveDectectImage)
+                    {
+                        var previewImageName = $"detect_page_{pageNumber}.png";
+                        string previewFile = Path.Combine(workFolder, previewImageName);
+                        await SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
+                    }
+                }
+            });
         }
 
         private IList<ChunkElement> BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, string workFolder, string pageImagePath, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
@@ -147,6 +244,14 @@ namespace img2table.sharp.web.Services
 
             var chunks = new List<ChunkElement>();
             var pageElements = TransPageElements(pageThread.GetContentList(), ratio, pdfPage.GetPageHeight());
+
+
+            if (/*_drawPageChunks*/ false)
+            {
+                DrawPageElements(pageImagePath, pageElements);
+            }
+
+
             foreach (var chunkObject in filteredChunkObjects)
             {
                 var chunkType = ChunkType.MappingChunkType(chunkObject.Label);
@@ -183,7 +288,7 @@ namespace img2table.sharp.web.Services
                         if (imagebaseTable)
                         {
                             var imageTabular = new ImageTabular(param);
-                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, true);
+                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, loadText: true);
 
                             if (pagedTable != null)
                             {
@@ -198,7 +303,7 @@ namespace img2table.sharp.web.Services
                         else
                         {
                             var imageTabular = new ImageTabular(param);
-                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, false);
+                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, GetTextBoxes(contentElements), false);
 
                             var pdfTabular = new PDFTabular(param);
                             pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml: _useEmbeddedHtml);
@@ -253,6 +358,20 @@ namespace img2table.sharp.web.Services
             }
 
             return transPageElements;
+        }
+
+        private static List<RectangleF> GetTextBoxes(List<ContentElement> contentElements)
+        {
+            var rects = new List<RectangleF>();
+            foreach (var tc in contentElements)
+            {
+                if (tc.PageElement is TextElement)
+                {
+                    rects.Add(tc.Rect());
+                }
+            }
+
+            return rects;
         }
 
         private static List<ContentElement> FindContentElementsInBox(RectangleF chunkBox, List<ContentElement> pageElements)
@@ -311,6 +430,32 @@ namespace img2table.sharp.web.Services
 
             byte[] imageBytes = Convert.FromBase64String(base64String);
             await File.WriteAllBytesAsync(outputFilePath, imageBytes);
+        }
+
+        private static void DrawPageElements(string pageImagePath, List<ContentElement> pageElements)
+        {
+            if (!File.Exists(pageImagePath))
+            {
+                Console.WriteLine($"Image not found: {pageImagePath}");
+                return;
+            }
+
+            using var image = Cv2.ImRead(pageImagePath, ImreadModes.Color);
+            int thickness = 1;
+
+            foreach (var chunk in pageElements)
+            {
+                var x1 = chunk.Left;
+                var y1 = chunk.Top;
+                var x2 = chunk.Right;
+                var y2 = chunk.Bottom;
+
+                var scalarColor = new Scalar(255, 0, 255);
+                // Draw rectangle
+                Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
+            }
+
+            Cv2.ImWrite(pageImagePath, image);
         }
 
         private static void DrawPageChunks(string pageImagePath, IEnumerable<ChunkObject> chunkObjects)
@@ -404,6 +549,7 @@ namespace img2table.sharp.web.Services
         public string DocumentName { get; set; }
         public IEnumerable<PagedChunk> PagedChunks { get; set; }
         public string JobId { get; set; }
+        public long ElapsedMilliseconds { get; set; } = 0;
 
         public string Markdown
         {
