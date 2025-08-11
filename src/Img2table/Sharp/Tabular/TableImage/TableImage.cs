@@ -6,6 +6,7 @@ using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout;
 using PDFDict.SDK.Sharp.Core.OCR;
 using System.Text;
+using img2table.sharp.Img2table.Sharp.Tabular;
 
 namespace Img2table.Sharp.Tabular.TableImage
 {
@@ -45,9 +46,14 @@ namespace Img2table.Sharp.Tabular.TableImage
 
         public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<Rect> textBoxes = null)
         {
+            textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
+
             ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
             if (_tables != null && _tables.Count > 0)
             {
+                var temp = new List<Table>();
+                temp.AddRange(_tables);
+
                 if (tableBbox != null)
                 {
                     bool reCompsiteTable = false;
@@ -63,11 +69,16 @@ namespace Img2table.Sharp.Tabular.TableImage
                     _shouldOCR = implicitRows || implicitColumns;
                     if (reCompsiteTable)
                     {
-                        textBoxes = T_MaskTexts(_img, _tempDir);
+                        textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
                         ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
                     }
                 }
+                if (_tables.Count <= 0)
+                {
+                    return temp;
+                }
 
+                _shouldOCR = true;
                 return _tables;
             }
 
@@ -99,14 +110,14 @@ namespace Img2table.Sharp.Tabular.TableImage
             {
                 if (textBoxes == null)
                 {
-                    textBoxes = T_MaskTexts(_img, _tempDir);
+                    textBoxes = OCRUtils.T_MaskTexts(_img, _tempDir);
                 }
 
                 RemoveLinesInBox(hLines, textBoxes);
                 RemoveLinesInBox(vLines, textBoxes);
                 ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
                 hLines = hLines.OrderBy(hl => hl.Y1).ToList();
-                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes);
+                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, (int) _charLength);
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
@@ -122,7 +133,16 @@ namespace Img2table.Sharp.Tabular.TableImage
                         Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Green, 2);
                     }
 
-                    //Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
+                    Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
+                    //if (textBoxes != null)
+                    //{
+                    //    foreach (var box in textBoxes)
+                    //    {
+                    //        Cv2.Rectangle(debugImage, box, Scalar.Yellow, 1);
+                    //    }
+                    //}
+
+                    textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
                     if (textBoxes != null)
                     {
                         foreach (var box in textBoxes)
@@ -156,9 +176,10 @@ namespace Img2table.Sharp.Tabular.TableImage
             );
         }
 
-        private bool IsPointInBox(int x, int y, Rect box)
+        private bool IsPointInBox(int x, int y, Rect box, int deltaX = 4, int deltaY = 2)
         {
-            return (x >= box.Left) && (x <= box.Right) && (y >= box.Top) && (y <= box.Bottom);
+            return (x >= box.Left - deltaX) && (x <= box.Right + deltaX)
+                && (y >= box.Top - deltaY) && (y <= box.Bottom + deltaY);
         }
 
         private void AlignTableBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes)
@@ -460,28 +481,6 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
 
             return thresh;
-        }
-
-        public static List<Rect> T_MaskTexts(Mat srcImage, string tempDir)
-        {
-            string path = Path.Combine(tempDir, $"{Guid.NewGuid().ToString()}.png");
-
-            Cv2.ImWrite(path, srcImage);
-            var wordList = TesseractOCR.OCRBlockLevel(path);
-
-            var ocrBoxes = new List<Rect>();
-            var buf = new StringBuilder();
-            foreach (var word in wordList)
-            {
-                var left = (int)Math.Round(word.BBox.Left);
-                var top = (int)Math.Round(word.BBox.Top);
-                var right = (int)Math.Round(word.BBox.Right);
-                var bottom = (int)Math.Round(word.BBox.Bottom);
-                Rect wordRect = new Rect(left, top, right - left, bottom - top);
-                ocrBoxes.Add(wordRect);
-            }
-
-            return ocrBoxes;
         }
     }
 }

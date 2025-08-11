@@ -36,6 +36,9 @@ namespace img2table.sharp.web.Models
         public double[] BoundingBox { get; set; }
 
         [JsonIgnore]
+        public IEnumerable<TableCellChunk> Cells { get; set; }
+
+        [JsonIgnore]
         public double X0 => BoundingBox[0];
         [JsonIgnore]
         public double Y0 => BoundingBox[1];
@@ -43,6 +46,32 @@ namespace img2table.sharp.web.Models
         public double X1 => BoundingBox[2];
         [JsonIgnore]
         public double Y1 => BoundingBox[3];
+    }
+
+    public class TableChunk
+    {
+        public IEnumerable<TableRowChunk> Rows { get; set; }
+    }
+
+    public class TableRowChunk
+    {
+        public IEnumerable<TableCellChunk> Cells { get; set; }
+    }
+
+    public class TableCellChunk
+    {
+        public string Content { get; set; } = string.Empty;
+
+        public int? RowSpan { get; set; } = 1;
+
+        public int? ColSpan { get; set; } = 1;
+
+        public int[] BoundingBox { get; set; }
+
+        public int X0 => BoundingBox[0];
+        public int Y0 => BoundingBox[1];
+        public int X1 => BoundingBox[2];
+        public int Y1 => BoundingBox[3];
     }
 
     public class ChunkType
@@ -92,6 +121,7 @@ namespace img2table.sharp.web.Models
         public const string FormulaCaption = "formula_caption";
         public const string Number = "number";
         public const string PageNumber = "page_number";
+        public const string Content = "content";
 
         public const string Unknown = "Unknown";
 
@@ -151,7 +181,8 @@ namespace img2table.sharp.web.Models
             }
             else if (string.Equals(label, Text, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(label, PlainText, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(label, Abstract, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(label, Abstract, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, Content, StringComparison.OrdinalIgnoreCase))
             {
                 return Text;
             }

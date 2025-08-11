@@ -179,10 +179,34 @@ namespace Img2table.Sharp.Tabular
             var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight(), useHtml);
             foreach (var table in pagedTable.Tables)
             {
+                int i = 0;
                 foreach (var row in table.Rows)
                 {
-                    ImageTabular.LoadRowText(row, pageTextCells, _parameter, useHtml);
+                    // ImageTabular.LoadRowText(row, pageTextCells, _parameter, useHtml);
+
+                    loadText(row, pdfPage, ratio, i++);
                 }
+            }
+        }
+
+        public void loadText(Row row, PDFPage pdfPage, float ratio, int i)
+        {
+            var ph = pdfPage.GetPageHeight();
+            foreach (var cell in row.Cells)
+            {
+                if (!string.IsNullOrEmpty(cell.Content))
+                {
+                    continue;
+                }
+
+                var left = cell.X1 / ratio;
+                var top = ph - cell.Y1 / ratio;
+                var right = cell.X2 / ratio;
+                var bottom = ph - cell.Y2 / ratio;
+
+                string text = pdfPage.GetRectText(left, top - 2, right , bottom );
+                cell.AddText(text);
+                //Console.WriteLine($"Cell ({left}, {top}, {right}, {bottom}): {text}");
             }
         }
 

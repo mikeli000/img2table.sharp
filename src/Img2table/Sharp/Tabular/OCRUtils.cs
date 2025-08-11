@@ -39,6 +39,26 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
             return pageTextCells;
         }
 
+        public static List<Rect> P_MaskTexts(Mat srcImage, string tempDir)
+        {
+            using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
+            all.Detector.UnclipRatio = 0.5f;
+            var ocrResult = all.Run(srcImage);
+
+            var ocrBoxes = new List<Rect>();
+            foreach (var word in ocrResult.Regions)
+            {
+                var left = word.Rect.BoundingRect().Left;
+                var top = word.Rect.BoundingRect().Top;
+                var right = word.Rect.BoundingRect().Right;
+                var bottom = word.Rect.BoundingRect().Bottom;
+                Rect wordRect = new Rect(left, top, right - left, bottom - top);
+                ocrBoxes.Add(wordRect);
+            }
+
+            return ocrBoxes;
+        }
+
         public static string PaddleOCRText(string imageFile)
         {
             using Mat src = Cv2.ImRead(imageFile);
@@ -75,6 +95,27 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
             }).ToList();
 
             return pageTextCells;
+        }
+
+        public static List<Rect> T_MaskTexts(Mat srcImage, string tempDir)
+        {
+            string path = Path.Combine(tempDir, $"{Guid.NewGuid().ToString()}.png");
+
+            Cv2.ImWrite(path, srcImage);
+            var wordList = PDFDict.SDK.Sharp.Core.OCR.TesseractOCR.OCRWordLevel(path);
+
+            var ocrBoxes = new List<Rect>();
+            foreach (var word in wordList)
+            {
+                var left = (int)Math.Round(word.BBox.Left);
+                var top = (int)Math.Round(word.BBox.Top);
+                var right = (int)Math.Round(word.BBox.Right);
+                var bottom = (int)Math.Round(word.BBox.Bottom);
+                Rect wordRect = new Rect(left, top, right - left, bottom - top);
+                ocrBoxes.Add(wordRect);
+            }
+
+            return ocrBoxes;
         }
     }
 }

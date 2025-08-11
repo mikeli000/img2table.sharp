@@ -39,7 +39,6 @@ namespace Img2table.Sharp.Tabular
                     (int)tableBbox.Value.Height);
             }
 
-
             List<Rect> boxes = null;
             if (textBoxes != null)
             {
@@ -58,7 +57,7 @@ namespace Img2table.Sharp.Tabular
 
             if (loadText || tableImage.ShouldOCR)
             {
-                OCRText(imgFile, tables);
+                //OCRText(imgFile, tables, true);
             }
             
             var pagedTable = new PagedTable

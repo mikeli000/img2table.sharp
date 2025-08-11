@@ -16,7 +16,6 @@ using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables.Layout;
 
 namespace img2table.sharp.web.Services
 {
@@ -37,8 +36,8 @@ namespace img2table.sharp.web.Services
         private bool _outputFigureAsImage;
         private bool _enableOCR;
         private string _docCategory;
-        private bool _drawPageChunks = true;
-        private bool _saveDectectImage = true;
+        private bool _drawPageChunks = false;
+        private bool _saveDectectImage = false;
 
         public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, ExtractOptions extractOptions)
         {
@@ -72,6 +71,10 @@ namespace img2table.sharp.web.Services
             var stopwatch = Stopwatch.StartNew();
 
             ChunkResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
+            if (detectResult == null)
+            {
+                throw new PDFContentExtractorException(HttpStatusCode.InternalServerError, "Layout detection failed.");
+            }
 
             string jobFolderName = Guid.NewGuid().ToString();
             string workFolder = Path.Combine(_rootFolder, jobFolderName);
@@ -208,8 +211,7 @@ namespace img2table.sharp.web.Services
                         pdfDoc.RenderPage(pageImagePath, pageIdx, RenderDPI, backgroundColor: Color.White);
                     }
 
-
-                    var predictedPageChunks = detectResult.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
+                    var predictedPageChunks = detectResult?.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
@@ -271,6 +273,12 @@ namespace img2table.sharp.web.Services
 
                 if (chunkType == ChunkType.Table)
                 {
+                    //if (chunkObject.Cells != null)
+                    //{
+                    //    DrawTableChunk(pageImagePath, chunkObject.Cells);
+                    //}
+                    
+
                     var tableImageName = $"table_{Guid.NewGuid().ToString()}.png";
                     string tableImagePath = Path.Combine(workFolder, tableImageName);
                     ChunkUtils.ClipImage(pageImagePath, tableImagePath, chunkBox);
@@ -430,6 +438,32 @@ namespace img2table.sharp.web.Services
 
             byte[] imageBytes = Convert.FromBase64String(base64String);
             await File.WriteAllBytesAsync(outputFilePath, imageBytes);
+        }
+
+        private static void DrawTableChunk(string pageImagePath, IEnumerable<TableCellChunk> cells)
+        {
+            if (!File.Exists(pageImagePath))
+            {
+                Console.WriteLine($"Image not found: {pageImagePath}");
+                return;
+            }
+
+            using var image = Cv2.ImRead(pageImagePath, ImreadModes.Color);
+            int thickness = 1;
+
+            foreach (var cell in cells)
+            {
+                var x1 = cell.X0;
+                var y1 = cell.Y0;
+                var x2 = cell.X1;
+                var y2 = cell.Y1;
+
+                var scalarColor = new Scalar(255, 0, 255);
+                // Draw rectangle
+                Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
+            }
+
+            Cv2.ImWrite(pageImagePath, image);
         }
 
         private static void DrawPageElements(string pageImagePath, List<ContentElement> pageElements)

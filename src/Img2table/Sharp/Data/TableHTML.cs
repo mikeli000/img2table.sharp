@@ -74,6 +74,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 tableNode.AppendChild(captionNode);
             }
 
+            int headerRow = 1;
             var firstRow = tableDto.Items.FirstOrDefault();
             if (firstRow != null)
             {
@@ -81,20 +82,36 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 {
                     if (cell.RowSpan > 1)
                     {
-                        firstRowAsTH = false;
+                        //firstRowAsTH = false;
+                        headerRow = cell.RowSpan > headerRow ? cell.RowSpan : headerRow;
                         break;
                     }
                 }
             }
+            if (tableDto.Items.Count == 1)
+            {
+                firstRowAsTH = false;
+            }
 
+            HtmlNode theadNode = null;
             for (int i = 0; i < tableDto.Items.Count; i++)
             {
                 var row = tableDto.Items[i];
-                if (firstRowAsTH && i == 0)
-                {
-                    var theadNode = htmlDoc.CreateElement("thead");
-                    var rowNode = htmlDoc.CreateElement("tr");
 
+                if (firstRowAsTH && i < headerRow)
+                {
+                    if (i == 0)
+                    {
+                        theadNode = htmlDoc.CreateElement("thead");
+                        tableNode.AppendChild(theadNode);
+                    }
+                    
+                    var rowNode = htmlDoc.CreateElement("tr");
+                    if (theadNode != null)
+                    {
+                        theadNode.AppendChild(rowNode);
+                    }
+                    
                     if (addBorderStyle)
                     {
                         rowNode.SetAttributeValue("style", BorderStyle);
@@ -121,8 +138,6 @@ namespace img2table.sharp.Img2table.Sharp.Data
                         cellNode.InnerHtml = ProcessNewline(cell.Content);
                         rowNode.AppendChild(cellNode);
                     }
-                    theadNode.AppendChild(rowNode);
-                    tableNode.AppendChild(theadNode);
                 }
                 else
                 {

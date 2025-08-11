@@ -33,17 +33,26 @@ namespace img2table.sharp.console
             //TabularImage(tableBbox);
             //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
 
-            SplitPDF();
+            //SplitPDF();
+
+            TestPDFSDK();
+        }
+
+        static void TestPDFSDK()
+        {
+            var tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\text_box_test\25-32G-6_BG_XMB.pdf";
+            var tempFolder = @"C:\dev\testfiles\ai_testsuite\pdf\text_box_test";
+            PDFTools.DrawTextBox(tempFile, tempFolder);
         }
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc\Fact-Sheet-Clarion-Partners-Real-Estate-Income-Fund-92083-FF.pdf";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\ishares-us-treasury-bond-etfs-product-brief-en-us.pdf";
             var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
-            range.Add(new int[] { 0 });
-            range.Add(new int[] { 1 });
+            //range.Add(new int[] { 0 });
+            range.Add(new int[] { 2 });
             //range.Add(new int[] { 104, 105, 106, 107, 108, 109, 110, 111 });
             PDFTools.SplitPDF(src, range, dst);
         }
