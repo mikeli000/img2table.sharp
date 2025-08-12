@@ -155,11 +155,6 @@ namespace Img2table.Sharp.Tabular
                                 }
                             }
                             cell.AddText(newLineText);
-
-                            if (newLineText.StartsWith("Volatility Target"))
-                            {
-                                Console.WriteLine();
-                            }
                         }
 
                         pageTextCells.Remove(curr);
@@ -241,6 +236,49 @@ namespace Img2table.Sharp.Tabular
                 lines.AddRange(group);
             }
             return lines;
+        }
+
+        private static void XXX(List<Cell> cells)
+        {
+            var copy = cells.ToList();
+
+            int top = copy.Min(c => Math.Min(c.Y1, c.Y2));
+            int bottom = copy.Max(c => Math.Max(c.Y1, c.Y2));
+            int left = copy.Min(c => Math.Min(c.X1, c.X2));
+            int right = copy.Max(c => Math.Max(c.X1, c.X2));
+
+            List<List<Cell>> lines = new List<List<Cell>>();
+            List<Cell> line = new List<Cell>();
+            for (int i = top + 1; i <= bottom; i++)
+            {
+                foreach (var cell in copy)
+                {
+                    if (i >= cell.Y1 && i <= cell.Y2)
+                    {
+                        line.Add(cell);
+                    }
+                }
+
+                if (line.Count() > 0)
+                {
+                    copy.RemoveAll(c => line.Contains(c));
+                    if (copy.Count() > 0)
+                    {
+                        int currTop = copy.Min(c => Math.Min(c.Y1, c.Y2));
+                        i = currTop + 1;
+                    }
+                    else
+                    {
+                        lines.Add(line);
+                        break;
+                    }
+                }
+                else
+                {
+                    lines.Add(line);
+                    line = new List<Cell>();
+                }
+            }
         }
 
         public static List<List<Cell>> GroupCellsByLine(List<Cell> cells, float baselineTolerance = 3f)

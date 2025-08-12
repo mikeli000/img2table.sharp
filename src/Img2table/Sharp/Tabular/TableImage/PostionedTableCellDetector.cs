@@ -7,12 +7,12 @@ using System.Text;
 
 public class PostionedTableCellDetector
 {
-    public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> ocrBoxes, int charLength)
+    public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> ocrBoxes, int charWidth)
     {
         Line topLine = null;
         if (hLines.Count == 0)
         {
-            topLine = new Line(tableBbox.Left, tableBbox.Top, tableBbox.Right, tableBbox.Bottom);
+            topLine = new Line(tableBbox.Left, tableBbox.Top, tableBbox.Right, tableBbox.Top);
         }
         else
         {
@@ -20,7 +20,7 @@ public class PostionedTableCellDetector
         }
         Line? secLine = hLines.Count > 2 ? hLines[1] : null;
 
-        var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox, charLength);
+        var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox, charWidth);
         var exists = vLines.Select(line => line.X1).ToList();
         foreach (var p in columnPositions)
         {
@@ -42,9 +42,11 @@ public class PostionedTableCellDetector
             tbodyBbox.Width = tableBbox.Width;
             tbodyBbox.Height = tableBbox.Bottom - secLine.Y1;
 
-            var secPositions = DetectBodyVerLines(ocrBoxes, tbodyBbox, columnPositions, charLength);
+            var secPositions = DetectBodyVerLines(ocrBoxes, tbodyBbox, columnPositions, charWidth);
             if (!PostionEqual(columnPositions, secPositions))
             {
+                secLine.X1 = tbodyBbox.Left;
+                secLine.X2 = tableBbox.Right;
                 foreach (var p in secPositions)
                 {
                     if (exists.Contains(p))
@@ -145,10 +147,10 @@ public class PostionedTableCellDetector
         return Rect.FromLTRB(rect.Left - extendLength, rect.Top - extendLength, rect.Right + extendLength, rect.Bottom + extendLength);
     }
 
-    private static List<int> DetectBodyVerLines(IEnumerable<Rect> ocrBoxes, Rect bodyRect, List<int> topColumnPositions, int charLength)
+    private static List<int> DetectBodyVerLines(IEnumerable<Rect> ocrBoxes, Rect bodyRect, List<int> topColumnPositions, int charWidth)
     {
         var bodyBoxes = ocrBoxes.Where(box => IsContains(box, bodyRect)).ToList();
-        var bodyColumnPositions = DetectColumnPositions(bodyBoxes, bodyRect, charLength);
+        var bodyColumnPositions = DetectColumnPositions(bodyBoxes, bodyRect, charWidth);
 
         var validBodyPositions = new List<int>();
         foreach (var pos in bodyColumnPositions)
@@ -207,9 +209,9 @@ public class PostionedTableCellDetector
         return result;
     }
 
-    private static List<int> DetectColumnPositions(IEnumerable<Rect> ocrBoxes, Rect tableRect, int charLength)
+    private static List<int> DetectColumnPositions(IEnumerable<Rect> ocrBoxes, Rect tableRect, int charWidth)
     {
-        var columnPositions = ScanForGapsBetweenBoxes(ocrBoxes, tableRect, charLength);
+        var columnPositions = ScanForGapsBetweenBoxes(ocrBoxes, tableRect, charWidth);
         columnPositions.Insert(0, tableRect.Left);
         columnPositions.Insert(columnPositions.Count, tableRect.Right);
 
@@ -224,7 +226,7 @@ public class PostionedTableCellDetector
             && box.Y + box.Height <= tableRect.Y + tableRect.Height;
     }
 
-    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<Rect> ocrBoxes, Rect tableRect, int charLength = 10)
+    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<Rect> ocrBoxes, Rect tableRect, int charWidth)
     {
         var gaps = new List<int>();
         if (ocrBoxes == null || ocrBoxes.Count() == 0)
@@ -233,7 +235,7 @@ public class PostionedTableCellDetector
         }
 
         int step = 1;
-        int minGapW = charLength;
+        int minGapW = charWidth * 2;
 
         var ocrBoxesCopy = new List<Rect>(ocrBoxes);
         int minX = ocrBoxesCopy.Min(r => r.Left);

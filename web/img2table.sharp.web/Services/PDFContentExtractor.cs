@@ -26,7 +26,7 @@ namespace img2table.sharp.web.Services
         public float RenderDPI { get; set; } = 300;
         public float PredictConfidenceThreshold { get; set; } = 0.2f;
 
-        public static float DEFAULT_OVERLAP_RATIO = 0.8f;
+        public static float DEFAULT_OVERLAP_RATIO = 0.6f;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
         

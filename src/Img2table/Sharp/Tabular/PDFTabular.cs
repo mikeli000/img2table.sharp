@@ -182,14 +182,14 @@ namespace Img2table.Sharp.Tabular
                 int i = 0;
                 foreach (var row in table.Rows)
                 {
-                    // ImageTabular.LoadRowText(row, pageTextCells, _parameter, useHtml);
+                    ImageTabular.LoadRowText(row, pageTextCells, _parameter, useHtml);
 
-                    loadText(row, pdfPage, ratio, i++);
+                    // loadTextByAPI(row, pdfPage, ratio, i++);
                 }
             }
         }
 
-        public void loadText(Row row, PDFPage pdfPage, float ratio, int i)
+        public void loadTextByAPI(Row row, PDFPage pdfPage, float ratio, int i)
         {
             var ph = pdfPage.GetPageHeight();
             foreach (var cell in row.Cells)

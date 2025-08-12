@@ -46,7 +46,7 @@ namespace Img2table.Sharp.Tabular.TableImage
 
         public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<Rect> textBoxes = null)
         {
-            textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
+            //textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
 
             ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
             if (_tables != null && _tables.Count > 0)
@@ -117,11 +117,13 @@ namespace Img2table.Sharp.Tabular.TableImage
                 RemoveLinesInBox(vLines, textBoxes);
                 ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
                 hLines = hLines.OrderBy(hl => hl.Y1).ToList();
-                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, (int) _charLength);
+                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, (int)_charLength);
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
-                if (/*Debug*/ true)
+                CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+
+                if (true)
                 {
                     var debugImage = _img.Clone();
                     foreach (var line in hLines)
@@ -134,28 +136,26 @@ namespace Img2table.Sharp.Tabular.TableImage
                     }
 
                     Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
-                    //if (textBoxes != null)
-                    //{
-                    //    foreach (var box in textBoxes)
-                    //    {
-                    //        Cv2.Rectangle(debugImage, box, Scalar.Yellow, 1);
-                    //    }
-                    //}
-
-                    textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
                     if (textBoxes != null)
                     {
                         foreach (var box in textBoxes)
                         {
-                            Cv2.Rectangle(debugImage, box, Scalar.Blue, 1);
+                            Cv2.Rectangle(debugImage, box, Scalar.Yellow, 1);
                         }
                     }
+
+                    //var table = _tables.FirstOrDefault();
+                    //foreach (var row in table.Rows)
+                    //{
+                    //    foreach (var cell in row.Cells)
+                    //    {
+                    //        Cv2.Rectangle(debugImage, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), Scalar.Yellow, 1);
+                    //    }
+                    //}
 
                     var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
                     Cv2.ImWrite(file, debugImage);
                 }
-
-                CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
             }
             else
             {
@@ -254,7 +254,10 @@ namespace Img2table.Sharp.Tabular.TableImage
         {
             int leftmost = tableBbox.Left;
             int rightmost = tableBbox.Right;
-            int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
+
+            var topmostLine = hLines.Count > 0 ? hLines.OrderBy(l => Math.Min(l.Y1, l.Y2)).First() : null;
+            int topmost = topmostLine != null ? Math.Min(topmostLine.Y1, topmostLine.Y2) : tableBbox.Top;
+
             int tableTop = tableBbox.Top;
             if (tableTop < topmost)
             {
@@ -267,6 +270,15 @@ namespace Img2table.Sharp.Tabular.TableImage
                 {
                     var newHLine = new Line(leftmost, tableTop, rightmost, tableTop);
                     hLines.Add(newHLine);
+                }
+                else
+                {
+                    if (topmostLine != null)
+                    {
+                        hLines.Remove(topmostLine);
+                        var newHLine = new Line(leftmost, tableTop, rightmost, tableTop);
+                        hLines.Add(newHLine);
+                    }
                 }
             }
 
