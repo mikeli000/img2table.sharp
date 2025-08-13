@@ -159,35 +159,6 @@ namespace Img2table.Sharp.Tabular
 
                         pageTextCells.Remove(curr);
                         prev = curr;
-
-
-                        //string text = useHtml ? tc.HtmlContent : tc.Content;
-                        //if (prev != null)
-                        //{
-                        //    if (prev.Baseline == tc.Baseline)
-                        //    {
-                        //        cell.AddText(text, true);
-                        //    }
-                        //    else
-                        //    {
-                        //        if (IsNewParagraphBegin(tc.Content))
-                        //        {
-                        //            string newLineText = (useHtml ? "<br />" : "\n\n") + text;
-                        //            cell.AddText(newLineText, true);
-                        //        }
-                        //        else
-                        //        {
-                        //            cell.AddText(text, true);
-                        //        }
-                        //    }
-                        //}
-                        //else
-                        //{
-                        //    cell.AddText(text, true);
-                        //}
-                        
-                        //pageTextCells.Remove(tc);
-                        //prev = tc;
                     }
                 }
             }
@@ -238,79 +209,70 @@ namespace Img2table.Sharp.Tabular
             return lines;
         }
 
-        private static void XXX(List<Cell> cells)
+        private static List<List<Cell>> GroupCellsByLine(List<Cell> cells)
         {
-            var copy = cells.ToList();
+            List<List<Cell>> lines = new List<List<Cell>>();
+            if (cells.Count == 0)
+            {
+                return lines;
+            }
+            if (cells.Count == 1)
+            {
+                lines.Add(cells);
+                return lines;
+            }
 
+            var copy = cells.ToList();
             int top = copy.Min(c => Math.Min(c.Y1, c.Y2));
             int bottom = copy.Max(c => Math.Max(c.Y1, c.Y2));
-            int left = copy.Min(c => Math.Min(c.X1, c.X2));
-            int right = copy.Max(c => Math.Max(c.X1, c.X2));
 
-            List<List<Cell>> lines = new List<List<Cell>>();
             List<Cell> line = new List<Cell>();
             for (int i = top + 1; i <= bottom; i++)
             {
+                var temp = new List<Cell>();
                 foreach (var cell in copy)
                 {
                     if (i >= cell.Y1 && i <= cell.Y2)
                     {
-                        line.Add(cell);
+                        temp.Add(cell);
                     }
                 }
 
-                if (line.Count() > 0)
+                if (temp.Count() > 0)
                 {
-                    copy.RemoveAll(c => line.Contains(c));
+                    copy.RemoveAll(c => temp.Contains(c));
+                    int currBottom = temp.Max(c => Math.Max(c.Y1, c.Y2));
+                    foreach (var c in copy)
+                    {
+                        if (c.Y1 <= currBottom)
+                        {
+                            temp.Add(c);
+                        }
+                    }
+                    copy.RemoveAll(c => temp.Contains(c));
+                    line.AddRange(temp);
+
                     if (copy.Count() > 0)
                     {
-                        int currTop = copy.Min(c => Math.Min(c.Y1, c.Y2));
-                        i = currTop + 1;
+                        i = temp.Max(c => Math.Max(c.Y1, c.Y2)) + 1;
                     }
                     else
                     {
-                        lines.Add(line);
+                        lines.Add(line.OrderBy(c => c.X1).ToList());
                         break;
                     }
                 }
                 else
                 {
-                    lines.Add(line);
-                    line = new List<Cell>();
-                }
-            }
-        }
-
-        public static List<List<Cell>> GroupCellsByLine(List<Cell> cells, float baselineTolerance = 3f)
-        {
-            var sorted = cells.OrderBy(c => c.Baseline).ToList();
-            var groups = new List<List<Cell>>();
-
-            foreach (var cell in sorted)
-            {
-                bool added = false;
-                foreach (var group in groups)
-                {
-                    if (Math.Abs(group[0].Baseline - cell.Baseline) <= baselineTolerance)
+                    if (line.Count() > 0)
                     {
-                        group.Add(cell);
-                        added = true;
-                        break;
+                        lines.Add(line.OrderBy(c => c.X1).ToList());
+                        line = new List<Cell>();
                     }
                 }
-
-                if (!added)
-                {
-                    groups.Add(new List<Cell> { cell });
-                }
             }
 
-            foreach (var group in groups)
-            {
-                group.Sort((a, b) => a.X1.CompareTo(b.X1));
-            }
-
-            return groups;
+            return lines;
         }
 
         private static bool IsContained(RectangleF container, RectangleF dst, TabularParameter parameter)

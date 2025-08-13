@@ -55,11 +55,6 @@ namespace img2table.sharp.web.Services
                 case ChunkType.PlainText:
                     ProcessTextChunk(chunkElement);
                     break;
-                case ChunkType.TableCaption:
-                    _writer.WriteTitleTag(4);
-                    WriteText(chunkElement);
-                    _writer.AppendLine();
-                    break;
                 case ChunkType.TableFootnote:
                     _writer.WriteTitleTag(5);
                     WriteText(chunkElement);
@@ -78,6 +73,7 @@ namespace img2table.sharp.web.Services
                     ProcessSectionHeaderChunk(chunkElement);
                     break;
                 case ChunkType.Caption:
+                case ChunkType.TableCaption:
                 case ChunkType.FigureCaption:
                     ProcessCaptionChunk(chunkElement);
                     break;
@@ -168,6 +164,7 @@ namespace img2table.sharp.web.Services
 
         private void ProcessCaptionChunk(ChunkElement chunkElement)
         {
+            _writer.WriteTitleTag(4);
             ProcessTextChunk(chunkElement);
         }
 
