@@ -4,10 +4,22 @@ using Sdcb.PaddleOCR;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using PDFDict.SDK.Sharp.Core.OCR;
 using System.Text;
+using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 
 public class PostionedTableCellDetector
 {
-    public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> ocrBoxes, int charWidth)
+    public static void DetectLines(List<Line> originalHLines, List<Line> originalVLines, Rect tableBbox, IEnumerable<Rect> textBoxes, int charWidth)
+    {
+        var hLines = originalHLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+        var vLines = originalVLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+
+        if (textBoxes == null || textBoxes.Count() <= 0)
+        {
+            return;
+        }
+    }
+
+    public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, int charWidth)
     {
         Line topLine = null;
         if (hLines.Count == 0)
@@ -20,7 +32,7 @@ public class PostionedTableCellDetector
         }
         Line? secLine = hLines.Count > 2 ? hLines[1] : null;
 
-        var columnPositions = DetectColumnPositions(ocrBoxes, tableBbox, charWidth);
+        var columnPositions = DetectColumnPositions(textBoxes, tableBbox, charWidth);
         var exists = vLines.Select(line => line.X1).ToList();
         foreach (var p in columnPositions)
         {
@@ -28,12 +40,15 @@ public class PostionedTableCellDetector
             {
                 continue;
             }
-            vLines.Add(new Line(p, tableBbox.Top, p, tableBbox.Bottom));
+
+            var newLine = new Line(p, tableBbox.Top, p, tableBbox.Bottom);
+            vLines.Add(newLine);
             exists.Add(p);
         }
 
-        vLines = RemoveRedundantLines(vLines, ocrBoxes);
+        vLines = RemoveRedundantLines(vLines, textBoxes);
         exists = vLines.Select(line => line.X1).ToList();
+        secLine = null;
         if (secLine != null)
         {
             var tbodyBbox = new Rect();
@@ -42,11 +57,15 @@ public class PostionedTableCellDetector
             tbodyBbox.Width = tableBbox.Width;
             tbodyBbox.Height = tableBbox.Bottom - secLine.Y1;
 
-            var secPositions = DetectBodyVerLines(ocrBoxes, tbodyBbox, columnPositions, charWidth);
+            var secPositions = DetectBodyVerLines(textBoxes, tbodyBbox, columnPositions, charWidth);
             if (!PostionEqual(columnPositions, secPositions))
             {
+                // 这里需要判断 延长 second line 是否会跟某个 text box 相交, 如果相交, 则不延长
+                
                 secLine.X1 = tbodyBbox.Left;
                 secLine.X2 = tableBbox.Right;
+
+
                 foreach (var p in secPositions)
                 {
                     if (exists.Contains(p))
@@ -61,7 +80,12 @@ public class PostionedTableCellDetector
         return vLines;
     }
 
-    private static List<Line> RemoveRedundantLines(List<Line> vLines, IEnumerable<Rect> ocrBoxes)
+    private static bool LineCrossTextBox(Line line, List<Line> vLines, IEnumerable<Rect> textBoxes)
+    {
+        return false;
+    }
+
+    private static List<Line> RemoveRedundantLines(List<Line> vLines, IEnumerable<TextRect> ocrBoxes)
     {
         vLines = vLines.OrderBy(vl => vl.X1).ToList();
         for (int i = 0; i < vLines.Count - 1; i++)
@@ -69,7 +93,7 @@ public class PostionedTableCellDetector
             var line1 = vLines[i];
             var line2 = vLines[i + 1];
 
-            List<Rect> bx = ocrBoxes.Where(box => box.Left > line1.X1 && box.Right < line2.X1).ToList();
+            var bx = ocrBoxes.Where(box => box.Left > line1.X1 && box.Right < line2.X1).ToList();
             if (bx.Count() == 0)
             {
                 if (line1.Height < line2.Height)
@@ -147,7 +171,7 @@ public class PostionedTableCellDetector
         return Rect.FromLTRB(rect.Left - extendLength, rect.Top - extendLength, rect.Right + extendLength, rect.Bottom + extendLength);
     }
 
-    private static List<int> DetectBodyVerLines(IEnumerable<Rect> ocrBoxes, Rect bodyRect, List<int> topColumnPositions, int charWidth)
+    private static List<int> DetectBodyVerLines(IEnumerable<TextRect> ocrBoxes, Rect bodyRect, List<int> topColumnPositions, int charWidth)
     {
         var bodyBoxes = ocrBoxes.Where(box => IsContains(box, bodyRect)).ToList();
         var bodyColumnPositions = DetectColumnPositions(bodyBoxes, bodyRect, charWidth);
@@ -209,7 +233,7 @@ public class PostionedTableCellDetector
         return result;
     }
 
-    private static List<int> DetectColumnPositions(IEnumerable<Rect> ocrBoxes, Rect tableRect, int charWidth)
+    private static List<int> DetectColumnPositions(IEnumerable<TextRect> ocrBoxes, Rect tableRect, int charWidth)
     {
         var columnPositions = ScanForGapsBetweenBoxes(ocrBoxes, tableRect, charWidth);
         columnPositions.Insert(0, tableRect.Left);
@@ -226,7 +250,7 @@ public class PostionedTableCellDetector
             && box.Y + box.Height <= tableRect.Y + tableRect.Height;
     }
 
-    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<Rect> ocrBoxes, Rect tableRect, int charWidth)
+    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<TextRect> ocrBoxes, Rect tableRect, int charWidth)
     {
         var gaps = new List<int>();
         if (ocrBoxes == null || ocrBoxes.Count() == 0)
@@ -237,7 +261,7 @@ public class PostionedTableCellDetector
         int step = 1;
         int minGapW = charWidth * 2;
 
-        var ocrBoxesCopy = new List<Rect>(ocrBoxes);
+        var ocrBoxesCopy = new List<TextRect>(ocrBoxes);
         int minX = ocrBoxesCopy.Min(r => r.Left);
         int maxX = ocrBoxesCopy.Max(r => r.Right);
 
@@ -286,7 +310,7 @@ public class PostionedTableCellDetector
         return gaps;
     }
 
-    private static bool TryGetIntersectingBox(int x, List<Rect> ocrBoxes, out Rect intersectBox)
+    private static bool TryGetIntersectingBox(int x, List<TextRect> ocrBoxes, out Rect intersectBox)
     {
         intersectBox = default;
         foreach (var box in ocrBoxes)

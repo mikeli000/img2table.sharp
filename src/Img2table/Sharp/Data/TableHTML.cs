@@ -16,6 +16,8 @@ namespace img2table.sharp.Img2table.Sharp.Data
               border: 1px solid black;
               border-collapse: collapse;
             }";
+        private const string CenterBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: center; vertical-align: middle;";
+        private const string DefaultBorderStyle = "border: 1px solid lightgray; border-collapse: collapse;";
 
         public static void Generate(PagedTableDTO pageTableDto, string outputFile)
         {
@@ -54,14 +56,12 @@ namespace img2table.sharp.Img2table.Sharp.Data
             }
         }
 
-        private const string BorderStyle = "border: 1px solid lightgray; border-collapse: collapse;";
-
         private static void GenerateHtmlTable(TableDTO tableDto, HtmlDocument htmlDoc, bool firstRowAsTH = false, bool addBorderStyle = true)
         {
             var tableNode = htmlDoc.CreateElement("table");
             if (addBorderStyle)
             {
-                tableNode.SetAttributeValue("style", BorderStyle);
+                tableNode.SetAttributeValue("style", DefaultBorderStyle);
             }
 
             if (!string.IsNullOrEmpty(tableDto.Title))
@@ -82,7 +82,6 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 {
                     if (cell.RowSpan > 1)
                     {
-                        //firstRowAsTH = false;
                         headerRow = cell.RowSpan > headerRow ? cell.RowSpan : headerRow;
                         break;
                     }
@@ -114,7 +113,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     
                     if (addBorderStyle)
                     {
-                        rowNode.SetAttributeValue("style", BorderStyle);
+                        rowNode.SetAttributeValue("style", DefaultBorderStyle);
                     }
 
                     for (int j = 0; j < row.Items.Count; j++)
@@ -123,7 +122,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                         var cellNode = htmlDoc.CreateElement("th");
                         if (addBorderStyle)
                         {
-                            cellNode.SetAttributeValue("style", BorderStyle);
+                            cellNode.SetAttributeValue("style", CenterBorderStyle);
                         }
 
                         if (cell.RowSpan > 1)
@@ -144,7 +143,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     var rowNode = htmlDoc.CreateElement("tr");
                     if (addBorderStyle)
                     {
-                        rowNode.SetAttributeValue("style", BorderStyle);
+                        rowNode.SetAttributeValue("style", DefaultBorderStyle);
                     }
 
                     for (int j = 0; j < row.Items.Count; j++)
@@ -153,7 +152,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                         var cellNode = htmlDoc.CreateElement("td");
                         if (addBorderStyle)
                         {
-                            cellNode.SetAttributeValue("style", BorderStyle);
+                            cellNode.SetAttributeValue("style", DefaultBorderStyle);
                         }
 
                         if (cell.RowSpan > 1)

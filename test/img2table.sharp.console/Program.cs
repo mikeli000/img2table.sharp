@@ -25,7 +25,8 @@ namespace img2table.sharp.console
             //pre();
             //TabularImage();
 
-            //TT();
+            RenderPDFPathOnly();
+            // DetectLinesByHoughLinesP();
 
             //Paddle();
 
@@ -35,8 +36,252 @@ namespace img2table.sharp.console
 
             //SplitPDF();
 
-            TestPDFSDK();
+            //TestPDFSDK();
         }
+
+
+        // 方法2：优化的 HoughLinesP 概率霍夫变换（通用直线检测）
+        static void DetectLinesByHoughLinesP()
+        {
+            var tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd\page-3.png";
+            Console.WriteLine(tempFile);
+
+            Mat src = Cv2.ImRead(tempFile, ImreadModes.Color);
+
+            // 灰度化
+            Mat gray = new Mat();
+            Cv2.CvtColor(src, gray, ColorConversionCodes.BGR2GRAY);
+
+            // 预处理：高斯模糊去噪
+            Mat blurred = new Mat();
+            Cv2.GaussianBlur(gray, blurred, new OpenCvSharp.Size(3, 3), 0);
+
+            // 自适应二值化（比简单阈值更好）
+            Mat binary = new Mat();
+            Cv2.AdaptiveThreshold(blurred, binary, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 15, -2);
+
+            // 多种边缘检测参数组合
+            Mat edges1 = new Mat();
+
+            // 低阈值 - 检测更多边缘
+            //Cv2.Canny(blurred, edges1, 30, 80);
+            // 中等阈值 - 平衡检测
+            Cv2.Canny(blurred, edges1, 50, 150);
+
+            List<LineSegmentPoint> allLines = new List<LineSegmentPoint>();
+
+            // 简化参数，避免过多重复
+            var paramSets = new[]
+            {
+                new { threshold = 80, minLen = 30, maxGap = 5 },   // 主要检测
+                new { threshold = 50, minLen = 20, maxGap = 3 }    // 补充短线
+            };
+
+            foreach (var param in paramSets)
+            {
+                LineSegmentPoint[] lines = Cv2.HoughLinesP(
+                    edges1,
+                    1,                    // 距离分辨率
+                    Math.PI / 180,        // 角度分辨率
+                    param.threshold,      // 阈值
+                    minLineLength: param.minLen,
+                    maxLineGap: param.maxGap
+                );
+
+                allLines.AddRange(lines);
+            }
+
+            // 只保留横线和竖线，过滤掉斜线
+            var horizontalVerticalLines = allLines.Where(line =>
+            {
+                var type = GetLineType(line);
+                return type == LineType.Horizontal || type == LineType.Vertical;
+            }).ToList();
+
+            // 增强去重算法
+            var uniqueLines = RemoveDuplicateLinesAdvanced(horizontalVerticalLines);
+
+            Console.WriteLine(horizontalVerticalLines.Count + " -- " + uniqueLines.Count);
+
+            // 绘制直线
+            foreach (var line in uniqueLines)
+            {
+                Cv2.Line(src, line.P1, line.P2, new Scalar(0, 255, 0), 1);
+            }
+
+            // 保存中间结果用于调试
+            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd\edges_combined.png", edges1);
+            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd\hough_optimized_result.png", src);
+        }
+
+        // 增强的去重算法
+        static List<LineSegmentPoint> RemoveDuplicateLinesAdvanced(List<LineSegmentPoint> lines)
+        {
+            if (lines.Count == 0) return lines;
+
+            var uniqueLines = new List<LineSegmentPoint>();
+
+            // 按长度排序，优先保留较长的线
+            var sortedLines = lines.OrderByDescending(line =>
+                Math.Sqrt(Math.Pow(line.P2.X - line.P1.X, 2) + Math.Pow(line.P2.Y - line.P1.Y, 2))).ToList();
+
+            foreach (var line in sortedLines)
+            {
+                bool shouldAdd = true;
+
+                for (int i = 0; i < uniqueLines.Count; i++)
+                {
+                    var existingLine = uniqueLines[i];
+
+                    // 多种相似性检测
+                    if (AreLinesOverlapping(line, existingLine) ||
+                        AreLinesSimilarAdvanced(line, existingLine))
+                    {
+                        // 如果新线更长，替换现有线
+                        double newLength = GetLineLength(line);
+                        double existingLength = GetLineLength(existingLine);
+
+                        if (newLength > existingLength * 1.2) // 新线明显更长
+                        {
+                            uniqueLines[i] = line;
+                        }
+                        shouldAdd = false;
+                        break;
+                    }
+                }
+
+                if (shouldAdd)
+                {
+                    uniqueLines.Add(line);
+                }
+            }
+
+            return uniqueLines;
+        }
+
+        // 计算线段长度
+        static double GetLineLength(LineSegmentPoint line)
+        {
+            return Math.Sqrt(Math.Pow(line.P2.X - line.P1.X, 2) + Math.Pow(line.P2.Y - line.P1.Y, 2));
+        }
+
+        // 检测两条线是否重叠（专门针对横线和竖线）
+        static bool AreLinesOverlapping(LineSegmentPoint line1, LineSegmentPoint line2)
+        {
+            var type1 = GetLineType(line1);
+            var type2 = GetLineType(line2);
+
+            // 必须是同一类型
+            if (type1 != type2) return false;
+
+            if (type1 == LineType.Horizontal)
+            {
+                // 横线：检查Y坐标是否相近，X方向是否有重叠或连接
+                double avgY1 = (line1.P1.Y + line1.P2.Y) / 2.0;
+                double avgY2 = (line2.P1.Y + line2.P2.Y) / 2.0;
+
+                if (Math.Abs(avgY1 - avgY2) <= 2) // Y坐标相近
+                {
+                    return HasHorizontalOverlap(line1, line2);
+                }
+            }
+            else if (type1 == LineType.Vertical)
+            {
+                // 竖线：检查X坐标是否相近，Y方向是否有重叠或连接
+                double avgX1 = (line1.P1.X + line1.P2.X) / 2.0;
+                double avgX2 = (line2.P1.X + line2.P2.X) / 2.0;
+
+                if (Math.Abs(avgX1 - avgX2) <= 2) // X坐标相近
+                {
+                    return HasVerticalOverlap(line1, line2);
+                }
+            }
+
+            return false;
+        }
+
+        // 改进的相似性检测（只考虑横线和竖线）
+        static bool AreLinesSimilarAdvanced(LineSegmentPoint line1, LineSegmentPoint line2)
+        {
+            // 获取线条类型（横线或竖线）
+            var type1 = GetLineType(line1);
+            var type2 = GetLineType(line2);
+
+            // 必须是同一类型（都是横线或都是竖线）
+            if (type1 != type2) return false;
+
+            if (type1 == LineType.Horizontal)
+            {
+                // 横线：Y坐标相近
+                double avgY1 = (line1.P1.Y + line1.P2.Y) / 2.0;
+                double avgY2 = (line2.P1.Y + line2.P2.Y) / 2.0;
+                if (Math.Abs(avgY1 - avgY2) > 3) return false; // Y坐标差小于3像素
+
+                // 检查X方向的重叠
+                return HasHorizontalOverlap(line1, line2);
+            }
+            else if (type1 == LineType.Vertical)
+            {
+                // 竖线：X坐标相近
+                double avgX1 = (line1.P1.X + line1.P2.X) / 2.0;
+                double avgX2 = (line2.P1.X + line2.P2.X) / 2.0;
+                if (Math.Abs(avgX1 - avgX2) > 3) return false; // X坐标差小于3像素
+
+                // 检查Y方向的重叠
+                return HasVerticalOverlap(line1, line2);
+            }
+
+            return false;
+        }
+
+        // 线条类型枚举
+        enum LineType
+        {
+            Horizontal,
+            Vertical,
+            Other
+        }
+
+        // 获取线条类型
+        static LineType GetLineType(LineSegmentPoint line)
+        {
+            double deltaX = Math.Abs(line.P2.X - line.P1.X);
+            double deltaY = Math.Abs(line.P2.Y - line.P1.Y);
+
+            // 判断是横线还是竖线（允许5度以内的倾斜）
+            if (deltaY <= deltaX * 0.087) // tan(5°) ≈ 0.087
+                return LineType.Horizontal;
+            else if (deltaX <= deltaY * 0.087)
+                return LineType.Vertical;
+            else
+                return LineType.Other;
+        }
+
+        // 检查横线的X方向重叠
+        static bool HasHorizontalOverlap(LineSegmentPoint line1, LineSegmentPoint line2)
+        {
+            double x1_start = Math.Min(line1.P1.X, line1.P2.X);
+            double x1_end = Math.Max(line1.P1.X, line1.P2.X);
+            double x2_start = Math.Min(line2.P1.X, line2.P2.X);
+            double x2_end = Math.Max(line2.P1.X, line2.P2.X);
+
+            // 检查是否有重叠或接近
+            return x1_start <= x2_end + 5 && x2_start <= x1_end + 5; // 允许5像素间隙
+        }
+
+        // 检查竖线的Y方向重叠
+        static bool HasVerticalOverlap(LineSegmentPoint line1, LineSegmentPoint line2)
+        {
+            double y1_start = Math.Min(line1.P1.Y, line1.P2.Y);
+            double y1_end = Math.Max(line1.P1.Y, line1.P2.Y);
+            double y2_start = Math.Min(line2.P1.Y, line2.P2.Y);
+            double y2_end = Math.Max(line2.P1.Y, line2.P2.Y);
+
+            // 检查是否有重叠或接近
+            return y1_start <= y2_end + 5 && y2_start <= y1_end + 5; // 允许5像素间隙
+        }
+
+
 
         static void TestPDFSDK()
         {
@@ -96,7 +341,7 @@ namespace img2table.sharp.console
             //string tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\line1.png";
             string tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\line1.png";
 
-            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\g.png";
+            tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd\page-1.png";
             // 1. 读取图片
             Mat src = Cv2.ImRead(tempFile, ImreadModes.Color);
 
@@ -114,8 +359,8 @@ namespace img2table.sharp.console
                 1,               // 距离分辨率
                 Math.PI / 180,   // 角度分辨率
                 400,             // 阈值
-                minLineLength: 10,
-                maxLineGap: 2   
+                minLineLength: 20,
+                maxLineGap: 2
             );
 
             // 5. 绘制检测到的直线
@@ -124,7 +369,7 @@ namespace img2table.sharp.console
                 Cv2.Line(src, line.P1, line.P2, new Scalar(0, 255, 0), 4);
             }
 
-            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\temp.png", src);
+            Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd\xxx.png", src);
 
             // 6. 保存或显示结果
             // 设定最大显示宽高
@@ -151,6 +396,18 @@ namespace img2table.sharp.console
             Cv2.WaitKey();
         }
 
+        private static void RenderPDFPathOnly()
+        {
+            string pdfPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\bmsax-blackrock-income-fund-factsheet-us09260b7055-us-en-individual.pdf";
+            string outputPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd";
+
+            Console.WriteLine($"Rendering PDF: {pdfPath}");
+            Console.WriteLine($"Output Path: {outputPath}");
+
+            // Render the PDF to an image
+            PDFTools.RenderGraphicsOnly(pdfPath, outputPath, 300f);
+        }
+
         private static void Paddle()
         {
             var modelName = "ch_ppstructure_mobile_v2.0_SLANet";
@@ -164,7 +421,7 @@ namespace img2table.sharp.console
 
             using Mat src = Cv2.ImRead(tempFile);
             TableDetectionResult result = tableRec.Run(src);
-            
+
             Console.WriteLine(result.StructureBoxes);
             Console.WriteLine(result.HtmlTags);
             Console.WriteLine(result.Score > 0.9f);
@@ -320,7 +577,7 @@ namespace img2table.sharp.console
         {
             string tempFile = Path.Combine(Environment.CurrentDirectory, @"Files/page2.png");
             // string tempFile = @"C:\Users\MikeLi\Downloads\6574bcde-6f04-43f2-9150-5b4b6e775439.png";
-            
+
             Console.WriteLine(tempFile);
 
             using var img = new Mat(tempFile, ImreadModes.Color);

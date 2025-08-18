@@ -1,25 +1,27 @@
 ﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
-using PDFDict.SDK.Sharp.Core.OCR;
-using Sdcb.PaddleOCR.Models.Local;
-using Sdcb.PaddleOCR;
 using System.Drawing;
-using System.Text;
 using PDFDict.SDK.Sharp.Core.Contents;
 using img2table.sharp.Img2table.Sharp.Tabular;
+using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 
 namespace Img2table.Sharp.Tabular
 {
     public class ImageTabular
     {
+        public static string Image2Table_WorkFolder = Path.Combine(Path.GetTempPath(), "img2table");
         private TabularParameter _parameter;
 
         public ImageTabular(TabularParameter tabularParameter) 
         {
             _parameter = tabularParameter;
+            if (!Directory.Exists(Image2Table_WorkFolder))
+            {
+                Directory.CreateDirectory(Image2Table_WorkFolder);
+            }
         }
 
-        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<RectangleF> textBoxes = null, bool loadText = false)
+        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool loadText = false, bool isTableLayoutImage = false)
         {
             if (string.IsNullOrWhiteSpace(imgFile) || !File.Exists(imgFile))
             {
@@ -39,25 +41,15 @@ namespace Img2table.Sharp.Tabular
                     (int)tableBbox.Value.Height);
             }
 
-            List<Rect> boxes = null;
-            if (textBoxes != null)
+            if (textBoxes == null)
             {
-                boxes = new List<Rect>();
-                foreach (var rect in textBoxes)
-                {
-                    boxes.Add(new Rect(
-                        (int)rect.X,
-                        (int)rect.Y,
-                        (int)rect.Width,
-                        (int)rect.Height));
-                }
+                textBoxes = OCRUtils.P_MaskTexts(img, Image2Table_WorkFolder);
             }
+            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, textBoxes);
 
-            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, boxes);
-
-            if (loadText || tableImage.ShouldOCR)
+            if (loadText)
             {
-                //OCRText(imgFile, tables, true);
+                LoadText(textBoxes, tables);
             }
             
             var pagedTable = new PagedTable
@@ -70,19 +62,12 @@ namespace Img2table.Sharp.Tabular
 
             return pagedTable;
         }
-
-        private void OCRText(string imageFile, List<Table> tables, bool paddle = false)
+        
+        private void LoadText(IEnumerable<TextRect> textBoxes, List<Table> tables)
         {
-            List<Cell> pageTextCells;
-            if (paddle)
-            {
-                pageTextCells = OCRUtils.PaddleOCR(imageFile);
-            }
-            else
-            {
-                pageTextCells = OCRUtils.TesseractOCR(imageFile);
-            }
-
+            List<Cell> pageTextCells = textBoxes
+                .Select(tb => new Cell(tb.Rect.X, tb.Rect.Y, tb.Rect.Right, tb.Rect.Bottom, tb.Text))
+                .ToList();
             foreach (var table in tables)
             {
                 foreach (var row in table.Rows)

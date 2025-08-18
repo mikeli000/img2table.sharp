@@ -7,6 +7,7 @@ using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout;
 using PDFDict.SDK.Sharp.Core.OCR;
 using System.Text;
 using img2table.sharp.Img2table.Sharp.Tabular;
+using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 
 namespace Img2table.Sharp.Tabular.TableImage
 {
@@ -21,14 +22,10 @@ namespace Img2table.Sharp.Tabular.TableImage
         private List<Line> _lines;
         private List<Table> _tables;
         private bool _shouldOCR = false;
-        private string _tempDir;
         public static bool Debug = false;
 
         public TableImage(Mat img)
         {
-            _tempDir = Path.Combine(Path.GetTempPath(), "img2table");
-            Directory.CreateDirectory(_tempDir);
-
             Prepare(img);
         }
 
@@ -44,10 +41,8 @@ namespace Img2table.Sharp.Tabular.TableImage
 
         public bool ShouldOCR => _shouldOCR;
 
-        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<Rect> textBoxes = null)
+        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
         {
-            //textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
-
             ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
             if (_tables != null && _tables.Count > 0)
             {
@@ -69,7 +64,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                     _shouldOCR = implicitRows || implicitColumns;
                     if (reCompsiteTable)
                     {
-                        textBoxes = OCRUtils.P_MaskTexts(_img, _tempDir);
                         ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
                     }
                 }
@@ -101,18 +95,16 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<Rect> textBoxes = null)
+        private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
         {
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Min(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
             var (hLines, vLines) = LineDetector.DetectLines(_img, _contours, _charLength, minLineLength);
 
+            var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+            var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+
             if (tableBbox != null)
             {
-                if (textBoxes == null)
-                {
-                    textBoxes = OCRUtils.T_MaskTexts(_img, _tempDir);
-                }
-
                 RemoveLinesInBox(hLines, textBoxes);
                 RemoveLinesInBox(vLines, textBoxes);
                 ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
@@ -126,21 +118,21 @@ namespace Img2table.Sharp.Tabular.TableImage
                 if (true)
                 {
                     var debugImage = _img.Clone();
-                    foreach (var line in hLines)
+                    foreach (var line in originalHLines)
                     {
                         Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Red, 2);
                     }
-                    foreach (var line in vLines)
+                    foreach (var line in originalVLines)
                     {
                         Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Green, 2);
                     }
 
-                    Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
+                    //Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
                     if (textBoxes != null)
                     {
                         foreach (var box in textBoxes)
                         {
-                            Cv2.Rectangle(debugImage, box, Scalar.Yellow, 1);
+                            Cv2.Rectangle(debugImage, box, Scalar.Orange, 1);
                         }
                     }
 
@@ -166,7 +158,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void RemoveLinesInBox(List<Line> hLines, IEnumerable<Rect> textBoxes)
+        private void RemoveLinesInBox(List<Line> hLines, IEnumerable<TextRect> textBoxes)
         {
             hLines.RemoveAll(line =>
                 textBoxes.Any(box =>
@@ -182,7 +174,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                 && (y >= box.Top - deltaY) && (y <= box.Bottom + deltaY);
         }
 
-        private void AlignTableBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes)
+        private void AlignTableBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes)
         {
             AlignLeft(hLines, vLines, tableBbox, boxes);
             AlignTop(hLines, vLines, tableBbox, boxes);
@@ -190,7 +182,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             AlignRight(hLines, vLines, tableBbox, boxes);
         }
 
-        private void AlignLeft(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        private void AlignLeft(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes, int minGap = 10)
         {
             int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
             int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Bottom;
@@ -208,7 +200,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             if (tableLeft < leftmost)
             {
                 var boxInGap = boxes.Where(b => {
-                    int centerX = (b.Left + b.Right) / 2;
+                    int centerX = b.Left + b.Right / 2;
                     return centerX > tableLeft && centerX < leftmost;
                 });
 
@@ -228,20 +220,20 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private bool IntersectBoxes(Line line, List<Rect> boxes, bool vertical = false)
+        private bool IntersectBoxes(Line line, List<TextRect> boxes, bool vertical = false)
         {
             foreach (var box in boxes)
             {
                 if (vertical)
                 {
-                    if (line.X1 >= box.Left && line.X1 <= box.Right)
+                    if (line.X1 >= ((Rect)box).Left && line.X1 <= ((Rect)box).Right)
                     {
                         return true;
                     }
                 }
                 else
                 {
-                    if (line.Y1 > box.Top && line.Y1 < box.Bottom)
+                    if (line.Y1 > ((Rect)box).Top && line.Y1 < ((Rect)box).Bottom)
                     {
                         return true;
                     }
@@ -250,7 +242,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             return false;
         }
 
-        private void ResolveTopBottomBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes)
+        private void ResolveTopBottomBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes)
         {
             int leftmost = tableBbox.Left;
             int rightmost = tableBbox.Right;
@@ -263,7 +255,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             {
                 var boxInGap = boxes.Where(b =>
                 {
-                    int centerY = (b.Top + b.Bottom) / 2;
+                    int centerY = (((Rect)b).Top + ((Rect)b).Bottom) / 2;
                     return centerY > tableTop && centerY < topmost;
                 });
                 if (boxInGap.Count() > 0)
@@ -287,7 +279,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             if (tableBottom > bottommost)
             {
                 var boxInGap = boxes.Where(b => {
-                    int centerY = (b.Top + b.Bottom) / 2;
+                    int centerY = (((Rect)b).Top + ((Rect)b).Bottom) / 2;
                     return centerY > bottommost && centerY < tableBottom;
                 });
 
@@ -302,7 +294,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             AlignRight(hLines, vLines, tableBbox, boxes);
         }
 
-        private void AlignTop(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        private void AlignTop(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes, int minGap = 10)
         {
             int leftmost = vLines.Count > 0 ? vLines.Min(l => Math.Min(l.X1, l.X2)) : tableBbox.Left;
             int rightmost = vLines.Count > 0 ? vLines.Max(l => Math.Max(l.X1, l.X2)) : tableBbox.Right;
@@ -320,7 +312,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             if (tableTop < topmost)
             {
                 var boxInGap = boxes.Where(b => {
-                    int centerY = (b.Top + b.Bottom) / 2;
+                    int centerY = (((Rect)b).Top + ((Rect)b).Bottom) / 2;
                     return centerY > tableTop && centerY < topmost;
                 });
                 if (boxInGap.Count() > 0)
@@ -338,7 +330,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                 }
             }
         }
-        private void AlignBottom(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        private void AlignBottom(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes, int minGap = 10)
         {
             int leftmost = vLines.Count > 0 ? vLines.Min(l => Math.Min(l.X1, l.X2)) : tableBbox.Left;
             int rightmost = vLines.Count > 0 ? vLines.Max(l => Math.Max(l.X1, l.X2)) : tableBbox.Right;
@@ -356,7 +348,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             if (tableBottom > bottommost)
             {
                 var boxInGap = boxes.Where(b => {
-                    int centerY = (b.Top + b.Bottom) / 2;
+                    int centerY = (((Rect)b).Top + ((Rect)b).Bottom) / 2;
                     return centerY > bottommost && centerY < tableBottom;
                 });
 
@@ -376,7 +368,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void AlignRight(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<Rect> boxes, int minGap = 10)
+        private void AlignRight(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes, int minGap = 10)
         {
             int topmost = hLines.Count > 0 ? hLines.Min(l => Math.Min(l.Y1, l.Y2)) : tableBbox.Top;
             int bottommost = hLines.Count > 0 ? hLines.Max(l => Math.Max(l.Y1, l.Y2)) : tableBbox.Bottom;
@@ -394,7 +386,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             if (tableRight > rightmost)
             {
                 var boxInGap = boxes.Where(b => {
-                    int centerX = (b.Left + b.Right) / 2;
+                    int centerX = (((Rect)b).Left + ((Rect)b).Right) / 2;
                     return centerX > rightmost && centerX < tableRight;
                 });
 
