@@ -21,7 +21,7 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
-        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool loadText = false, bool isTableLayoutImage = false)
+        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool loadText = false)
         {
             if (string.IsNullOrWhiteSpace(imgFile) || !File.Exists(imgFile))
             {

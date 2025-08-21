@@ -17,6 +17,8 @@ namespace img2table.sharp.Img2table.Sharp.Data
               border-collapse: collapse;
             }";
         private const string CenterBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: center; vertical-align: middle;";
+        private const string RightAlignBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: right; vertical-align: middle;";
+        private const string LeftAlignBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: left; vertical-align: middle;";
         private const string DefaultBorderStyle = "border: 1px solid lightgray; border-collapse: collapse;";
 
         public static void Generate(PagedTableDTO pageTableDto, string outputFile)
@@ -92,6 +94,11 @@ namespace img2table.sharp.Img2table.Sharp.Data
                 firstRowAsTH = false;
             }
 
+            if (tableDto.Type == TableDTO.TableType.KVTable)
+            {
+                firstRowAsTH = false;
+            }
+
             HtmlNode theadNode = null;
             for (int i = 0; i < tableDto.Items.Count; i++)
             {
@@ -149,10 +156,24 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     for (int j = 0; j < row.Items.Count; j++)
                     {
                         var cell = row.Items[j];
+
+                        var bstyle = DefaultBorderStyle;
+                        if (tableDto.Type == TableDTO.TableType.KVTable)
+                        {
+                            if (j == 0)
+                            {
+                                bstyle = LeftAlignBorderStyle;
+                            }
+                            else
+                            {
+                                bstyle = RightAlignBorderStyle;
+                            }
+                        }
+
                         var cellNode = htmlDoc.CreateElement("td");
                         if (addBorderStyle)
                         {
-                            cellNode.SetAttributeValue("style", DefaultBorderStyle);
+                            cellNode.SetAttributeValue("style", bstyle);
                         }
 
                         if (cell.RowSpan > 1)

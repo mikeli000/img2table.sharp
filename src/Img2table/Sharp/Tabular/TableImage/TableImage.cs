@@ -4,10 +4,8 @@ using Img2table.Sharp.Tabular.TableImage.TableElement;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout;
-using PDFDict.SDK.Sharp.Core.OCR;
-using System.Text;
-using img2table.sharp.Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
+using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
 
 namespace Img2table.Sharp.Tabular.TableImage
 {
@@ -39,13 +37,16 @@ namespace Img2table.Sharp.Tabular.TableImage
             _contours = t.Item3 ?? new List<Cell>();
         }
 
-        public bool ShouldOCR => _shouldOCR;
-
         public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
         {
             ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
             if (_tables != null && _tables.Count > 0)
             {
+                if (_tables.Count == 1 && _tables[0] is KeyValueTable)
+                {
+                    return _tables;
+                }
+
                 var temp = new List<Table>();
                 temp.AddRange(_tables);
 
@@ -61,7 +62,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                         implicitColumns = true;
                     }
                     reCompsiteTable = implicitRows || implicitColumns;
-                    _shouldOCR = implicitRows || implicitColumns;
                     if (reCompsiteTable)
                     {
                         ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
@@ -72,7 +72,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                     return temp;
                 }
 
-                _shouldOCR = true;
                 return _tables;
             }
 
@@ -95,6 +94,11 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
+        private void CompsiteKVTable()
+        {
+
+        }
+
         private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
         {
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Min(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
@@ -109,13 +113,41 @@ namespace Img2table.Sharp.Tabular.TableImage
                 RemoveLinesInBox(vLines, textBoxes);
                 ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
                 hLines = hLines.OrderBy(hl => hl.Y1).ToList();
-                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, (int)_charLength);
+
+                if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
+                {
+                    if (kvTable != null)
+                    {
+                        _tables = _tables?? new List<Table>();
+                        _tables.Add(kvTable);
+
+                        if (false)
+                        {
+                            var debugImage = _img.Clone();
+
+                            var table = _tables.FirstOrDefault();
+                            foreach (var row in table.Rows)
+                            {
+                                foreach (var cell in row.Cells)
+                                {
+                                    Cv2.Rectangle(debugImage, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), Scalar.Yellow, 1);
+                                }
+                            }
+
+                            var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
+                            Cv2.ImWrite(file, debugImage);
+                        }
+                        return;
+                    }
+                }
+
+                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, _charLength);
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
 
-                if (true)
+                if (false)
                 {
                     var debugImage = _img.Clone();
                     foreach (var line in originalHLines)

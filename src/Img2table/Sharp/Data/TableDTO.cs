@@ -1,12 +1,20 @@
-﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
+﻿using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
+using Img2table.Sharp.Tabular.TableImage.TableElement;
 
 namespace Img2table.Sharp.Data
 {
     public class TableDTO
     {
+        public enum TableType
+        {
+            Normal = 0,
+            KVTable = 1
+        }
+
         public List<RowDTO> Items { get; set; }
         public string Title { get; set; }
         public bool Borderless { get; set; }
+        public TableType Type { get; private set; } = TableType.Normal;
 
         public TableDTO(Table table)
         {
@@ -19,6 +27,10 @@ namespace Img2table.Sharp.Data
         {
             int n_row = table.NbRows;
             int n_col = table.NbColumns;
+            if (table is KeyValueTable)
+            {
+                Type = TableType.KVTable;
+            }
 
             Items = new List<RowDTO>();
             var rowSpanCellDict = new Dictionary<string, CellDTO>();

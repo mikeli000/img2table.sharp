@@ -398,14 +398,14 @@ namespace img2table.sharp.console
 
         private static void RenderPDFPathOnly()
         {
-            string pdfPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\bmsax-blackrock-income-fund-factsheet-us09260b7055-us-en-individual.pdf";
+            string pdfPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\itot-ishares-core-s-p-total-u-s-stock-market-etf-fund-fact-sheet-en-us.pdf";
             string outputPath = @"C:\dev\testfiles\ai_testsuite\pdf\table\x\ddd";
 
             Console.WriteLine($"Rendering PDF: {pdfPath}");
             Console.WriteLine($"Output Path: {outputPath}");
 
             // Render the PDF to an image
-            PDFTools.RenderGraphicsOnly(pdfPath, outputPath, 300f);
+            PDFTools.RenderTableEnhanced(pdfPath, outputPath, 300f);
         }
 
         private static void Paddle()
