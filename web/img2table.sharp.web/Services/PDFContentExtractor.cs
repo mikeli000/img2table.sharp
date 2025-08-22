@@ -37,8 +37,11 @@ namespace img2table.sharp.web.Services
         private bool _outputFigureAsImage;
         private bool _enableOCR;
         private string _docCategory;
-        private bool _drawPageChunks = false;
-        private bool _saveDectectImage = false;
+
+        // debug params
+        private bool _debug_draw_page_chunks = false;
+        private bool _debug_draw_text_box = false;
+        private bool _debug_save_dectect_image = false;
 
         public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, ExtractOptions extractOptions)
         {
@@ -228,11 +231,11 @@ namespace img2table.sharp.web.Services
                     };
                     pagedChunks.Add(pageChunks);
 
-                    if (_drawPageChunks)
+                    if (_debug_draw_page_chunks)
                     {
                         DrawPageChunks(pageImagePath, filteredChunks);
                     }
-                    if (_saveDectectImage)
+                    if (_debug_save_dectect_image)
                     {
                         var previewImageName = $"detect_page_{pageNumber}.png";
                         string previewFile = Path.Combine(workFolder, previewImageName);
@@ -250,8 +253,7 @@ namespace img2table.sharp.web.Services
             var chunks = new List<ChunkElement>();
             var pageElements = TransPageElements(pageThread.GetContentList(), ratio, pdfPage.GetPageHeight());
 
-
-            if (/*_drawPageChunks*/ false)
+            if (_debug_draw_text_box)
             {
                 DrawPageElements(pageImagePath, pageElements);
             }
@@ -503,14 +505,17 @@ namespace img2table.sharp.web.Services
 
             foreach (var chunk in pageElements)
             {
-                var x1 = chunk.Left;
-                var y1 = chunk.Top;
-                var x2 = chunk.Right;
-                var y2 = chunk.Bottom;
+                if (chunk.PageElement is TextElement)
+                {
+                    var x1 = chunk.Left;
+                    var y1 = chunk.Top;
+                    var x2 = chunk.Right;
+                    var y2 = chunk.Bottom;
 
-                var scalarColor = new Scalar(255, 0, 255);
-                // Draw rectangle
-                Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
+                    var scalarColor = new Scalar(255, 0, 0);
+                    // Draw rectangle
+                    Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
+                }
             }
 
             Cv2.ImWrite(pageImagePath, image);
@@ -604,6 +609,8 @@ namespace img2table.sharp.web.Services
             return RectangleF.FromLTRB(Left, Top, Right, Bottom);
         }
 
+        public string OCRText { get; set; } = string.Empty;
+
         public string Content
         {
             get
@@ -611,6 +618,10 @@ namespace img2table.sharp.web.Services
                 if (PageElement is TextElement textElement)
                 {
                     return textElement.GetText();
+                }
+                else if (PageElement is ImageElement)
+                {
+                    return OCRText;
                 }
 
                 return string.Empty;

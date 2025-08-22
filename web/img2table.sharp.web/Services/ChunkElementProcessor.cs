@@ -6,6 +6,7 @@ using System.Text;
 using System;
 using System.IO;
 using img2table.sharp.Img2table.Sharp.Tabular;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace img2table.sharp.web.Services
 {
@@ -98,6 +99,7 @@ namespace img2table.sharp.web.Services
                         ProcessPageHeaderChunk(chunkElement);
                     }
                     break;
+                case ChunkType.Number:
                 case ChunkType.PageNumber:
                 case ChunkType.Text:
                     ProcessTextChunk(chunkElement);
@@ -210,14 +212,13 @@ namespace img2table.sharp.web.Services
                 }
                 else if (content.PageElement is TextElement textElement)
                 {
-                    // TODO: group line
                     textElements.Add(content);
                 }
             }
 
             if (textElements.Count > 0)
             {
-                WriteText(textElements);
+                WriteText(textElements, chunkElement.ChunkObject);
             }
             else
             {
@@ -233,8 +234,45 @@ namespace img2table.sharp.web.Services
             }
         }
 
-        private void WriteText(IEnumerable<ContentElement> contents)
+        private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR)
         {
+            var lines = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath);
+            if (lines == null || lines.Count == 0)
+            {
+                return;
+            }
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line.Text))
+                {
+                    _writer.AppendLine();
+                }
+                else
+                {
+                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(line.Text, out var listTag);
+                    var firstContent = line.contents.FirstOrDefault()?.PageElement;
+                    if (firstContent != null && firstContent is TextElement)
+                    {
+                        isListParagraphBegin = ((TextElement)firstContent).IsWingdingFont();
+                    }
+
+                    if (isListParagraphBegin)
+                    {
+                        _writer.WriteListItemTag();
+                    }
+                    _writer.AppendText(line.Text);
+                }
+            }
+        }
+
+        private void WriteText(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoLinkBreak = false, bool autoOCR = false)
+        {
+            if (autoLinkBreak)
+            {
+                WriteLine(contents, chunkObject, autoOCR);
+                return;
+            }
+
             TextElement prev = null;
             foreach (var content in contents)
             {
@@ -329,8 +367,7 @@ namespace img2table.sharp.web.Services
             {
                 tryOCR = true;
             }
-
-            if (contents.Count() == 1)
+            else if (contents.Count() == 1)
             {
                 tryOCR = contents.ElementAt(0).PageElement is ImageElement;
             }
@@ -356,7 +393,7 @@ namespace img2table.sharp.web.Services
                 return;
             }
 
-            WriteText(contents);
+            WriteText(contents, chunkElement.ChunkObject, true, _enableOCR);
         }
     }
 

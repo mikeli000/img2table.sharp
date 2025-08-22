@@ -20,7 +20,11 @@ namespace Img2table.Sharp.Tabular.TableImage
         private List<Line> _lines;
         private List<Table> _tables;
         private bool _shouldOCR = false;
+
         public static bool Debug = false;
+        public static string _debug_temp_folder = @"C:\temp\img2table";
+        private bool _debug_draw_lines = true;
+        private bool _debug_draw_kv_table = false;
 
         public TableImage(Mat img)
         {
@@ -94,11 +98,6 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void CompsiteKVTable()
-        {
-
-        }
-
         private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
         {
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Min(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
@@ -111,7 +110,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             {
                 RemoveLinesInBox(hLines, textBoxes);
                 RemoveLinesInBox(vLines, textBoxes);
-                ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
+                //ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
                 hLines = hLines.OrderBy(hl => hl.Y1).ToList();
 
                 if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
@@ -121,65 +120,28 @@ namespace Img2table.Sharp.Tabular.TableImage
                         _tables = _tables?? new List<Table>();
                         _tables.Add(kvTable);
 
-                        if (false)
+                        if (_debug_draw_kv_table)
                         {
-                            var debugImage = _img.Clone();
-
-                            var table = _tables.FirstOrDefault();
-                            foreach (var row in table.Rows)
-                            {
-                                foreach (var cell in row.Cells)
-                                {
-                                    Cv2.Rectangle(debugImage, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), Scalar.Yellow, 1);
-                                }
-                            }
-
-                            var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
-                            Cv2.ImWrite(file, debugImage);
+                            DebugDrawKVTables(_img, _tables);
                         }
+                        
                         return;
                     }
                 }
 
-                vLines = PostionedTableCellDetector.DetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, _charLength);
+                if (_debug_draw_lines)
+                {
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
+
+                if (PostionedTableCellDetector.TryDetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var detectVLines))
+                {
+                    vLines = detectVLines;
+                }
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
-
-                if (false)
-                {
-                    var debugImage = _img.Clone();
-                    foreach (var line in originalHLines)
-                    {
-                        Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Red, 2);
-                    }
-                    foreach (var line in originalVLines)
-                    {
-                        Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Green, 2);
-                    }
-
-                    //Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
-                    if (textBoxes != null)
-                    {
-                        foreach (var box in textBoxes)
-                        {
-                            Cv2.Rectangle(debugImage, box, Scalar.Orange, 1);
-                        }
-                    }
-
-                    //var table = _tables.FirstOrDefault();
-                    //foreach (var row in table.Rows)
-                    //{
-                    //    foreach (var cell in row.Cells)
-                    //    {
-                    //        Cv2.Rectangle(debugImage, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), Scalar.Yellow, 1);
-                    //    }
-                    //}
-
-                    var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
-                    Cv2.ImWrite(file, debugImage);
-                }
             }
             else
             {
@@ -517,6 +479,57 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
 
             return thresh;
+        }
+
+        private static void DebugDrawKVTables(Mat src, List<Table> kvTables)
+        {
+            var debugImage = src.Clone();
+
+            var table = kvTables.FirstOrDefault();
+            foreach (var row in table.Rows)
+            {
+                foreach (var cell in row.Cells)
+                {
+                    Cv2.Rectangle(debugImage, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), Scalar.Yellow, 1);
+                }
+            }
+
+            var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
+            Cv2.ImWrite(file, debugImage);
+        }
+
+        private static void DebugDrawLines(Mat src, IEnumerable<Line> hLines, IEnumerable<Line> vLines, IEnumerable<TextRect> textBoxes)
+        {
+            var debugImage = src.Clone();
+            foreach (var line in hLines)
+            {
+                Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Blue, 2);
+            }
+            foreach (var line in vLines)
+            {
+                Cv2.Line(debugImage, line.X1, line.Y1, line.X2, line.Y2, Scalar.Green, 2);
+            }
+
+            //Cv2.Rectangle(debugImage, tableBbox.Value, Scalar.Magenta, 1);
+            if (textBoxes != null)
+            {
+                foreach (var box in textBoxes)
+                {
+                    Cv2.Rectangle(debugImage, box, Scalar.Orange, 1);
+                }
+            }
+
+            //var table = _tables.FirstOrDefault();
+            //foreach (var row in table.Rows)
+            //{
+            //    foreach (var cell in row.Cells)
+            //    {
+            //        Cv2.Rectangle(debugImage, new Rect(cell.X1, cell.Y1, cell.Width, cell.Height), Scalar.Yellow, 1);
+            //    }
+            //}
+
+            var file = $@"{_debug_temp_folder}\{Guid.NewGuid().ToString()}.png";
+            Cv2.ImWrite(file, debugImage);
         }
     }
 }

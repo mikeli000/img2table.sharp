@@ -46,6 +46,8 @@ namespace img2table.sharp.web.Models
         public double X1 => BoundingBox[2];
         [JsonIgnore]
         public double Y1 => BoundingBox[3];
+        [JsonIgnore]
+        public double Width => X1 - X0;
     }
 
     public class TableChunk
@@ -188,7 +190,7 @@ namespace img2table.sharp.web.Models
             }
             else if (string.Equals(label, Number, StringComparison.OrdinalIgnoreCase))
             {
-                return PageNumber;
+                return Number;
             }
             else if (string.Equals(label, Title, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(label, DocTitle, StringComparison.OrdinalIgnoreCase))

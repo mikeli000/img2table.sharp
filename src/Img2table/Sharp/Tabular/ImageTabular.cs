@@ -77,6 +77,7 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
+        // TODO: refact
         public static void LoadRowText(Row row, List<Cell> pageTextCells, TabularParameter parameter, bool useHtml = false)
         {
             foreach (var cell in row.Cells)
@@ -87,12 +88,12 @@ namespace Img2table.Sharp.Tabular
                 }
 
                 var cellRect = cell.Rect();
-                var oneTextCells = FindTextElement(cellRect, pageTextCells, parameter);
+                var allTextCells = FindTextElement(cellRect, pageTextCells, parameter);
 
-                if (oneTextCells.Count > 0)
+                if (allTextCells.Count > 0)
                 {
                     Cell prev = null;
-                    foreach (var curr in oneTextCells)
+                    foreach (var curr in allTextCells)
                     {
                         bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content, out var listTag);
                         if (prev != null)

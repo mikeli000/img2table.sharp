@@ -7,35 +7,161 @@ using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
 
 public class PostionedTableCellDetector
 {
-    public static List<Line> DetectVerLines(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth)
+    private static List<int> CalcColumnPositions(List<Line> vLines, List<int> detectPos, IEnumerable<TextRect> textBoxes)
     {
+        var originPos = vLines.Select(line => line.X1).ToList();
+        if (originPos.Count() >= detectPos.Count())
+        {
+            return originPos;
+        }
+
+        // 合并 originPos, detectPos, 去重并排序
+        var allPositions = originPos.Concat(detectPos)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+
+        List<int> vPos = new List<int>();
+        for (int i = 1; i < allPositions.Count; i++)
+        {
+            int currPoint = allPositions[i];
+            int prePoint = allPositions[i - 1];
+
+            // 查找当前点对应的垂直线
+            Line currVLine = null;
+            Line preVLine = null;
+            if (originPos.Contains(currPoint))
+            {
+                currVLine = vLines.FirstOrDefault(line => line.X1 == currPoint);
+            }
+            if (originPos.Contains(prePoint))
+            {
+                preVLine = vLines.FirstOrDefault(line => line.X1 == prePoint);
+            }
+            
+            if (currVLine != null && preVLine != null)
+            {
+                vPos.Add(currPoint);
+                continue;
+            }
+
+            if (currVLine == null && preVLine == null)
+            {
+                vPos.Add(currPoint);
+                continue;
+            }
+
+            Rect? gapRect = null;
+            if (currVLine != null && preVLine == null)
+            {
+                gapRect = new Rect(currPoint, currVLine.Y1, prePoint - currPoint, currVLine.Height);
+            }
+            else if (currVLine == null && preVLine != null)
+            {
+                gapRect = new Rect(prePoint, preVLine.Y1, currPoint - prePoint, preVLine.Height);
+            }
+
+            if (gapRect != null)
+            {
+                // 检查 gapRect 是否包含 textBoxes 中的 text box
+                bool hasTextBox = textBoxes.Any(box =>
+                    box.Left >= gapRect.Value.Left &&
+                    box.Right <= gapRect.Value.Right &&
+                    box.Top >= gapRect.Value.Top &&
+                    box.Bottom <= gapRect.Value.Bottom);
+
+                if (hasTextBox)
+                {
+                    vPos.Add(currPoint);
+                }
+                else
+                {
+                    var remain = currVLine != null ? currPoint : prePoint;
+                }
+            }
+        }
+
+        return vPos;
+    }
+
+    private static void ExtendVLines(List<int> finalVPos, List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes, Rect tableBbox)
+    {
+        if (finalVPos == null)
+        {
+            return;
+        }
+
+        var textBoxList = textBoxes.ToList();
+
+        foreach (var p in finalVPos)
+        {
+            var vLine = vLines.FirstOrDefault(line => line.X1 == p);
+            if (vLine != null)
+            {
+                var intersectingTextBoxes = textBoxList.Where(textBox =>
+                    textBox.Left <= p && textBox.Right >= p && textBox.Top > vLine.Y1
+                ).ToList();
+
+                if (intersectingTextBoxes.Any())
+                {
+                    var nearestTextBox = intersectingTextBoxes.OrderBy(tb => tb.Top).First();
+
+                    var nearestHLine = hLines
+                        .Where(hLine => hLine.Y1 <= nearestTextBox.Top && hLine.Y1 >= vLine.Y2)
+                        .OrderByDescending(hLine => hLine.Y1)
+                        .FirstOrDefault();
+
+                    if (nearestHLine != null)
+                    {
+                        vLine.Y2 = nearestHLine.Y1;
+                    }
+                    else
+                    {
+                        vLine.Y2 = nearestTextBox.Top - nearestTextBox.Height / 2;
+                    }
+                }
+                else
+                {
+                    vLine.Y2 = tableBbox.Bottom;
+                }
+            }
+            else
+            {
+                var newLine = new Line(p, tableBbox.Top, p, tableBbox.Bottom);
+                vLines.Add(newLine);
+            }
+        }
+    }
+
+    public static bool TryDetectVerLines(List<Line> srcHLines, List<Line> srcVLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out List<Line> dstVLines)
+    {
+        dstVLines = new List<Line>();
+        dstVLines.AddRange(srcVLines);
+
         Line topLine = null;
-        if (hLines.Count == 0)
+        if (srcHLines.Count == 0)
         {
             topLine = new Line(tableBbox.Left, tableBbox.Top, tableBbox.Right, tableBbox.Top);
         }
         else
         {
-            topLine = hLines[0];
+            topLine = srcHLines[0];
         }
-        Line? secLine = hLines.Count > 2 ? hLines[1] : null;
+        Line? secLine = srcHLines.Count > 2 ? srcHLines[1] : null;
 
-        var columnPositions = DetectColumnPositions(textBoxes, tableBbox, charWidth);
-        var exists = vLines.Select(line => line.X1).ToList();
-        foreach (var p in columnPositions)
-        {
-            if (exists.Contains(p))
-            {
-                continue;
-            }
+        var detectVPos = DetectColumnPositions(textBoxes, tableBbox, charWidth);
+        var finalVPos = CalcColumnPositions(dstVLines, detectVPos, textBoxes);
+        ExtendVLines(finalVPos, srcHLines, dstVLines, textBoxes, tableBbox);
 
-            var newLine = new Line(p, tableBbox.Top, p, tableBbox.Bottom);
-            vLines.Add(newLine);
-            exists.Add(p);
-        }
 
-        vLines = RemoveRedundantLines(vLines, textBoxes);
-        exists = vLines.Select(line => line.X1).ToList();
+        // ---------------------
+        // 查到
+        
+        // -------------------------
+
+
+        dstVLines = RemoveRedundantLines(dstVLines, textBoxes);
+        finalVPos = dstVLines.Select(line => line.X1).ToList();
         secLine = null;
         if (secLine != null)
         {
@@ -45,33 +171,33 @@ public class PostionedTableCellDetector
             tbodyBbox.Width = tableBbox.Width;
             tbodyBbox.Height = tableBbox.Bottom - secLine.Y1;
 
-            var secPositions = DetectBodyVerLines(textBoxes, tbodyBbox, columnPositions, charWidth);
-            if (!PostionEqual(columnPositions, secPositions))
+            var secPositions = DetectBodyVerLines(textBoxes, tbodyBbox, detectVPos, charWidth);
+            if (!PostionEqual(detectVPos, secPositions))
             {
                 // 这里需要判断 延长 second line 是否会跟某个 text box 相交, 如果相交, 则不延长
-                secLine.X1 = tbodyBbox.Left;
-                secLine.X2 = tableBbox.Right;
+                //secLine.X1 = tbodyBbox.Left;
+                //secLine.X2 = tableBbox.Right;
 
 
                 foreach (var p in secPositions)
                 {
-                    if (exists.Contains(p))
+                    if (finalVPos.Contains(p))
                     {
                         continue;
                     }
-                    vLines.Add(new Line(p, tbodyBbox.Top, p, tbodyBbox.Bottom));
+                    dstVLines.Add(new Line(p, tbodyBbox.Top, p, tbodyBbox.Bottom));
                 }
             }
         }
 
-        return vLines;
+        return true;
     }
 
     public static bool TryDetectKVTable(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out KeyValueTable keyValueTable)
     {
         keyValueTable = null;
         bool isKVTablePossible = false;
-        var minGap = charWidth * 2;
+        var minGap = charWidth * 4; // TODO
         var columnPositions = ScanForGapsBetweenBoxes(textBoxes, minGap);
         if (columnPositions.Count <= 1)
         {
@@ -194,33 +320,7 @@ public class PostionedTableCellDetector
             }
         }
 
-        //if (k_merge_cells_possible.Count > 0)
-        //{
-        //    var k_merge_lines = new List<List<int>>();
-        //    foreach (var entry in k_merge_cells_possible)
-        //    {
-        //        var line = entry.Key;
-
-        //        var m_lines = new List<int> { line };
-        //        int i_next = line + 1;
-        //        while (i_next < kv_rows.Count)
-        //        {
-        //            if (k_merge_cells_possible.ContainsKey(i_next))
-        //            {
-        //                m_lines.Add(i_next);
-        //                i_next++;
-        //                continue;
-        //            }
-
-        //            var nextRow = kv_rows[line + 1];
-        //            if (nextRow.NbColumns == 2)
-        //            {
-        //                break;
-        //            }
-
-        //        }
-        //    }
-        //}
+        // TODO: merge possible k/v line
 
         keyValueTable = new KeyValueTable(kv_rows);
 
@@ -299,7 +399,6 @@ public class PostionedTableCellDetector
 
         return lines;
     }
-
 
     private static List<List<TextRect>> GroupTextRectsByLine(IEnumerable<TextRect> rects)
     {
@@ -517,14 +616,14 @@ public class PostionedTableCellDetector
 
     private static List<int> DetectColumnPositions(IEnumerable<TextRect> textBoxes, Rect tableRect, double charWidth)
     {
-        var columnPositions = ScanForGapsBetweenBoxes(textBoxes, charWidth);
+        var columnPositions = ScanForGapsBetweenBoxes(textBoxes, charWidth * 1.5);
         columnPositions.Insert(0, tableRect.Left);
         columnPositions.Insert(columnPositions.Count, tableRect.Right);
 
         return columnPositions;
     }
 
-    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<TextRect> textBoxes, double charWidth)
+    private static List<int> ScanForGapsBetweenBoxes(IEnumerable<TextRect> textBoxes, double minGapW)
     {
         var gaps = new List<int>();
         if (textBoxes == null || textBoxes.Count() == 0)
@@ -533,8 +632,6 @@ public class PostionedTableCellDetector
         }
 
         int step = 1;
-        var minGapW = charWidth * 2;
-
         var textBoxesCopy = new List<TextRect>(textBoxes);
         int minX = textBoxesCopy.Min(r => r.Left);
         int maxX = textBoxesCopy.Max(r => r.Right);
