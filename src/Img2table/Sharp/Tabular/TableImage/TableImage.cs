@@ -129,15 +129,17 @@ namespace Img2table.Sharp.Tabular.TableImage
                     }
                 }
 
+                if (PostionedTableCellDetector.TryDetectLines(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var detectHLines, out var detectVLines))
+                {
+                    hLines = detectHLines;
+                    vLines = detectVLines;
+                }
                 if (_debug_draw_lines)
                 {
                     DebugDrawLines(_img, hLines, vLines, textBoxes);
                 }
 
-                if (PostionedTableCellDetector.TryDetectVerLines(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var detectVLines))
-                {
-                    vLines = detectVLines;
-                }
+
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 

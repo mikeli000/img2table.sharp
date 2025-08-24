@@ -172,7 +172,7 @@ namespace img2table.sharp.web.Services
             Rect roi = new Rect(
                 (int)Math.Floor(tableBbox.X),
                 (int)Math.Floor(tableBbox.Y),
-                (int)Math.Ceiling(tableBbox.Width),
+                (int)Math.Ceiling(tableBbox.Width + 4), // TODO
                 (int)Math.Ceiling(tableBbox.Height)
             );
 
