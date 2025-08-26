@@ -95,7 +95,7 @@ namespace Img2table.Sharp.Tabular
                     Cell prev = null;
                     foreach (var curr in allTextCells)
                     {
-                        bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content, out var listTag);
+                        bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content, out var ordered, out var listTag);
                         if (prev != null)
                         {
                             if (prev.Baseline == curr.Baseline)
@@ -169,7 +169,7 @@ namespace Img2table.Sharp.Tabular
                 return true;
             }
 
-            return TextElement.IsListParagraphBegin(text, out _);
+            return TextElement.IsListParagraphBegin(text, out _, out _);
         }
 
         private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter)

@@ -87,7 +87,14 @@ namespace img2table.sharp.web.Services
                 Directory.CreateDirectory(workFolder);
             }
 
-            _chunkElementProcessor = new ChunkElementProcessor(workFolder, jobFolderName, _useEmbeddedHtml, _ignoreMarginalia, _outputFigureAsImage, _enableOCR);
+            var chunkElementProcessorParameter = new ChunkElementProcessorParameter
+            {
+                UseEmbeddedHtml = _useEmbeddedHtml,
+                IgnoreMarginalia = _ignoreMarginalia,
+                OutputFigureAsImage = _outputFigureAsImage,
+                EnableOCR = _enableOCR
+            };
+            _chunkElementProcessor = new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter);
             string pdfFile = Path.Combine(workFolder, pdfFileName);
             await File.WriteAllBytesAsync(pdfFile, pdfFileBytes);
 

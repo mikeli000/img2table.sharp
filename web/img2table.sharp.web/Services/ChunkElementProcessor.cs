@@ -24,14 +24,21 @@ namespace img2table.sharp.web.Services
         private bool _enableOCR = true;
         private bool _removeBulletChar = false;
 
-        public ChunkElementProcessor(string workFolder, string jobFolderName, bool userEmbeddedHtml = false, bool ignoreMarginalia = false, bool outputFigureAsImage = false, bool enableOCR = false)
+        public ChunkElementProcessor(string workFolder, string jobFolderName, ChunkElementProcessorParameter paras)
         {
-            _userEmbeddedHtml = userEmbeddedHtml;
-            _ignoreMarginalia = ignoreMarginalia;
-            _outputFigureAsImage = outputFigureAsImage;
             _workFolder = workFolder ?? throw new ArgumentNullException(nameof(workFolder));
             _jobFolderName = jobFolderName ?? throw new ArgumentNullException(nameof(jobFolderName));
-            _enableOCR = enableOCR;
+
+            if (paras != null)
+            {
+                _userEmbeddedHtml = paras.UseEmbeddedHtml;
+                _ignoreMarginalia = paras.IgnoreMarginalia;
+                _outputFigureAsImage = paras.OutputFigureAsImage;
+                _workFolder = workFolder ?? throw new ArgumentNullException(nameof(workFolder));
+                _jobFolderName = jobFolderName ?? throw new ArgumentNullException(nameof(jobFolderName));
+                _enableOCR = paras.EnableOCR;
+                _removeBulletChar = paras.RemoveBulletChar;
+            }
         }
 
         public string Process(ChunkElement chunkElement, string pageImagePath)
@@ -236,30 +243,28 @@ namespace img2table.sharp.web.Services
 
         private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR)
         {
-            var lines = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath);
-            if (lines == null || lines.Count == 0)
+            var textParagraphs = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath, _removeBulletChar);
+            if (textParagraphs == null || textParagraphs.Count == 0)
             {
                 return;
             }
-            foreach (var line in lines)
+            foreach (var line in textParagraphs)
             {
                 if (string.IsNullOrWhiteSpace(line.Text))
                 {
                     _writer.AppendLine();
+                    continue;
+                }
+                
+                if (line.IsListItem)
+                {
+                    chunkObject.Label = ChunkType.ListItem;
+                    _writer.WriteListItemTag();
+                    _writer.AppendText(line.Text);
+                    _writer.AppendLine();
                 }
                 else
                 {
-                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(line.Text, out var listTag);
-                    var firstContent = line.contents.FirstOrDefault()?.PageElement;
-                    if (firstContent != null && firstContent is TextElement)
-                    {
-                        isListParagraphBegin = ((TextElement)firstContent).IsWingdingFont();
-                    }
-
-                    if (isListParagraphBegin)
-                    {
-                        _writer.WriteListItemTag();
-                    }
                     _writer.AppendText(line.Text);
                 }
             }
@@ -297,7 +302,7 @@ namespace img2table.sharp.web.Services
                 {
                     var curr = content.PageElement as TextElement;
                     string text = curr.GetText();
-                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(text, out var listTag) || curr.IsWingdingFont();
+                    bool isListParagraphBegin = TextElement.IsListParagraphBegin(text, out var ordered, out var listTag) || curr.IsWingdingFont();
                     if (prev != null)
                     {
                         if (Math.Round(prev.GetBaselineY()) == Math.Round(curr.GetBaselineY()))
@@ -484,4 +489,12 @@ namespace img2table.sharp.web.Services
         }
     }
 
+    public class ChunkElementProcessorParameter
+    {
+        public bool UseEmbeddedHtml { get; set; } = false;
+        public bool IgnoreMarginalia { get; set; } = false;
+        public bool OutputFigureAsImage { get; set; } = false;
+        public bool EnableOCR { get; set; } = false;
+        public bool RemoveBulletChar { get; set; } = true;
+    }
 }

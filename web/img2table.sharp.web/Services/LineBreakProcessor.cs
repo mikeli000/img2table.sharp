@@ -1,5 +1,4 @@
 ﻿using img2table.sharp.Img2table.Sharp.Tabular;
-using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using img2table.sharp.web.Models;
 using PDFDict.SDK.Sharp.Core.Contents;
 using System;
@@ -13,47 +12,102 @@ namespace img2table.sharp.web.Services
 {
     public class LineBreakProcessor
     {
-        public class TextLine
+        public class TextParagraph
         {
+            public bool IsListItem { get; set; }
+            public bool IsOrderedList { get; set; }
+            public string ListTag { get; set; }
+            public double AverageCharWidth { get; set; }
+            public int LeftIndent { get; set; }
             public string Text { get; set; }
             public IEnumerable<ContentElement> contents { get; set; }
         }
 
-        public static void ProcessLineBreaks(ChunkElement chunkElement, bool autoOCR, string workFolder, string pageImagePath)
+        public static void ProcessLineBreaks(ChunkElement chunkElement, bool autoOCR, string workFolder, string pageImagePath, bool hiddenListTag)
         {
             var contents = chunkElement.ContentElements;
-            ProcessLineBreaks(contents, chunkElement.ChunkObject, autoOCR, workFolder, pageImagePath);
+            ProcessLineBreaks(contents, chunkElement.ChunkObject, autoOCR, workFolder, pageImagePath, hiddenListTag);
         }
 
-        public static List<TextLine> ProcessLineBreaks(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, string workFolder, string pageImagePath)
+        public static List<TextParagraph> ProcessLineBreaks(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, string workFolder, string pageImagePath, bool hiddenListTag)
         {
             if (contents == null || !contents.Any())
             {
-                return new List<TextLine>();
+                return new List<TextParagraph>();
             }
 
-            var lineTexts = new List<TextLine>();
+            var lineTexts = new List<TextParagraph>();
             var lines = GroupLine(contents.ToList());
-
             foreach (var line in lines)
             {
                 StringBuilder sb = new StringBuilder();
+                double averageCharWidth = CalcAverageCharWidth(line);
+                ContentElement lastSeg = null;
+                var textParagraph = new TextParagraph();
+
                 for (int i = 0; i < line.Count; i++)
                 {
                     var seg = line[i];
 
-                    if (seg.PageElement is ImageElement && autoOCR)
+                    if (seg.PageElement is ImageElement)
                     {
-                        var imageName = $"img_{Guid.NewGuid().ToString()}.png";
-                        string tempImagePath = Path.Combine(workFolder, imageName);
-                        ChunkUtils.ClipImage(pageImagePath, tempImagePath, seg.Rect(), false);
+                        if (autoOCR)
+                        {
+                            var imageName = $"img_{Guid.NewGuid().ToString()}.png";
+                            string tempImagePath = Path.Combine(workFolder, imageName);
+                            ChunkUtils.ClipImage(pageImagePath, tempImagePath, seg.Rect(), false);
 
-                        seg.OCRText = OCRUtils.PaddleOCRText(tempImagePath);
+                            seg.OCRText = OCRUtils.PaddleOCRText(tempImagePath);
+
+                            if (string.IsNullOrEmpty(seg.OCRText))
+                            {
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            continue;
+                        }
                     }
 
                     if (i == 0)
                     {
                         sb.Append(seg.Content);
+
+                        // is symbol winding font?
+                        bool isWindingSymbol = false;
+                        if (seg.PageElement is TextElement)
+                        {
+                            isWindingSymbol = ((TextElement)seg.PageElement).IsWingdingFont();
+                        }
+                        // if this is standalone list tag element, calc next seg distance? is Tab?
+                        bool tabAfter = false;
+                        if (i < line.Count - 1)
+                        {
+                            var nextSeg = line[i + 1];
+                            var distance = nextSeg.Left - seg.Right;
+                            if (distance > averageCharWidth)
+                            {
+                                tabAfter = true;
+                            }
+                        }
+
+                        if (TextElement.IsListParagraphBegin(seg.Content, out var ordered, out var listTag) || isWindingSymbol)
+                        {
+                            if (seg.Content.Trim().Length == listTag.Trim().Length && tabAfter)
+                            {
+                                textParagraph.IsListItem = true;
+                                textParagraph.ListTag = listTag;
+                                textParagraph.IsOrderedList = ordered;
+                                textParagraph.LeftIndent = seg.Left;
+                                textParagraph.AverageCharWidth = averageCharWidth;
+
+                                if (hiddenListTag && listTag != null)
+                                {
+                                    sb = sb.Remove(0, listTag.Length);
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -67,6 +121,13 @@ namespace img2table.sharp.web.Services
                         else if (nextC != null && (IsHyphen(nextC.Value) || char.IsWhiteSpace(nextC.Value)))
                         {
                             insertWS = false;
+                        }
+                        else if (lastSeg != null)
+                        {
+                            if (seg.Left - lastSeg.Right < averageCharWidth)
+                            {
+                                insertWS = false;
+                            }
                         }
 
                         if (insertWS)
@@ -87,15 +148,32 @@ namespace img2table.sharp.web.Services
                     sb.Append(" ");
                 }
 
-                var textLine = new TextLine
-                {
-                    Text = sb.ToString(),
-                    contents = line
-                };
-                lineTexts.Add(textLine);
+                textParagraph.Text = sb.ToString();
+                textParagraph.contents = line;
+                lineTexts.Add(textParagraph);
             }
 
             return lineTexts;
+        }
+
+        private static double CalcAverageCharWidth(IEnumerable<ContentElement> contents)
+        {
+            double totalWidth = 0;
+            int charCount = 0;
+            foreach (var c in contents)
+            {
+                if (string.IsNullOrEmpty(c.Content))
+                {
+                    continue;
+                }
+                charCount += c.Content.Length;
+                totalWidth += c.Rect().Width;
+            }
+            if (charCount == 0)
+            {
+                return 10;
+            }
+            return totalWidth / charCount;
         }
 
         private static List<List<ContentElement>> GroupLine(List<ContentElement> contents)
@@ -111,16 +189,11 @@ namespace img2table.sharp.web.Services
                 return lines;
             }
 
-            var cols = Columnize(contents);
-            foreach (var col in cols)
-            {
-                var colLines = GroupLineInColumn(col);
-                lines.AddRange(colLines);
-            }
+            lines = GroupLineByBBox(contents);
             return lines;
         }
 
-        private static List<List<ContentElement>> GroupLineInColumn(List<ContentElement> contents)
+        private static List<List<ContentElement>> GroupLineByBBox(List<ContentElement> contents)
         {
             var lines = new List<List<ContentElement>>();
             if (contents.Count == 0)
@@ -169,7 +242,8 @@ namespace img2table.sharp.web.Services
                     }
                     else
                     {
-                        lines.Add(line.OrderBy(c => c.Left).ToList());
+                        line = SortLine(line);
+                        lines.Add(line);
                         break;
                     }
                 }
@@ -177,13 +251,45 @@ namespace img2table.sharp.web.Services
                 {
                     if (line.Count() > 0)
                     {
-                        lines.Add(line.OrderBy(c => c.Left).ToList());
+                        line = SortLine(line);
+                        lines.Add(line);
                         line = new List<ContentElement>();
                     }
                 }
             }
 
             return lines;
+        }
+
+        private static List<ContentElement> SortLine(List<ContentElement> line)
+        {
+            if (line == null || line.Count() == 0)
+            {
+                return line;
+            }
+
+            var sort = line.OrderBy(c => c.Left).ToList();
+            ContentElement prev = null;
+            for (int i = 0; i < sort.Count(); i++)
+            {
+                var curr = sort[i];
+                if (prev == null)
+                {
+                    prev = curr;
+                    continue;
+                }
+                if (curr.Bottom < prev.Top)
+                {
+                    sort[i - 1] = curr;
+                    sort[i] = prev;
+                }
+                else
+                {
+                    prev = curr;
+                }
+            }
+
+            return sort;
         }
 
         private static List<List<ContentElement>> Columnize(List<ContentElement> contents)

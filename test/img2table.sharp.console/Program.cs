@@ -25,7 +25,7 @@ namespace img2table.sharp.console
             //pre();
             //TabularImage();
 
-            RenderPDFPathOnly();
+            //RenderPDFPathOnly();
             // DetectLinesByHoughLinesP();
 
             //Paddle();
@@ -34,7 +34,7 @@ namespace img2table.sharp.console
             //TabularImage(tableBbox);
             //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
 
-            //SplitPDF();
+            SplitPDF();
 
             //TestPDFSDK();
         }
@@ -292,12 +292,12 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\ishares-us-treasury-bond-etfs-product-brief-en-us.pdf";
-            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\cc";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\Aura Copilot at Shift 2024.PDF";
+            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
             //range.Add(new int[] { 0 });
-            range.Add(new int[] { 2 });
+            range.Add(new int[] { 3 });
             //range.Add(new int[] { 104, 105, 106, 107, 108, 109, 110, 111 });
             PDFTools.SplitPDF(src, range, dst);
         }

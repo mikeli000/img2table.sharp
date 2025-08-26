@@ -16,7 +16,19 @@ public class PostionedTableCellDetector
 
         detectedHLines = DetecteHorLines(detectedHLines, tableBbox, textBoxes);
         var topLine = detectedHLines[0];
+        int delta = 8;
+        int headerSepPos = topLine.Y1 + delta;
         Line? secLine = detectedHLines.Count > 2 ? detectedHLines[1] : null;
+        if (secLine != null)
+        {
+            headerSepPos = secLine.Y1 + delta;
+        }
+        int rn = detectedVLines.RemoveAll(line => line.Y1 > headerSepPos); // remove lines below header line
+
+        if (rn > 0)
+        {
+            Console.WriteLine(rn);
+        }
 
         var columnPositions = DetectColumnPositions(textBoxes, tableBbox, charWidth);
         var finalVPos = MergeColumnPositions(detectedVLines, columnPositions, textBoxes);
@@ -127,38 +139,6 @@ public class PostionedTableCellDetector
         }
 
         return true;
-        // -------------------------old code, to be refactored-------------------------
-        detectedVLines = RemoveRedundantLines(detectedVLines, textBoxes);
-        finalVPos = detectedVLines.Select(line => line.X1).ToList();
-        secLine = null;
-        if (secLine != null)
-        {
-            var tbodyBbox = new Rect();
-            tbodyBbox.Left = tableBbox.Left;
-            tbodyBbox.Top = secLine.Y1;
-            tbodyBbox.Width = tableBbox.Width;
-            tbodyBbox.Height = tableBbox.Bottom - secLine.Y1;
-
-            var secPositions = DetectBodyVerLines(textBoxes, tbodyBbox, columnPositions, charWidth);
-            if (!PostionEqual(columnPositions, secPositions))
-            {
-                // 这里需要判断 延长 second line 是否会跟某个 text box 相交, 如果相交, 则不延长
-                //secLine.X1 = tbodyBbox.Left;
-                //secLine.X2 = tableBbox.Right;
-
-
-                foreach (var p in secPositions)
-                {
-                    if (finalVPos.Contains(p))
-                    {
-                        continue;
-                    }
-                    detectedVLines.Add(new Line(p, tbodyBbox.Top, p, tbodyBbox.Bottom));
-                }
-            }
-        }
-
-        return true;
     }
 
     private static List<Line> DetecteHorLines(List<Line> srcHLines, Rect tableBbox, IEnumerable<TextRect> textBoxes)
@@ -200,7 +180,7 @@ public class PostionedTableCellDetector
         var srcPos = srcVLines.Select(line => line.X1).ToList();
         if (srcPos.Count() >= detectVPos.Count())
         {
-            return srcPos;
+            //return srcPos;
         }
 
         var allPositions = srcPos.Concat(detectVPos)
