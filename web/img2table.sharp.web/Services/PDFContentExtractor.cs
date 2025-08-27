@@ -27,7 +27,8 @@ namespace img2table.sharp.web.Services
         public float RenderDPI { get; set; } = 300;
         public float PredictConfidenceThreshold { get; set; } = 0.2f;
 
-        public static float DEFAULT_OVERLAP_RATIO = 0.6f;
+        public static float DEFAULT_TEXT_OVERLAP_RATIO = 0.8f;
+        public static float DEFAULT_IMAGE_OVERLAP_RATIO = 0.9f;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
         
@@ -227,7 +228,7 @@ namespace img2table.sharp.web.Services
                     var predictedPageChunks = detectResult?.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
-                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks);
+                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks); // TODO
 
                     var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, tableEnhancedImagePath, filteredChunks, RenderDPI / 72f);
                     var pageChunks = new PagedChunk
@@ -423,7 +424,7 @@ namespace img2table.sharp.web.Services
             {
                 var tcRect = tc.Rect();
 
-                bool contained = IsContained(chunkBox, tcRect);
+                bool contained = IsContained(chunkBox, tcRect, DEFAULT_TEXT_OVERLAP_RATIO);
                 if (contained)
                 {
                     eles.Add(tc);
@@ -432,7 +433,7 @@ namespace img2table.sharp.web.Services
                 {
                     if (tc.PageElement.Type == PageElement.ElementType.Image)
                     {
-                        if (IsContained(tcRect, chunkBox))
+                        if (IsContained(chunkBox, tcRect, DEFAULT_IMAGE_OVERLAP_RATIO))
                         {
                             eles.Add(tc);
                         }
@@ -443,7 +444,7 @@ namespace img2table.sharp.web.Services
             return eles;
         }
 
-        private static bool IsContained(RectangleF container, RectangleF dst)
+        private static bool IsContained(RectangleF container, RectangleF dst, float overlapRatio)
         {
             RectangleF intersection = RectangleF.Intersect(container, dst);
 
@@ -460,7 +461,7 @@ namespace img2table.sharp.web.Services
             float intersectionArea = intersection.Width * intersection.Height;
             float dstArea = dst.Width * dst.Height;
 
-            return intersectionArea / dstArea >= DEFAULT_OVERLAP_RATIO;
+            return intersectionArea / dstArea >= overlapRatio;
         }
 
         public static async Task SaveBase64ImageToFileAsync(string outputFilePath, string base64String)

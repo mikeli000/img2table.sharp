@@ -6,7 +6,6 @@ using System.Text;
 using System;
 using System.IO;
 using img2table.sharp.Img2table.Sharp.Tabular;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace img2table.sharp.web.Services
 {
@@ -64,8 +63,7 @@ namespace img2table.sharp.web.Services
                     ProcessTextChunk(chunkElement);
                     break;
                 case ChunkType.TableFootnote:
-                    _writer.WriteTitleTag(5);
-                    WriteText(chunkElement);
+                    WriteText(chunkElement, 5);
                     _writer.AppendLine();
                     break;
                 case ChunkType.Table:
@@ -124,8 +122,7 @@ namespace img2table.sharp.web.Services
 
         private void ProcessTitleChunk(ChunkElement chunkElement)
         {
-            _writer.WriteTitleTag();
-            WriteText(chunkElement);
+            WriteText(chunkElement, 1);
             _writer.AppendLine();
         }
 
@@ -137,15 +134,13 @@ namespace img2table.sharp.web.Services
 
         private void ProcessPageHeaderChunk(ChunkElement chunkElement)
         {
-            _writer.WriteTitleTag(3);
-            WriteText(chunkElement);
+            WriteText(chunkElement, 3);
             _writer.AppendLine();
         }
 
         private void ProcessSectionHeaderChunk(ChunkElement chunkElement)
         {
-            _writer.WriteTitleTag(2);
-            WriteText(chunkElement);
+            WriteText(chunkElement, 2);
             _writer.AppendLine();
         }
 
@@ -241,40 +236,39 @@ namespace img2table.sharp.web.Services
             }
         }
 
-        private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR)
+        private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, int? headingLevel = null)
         {
             var textParagraphs = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath, _removeBulletChar);
             if (textParagraphs == null || textParagraphs.Count == 0)
             {
                 return;
             }
-            foreach (var line in textParagraphs)
+            foreach (var paragraph in textParagraphs)
             {
-                if (string.IsNullOrWhiteSpace(line.Text))
+                if (string.IsNullOrWhiteSpace(paragraph.Text))
                 {
                     _writer.AppendLine();
                     continue;
                 }
-                
-                if (line.IsListItem)
+
+                if (paragraph.IsListItem)
                 {
                     chunkObject.Label = ChunkType.ListItem;
-                    _writer.WriteListItemTag();
-                    _writer.AppendText(line.Text);
-                    _writer.AppendLine();
+                    _writer.WriteListItemTag(listTag: paragraph.ListTag, isOrderList: paragraph.IsOrderedList);
                 }
-                else
+                if (headingLevel != null)
                 {
-                    _writer.AppendText(line.Text);
+                    _writer.WriteTitleTag(headingLevel.Value);
                 }
+                _writer.AppendText(paragraph.Text);
             }
         }
 
-        private void WriteText(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoLinkBreak = false, bool autoOCR = false)
+        private void WriteText(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoLinkBreak = false, bool autoOCR = false, int? headingLevel = null)
         {
             if (autoLinkBreak)
             {
-                WriteLine(contents, chunkObject, autoOCR);
+                WriteLine(contents, chunkObject, autoOCR, headingLevel);
                 return;
             }
 
@@ -364,20 +358,20 @@ namespace img2table.sharp.web.Services
             }
         }
 
-        private void WriteText(ChunkElement chunkElement)
+        private void WriteText(ChunkElement chunkElement, int? headingLevel = null)
         {
             var contents = chunkElement.ContentElements;
-            bool tryOCR = false;
+            bool outputAsImage = false;
             if (contents == null || contents.Count() == 0)
             {
-                tryOCR = true;
+                outputAsImage = true;
             }
             else if (contents.Count() == 1)
             {
-                tryOCR = contents.ElementAt(0).PageElement is ImageElement;
+                outputAsImage = contents.ElementAt(0).PageElement is ImageElement;
             }
 
-            if (tryOCR)
+            if (outputAsImage)
             {
                 var imageName = $"img_{Guid.NewGuid().ToString()}.png";
                 string tempImagePath = Path.Combine(_workFolder, imageName);
@@ -398,7 +392,7 @@ namespace img2table.sharp.web.Services
                 return;
             }
 
-            WriteText(contents, chunkElement.ChunkObject, true, _enableOCR);
+            WriteText(contents, chunkElement.ChunkObject, true, _enableOCR, headingLevel);
         }
     }
 
@@ -427,15 +421,34 @@ namespace img2table.sharp.web.Services
             _sb.Append("\n");
         }
 
-        public void WriteTitleTag(int level = 1)
+        public void WriteTitleTag(int headingLevel = 1)
         {
-            level = Math.Clamp(level, 1, 6);
-            _sb.Append($"{new string('#', level)} ");
+            headingLevel = Math.Clamp(headingLevel, 1, 6);
+            _sb.Append($"{new string('#', headingLevel)} ");
         }
 
-        public void WriteListItemTag()
+        public void WriteListItemTag(string listTag = null, bool isOrderList = false, int level = 1)
         {
-            _sb.Append("- ");
+            if (level > 1)
+            {
+                _sb.Append($"{new string(' ', (level - 1) * 2)}");
+            }
+
+            if (isOrderList)
+            {
+                if (!string.IsNullOrEmpty(listTag))
+                {
+                    _sb.Append($"{listTag} ");
+                }
+                else
+                {
+                    _sb.Append($"{level}. ");
+                }
+            }
+            else
+            {
+                _sb.Append("- ");
+            }
         }
 
         public void WriteText(string text)

@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using img2table.sharp.web.Services;
-using System.Diagnostics;
 using static img2table.sharp.web.Services.LayoutDetectorFactory;
 
 namespace img2table.sharp.web.Controllers

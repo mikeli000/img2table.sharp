@@ -20,7 +20,12 @@ namespace img2table.sharp.web.Services
             public double AverageCharWidth { get; set; }
             public int LeftIndent { get; set; }
             public string Text { get; set; }
-            public IEnumerable<ContentElement> contents { get; set; }
+            public List<ContentElement> Contents { get; set; }
+
+            public TextParagraph()
+            {
+                Contents = new List<ContentElement>();
+            }
         }
 
         public static void ProcessLineBreaks(ChunkElement chunkElement, bool autoOCR, string workFolder, string pageImagePath, bool hiddenListTag)
@@ -36,15 +41,15 @@ namespace img2table.sharp.web.Services
                 return new List<TextParagraph>();
             }
 
-            var lineTexts = new List<TextParagraph>();
+            var paragraphs = new List<TextParagraph>();
             var lines = GroupLine(contents.ToList());
+            StringBuilder sb = new StringBuilder();
+            var textParagraph = new TextParagraph();
             foreach (var line in lines)
             {
-                StringBuilder sb = new StringBuilder();
                 double averageCharWidth = CalcAverageCharWidth(line);
                 ContentElement lastSeg = null;
-                var textParagraph = new TextParagraph();
-
+                
                 for (int i = 0; i < line.Count; i++)
                 {
                     var seg = line[i];
@@ -96,6 +101,14 @@ namespace img2table.sharp.web.Services
                         {
                             if (seg.Content.Trim().Length == listTag.Trim().Length && tabAfter)
                             {
+                                // end last paragraph
+                                if (!string.IsNullOrEmpty(textParagraph.Text) && textParagraph.Contents.Count() > 0)
+                                {
+                                    textParagraph.Text += "\n\n";
+                                    paragraphs.Add(textParagraph);
+                                    textParagraph = new TextParagraph();
+                                }
+
                                 textParagraph.IsListItem = true;
                                 textParagraph.ListTag = listTag;
                                 textParagraph.IsOrderedList = ordered;
@@ -142,18 +155,32 @@ namespace img2table.sharp.web.Services
                 if (IsParagraphEnd(sb.ToString())) // || IsParagraphEnd(line, chunkObject.Width)
                 {
                     sb.Append("\n\n");
+                    
+                    textParagraph.Text += sb.ToString();
+                    textParagraph.Contents.AddRange(line);
+                    paragraphs.Add(textParagraph);
+
+                    sb.Clear();
+                    textParagraph = new TextParagraph();
                 }
                 else
                 {
                     sb.Append(" ");
-                }
+                    textParagraph.Text += sb.ToString();
+                    textParagraph.Contents.AddRange(line);
 
-                textParagraph.Text = sb.ToString();
-                textParagraph.contents = line;
-                lineTexts.Add(textParagraph);
+                    sb.Clear();
+                }
             }
 
-            return lineTexts;
+            if (!string.IsNullOrEmpty(textParagraph.Text) && textParagraph.Contents.Count() > 0)
+            {
+                sb.Append("\n\n");
+                textParagraph.Text += sb.ToString();
+                paragraphs.Add(textParagraph);
+            }
+            
+            return paragraphs;
         }
 
         private static double CalcAverageCharWidth(IEnumerable<ContentElement> contents)
