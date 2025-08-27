@@ -37,6 +37,7 @@ namespace img2table.sharp.web.Services
         private bool _ignoreMarginalia;
         private bool _outputFigureAsImage;
         private bool _enableOCR;
+        private bool _embedImagesAsBase64;
         private string _docCategory;
 
         // debug params
@@ -53,6 +54,7 @@ namespace img2table.sharp.web.Services
             _ignoreMarginalia = extractOptions.IgnoreMarginalia;
             _outputFigureAsImage = extractOptions.OutputFigureAsImage;
             _enableOCR = extractOptions.EnableOCR;
+            _embedImagesAsBase64 = extractOptions.EmbedImagesAsBase64;
             _docCategory = extractOptions.DocCategory ?? LayoutDetectorFactory.DocumentCategory.AcademicPaper;
         }
 
@@ -93,7 +95,8 @@ namespace img2table.sharp.web.Services
                 UseEmbeddedHtml = _useEmbeddedHtml,
                 IgnoreMarginalia = _ignoreMarginalia,
                 OutputFigureAsImage = _outputFigureAsImage,
-                EnableOCR = _enableOCR
+                EnableOCR = _enableOCR,
+                EmbedBase64ImageData = _embedImagesAsBase64,
             };
             _chunkElementProcessor = new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter);
             string pdfFile = Path.Combine(workFolder, pdfFileName);
@@ -247,7 +250,7 @@ namespace img2table.sharp.web.Services
                     {
                         var previewImageName = $"detect_page_{pageNumber}.png";
                         string previewFile = Path.Combine(workFolder, previewImageName);
-                        await SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
+                        await ChunkUtils.SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
                     }
                 }
             });
@@ -464,17 +467,6 @@ namespace img2table.sharp.web.Services
             return intersectionArea / dstArea >= overlapRatio;
         }
 
-        public static async Task SaveBase64ImageToFileAsync(string outputFilePath, string base64String)
-        {
-            if (base64String.Contains(","))
-            {
-                base64String = base64String.Substring(base64String.IndexOf(",") + 1);
-            }
-
-            byte[] imageBytes = Convert.FromBase64String(base64String);
-            await File.WriteAllBytesAsync(outputFilePath, imageBytes);
-        }
-
         private static void DrawTableChunk(string pageImagePath, IEnumerable<TableCellChunk> cells)
         {
             if (!File.Exists(pageImagePath))
@@ -639,28 +631,43 @@ namespace img2table.sharp.web.Services
 
     public class ChunkElement
     {
+        [JsonPropertyName("chunkObject")]
         public ChunkObject ChunkObject { get; set; }
 
         [JsonIgnore]
         public IEnumerable<ContentElement> ContentElements { get; set; }
 
+        [JsonPropertyName("markdownText")]
         public string MarkdownText { get; set; }
     }
 
     public class PagedChunk
     {
+        [JsonPropertyName("pageNumber")]
         public int PageNumber { get; set; }
+
+        [JsonPropertyName("previewImagePath")]
         public string PreviewImagePath { get; set; }
+
+        [JsonPropertyName("chunks")]
         public IEnumerable<ChunkElement> Chunks { get; set; }
     }
 
     public class DocumentChunks
     {
+        [JsonPropertyName("documentName")]
         public string DocumentName { get; set; }
+
+        [JsonPropertyName("pagedChunks")]
         public IEnumerable<PagedChunk> PagedChunks { get; set; }
+
+        [JsonPropertyName("jobId")]
         public string JobId { get; set; }
+
+        [JsonPropertyName("elapsedMilliseconds")]
         public long ElapsedMilliseconds { get; set; } = 0;
 
+        [JsonPropertyName("markdown")]
         public string Markdown
         {
             get
@@ -703,6 +710,7 @@ namespace img2table.sharp.web.Services
         public bool UseEmbeddedHtml { get; set; } = false;
         public bool IgnoreMarginalia { get; set; } = false;
         public bool EnableOCR { get; set; } = false;
+        public bool EmbedImagesAsBase64 { get; set; } = false;
         public bool OutputFigureAsImage { get; set; } = false;
         public string DocCategory { get; set; } = LayoutDetectorFactory.DocumentCategory.AcademicPaper;
     }

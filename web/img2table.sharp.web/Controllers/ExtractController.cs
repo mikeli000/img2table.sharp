@@ -24,7 +24,7 @@ namespace img2table.sharp.web.Controllers
 
         [HttpPost]
         public async Task<IActionResult> Post([FromForm] IFormFile uploadFile, [FromForm] bool useEmbeddedHtml = false, 
-            [FromForm] bool ignoreMarginalia = false, [FromForm] bool autoOCR = false, [FromForm] string docType = "slide")
+            [FromForm] bool ignoreMarginalia = false, [FromForm] bool autoOCR = false, [FromForm] bool embedImagesAsBase64 = false, [FromForm] string docType = "slide")
         {
             if (uploadFile == null || uploadFile.Length == 0)
             {
@@ -46,6 +46,7 @@ namespace img2table.sharp.web.Controllers
                 OutputFigureAsImage = true,
                 DocCategory = docType,
                 EnableOCR = autoOCR,
+                EmbedImagesAsBase64 = embedImagesAsBase64
             };
 
             PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, extractOptions);

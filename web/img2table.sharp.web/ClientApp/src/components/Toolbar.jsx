@@ -31,9 +31,9 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
           <TooltipTrigger asChild>
             <div className="flex items-center gap-2">
               <span className="font-medium">Document Type:</span>
-              <Select value={docType} onValueChange={handleDocTypeChange}>
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue />
+              <Select value={docType} onValueChange={handleDocTypeChange} disabled>
+                <SelectTrigger className="w-[220px] bg-gray-100 text-gray-400 cursor-not-allowed">
+                  <SelectValue placeholder="Select document type..." />
                 </SelectTrigger>
                 <SelectContent className="z-50">
                   <SelectItem value="academic">

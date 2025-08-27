@@ -22,6 +22,7 @@ namespace img2table.sharp.web.Services
         private string _pageImagePath;
         private bool _enableOCR = true;
         private bool _removeBulletChar = false;
+        private bool _embedBase64ImageData = false;
 
         public ChunkElementProcessor(string workFolder, string jobFolderName, ChunkElementProcessorParameter paras)
         {
@@ -37,6 +38,7 @@ namespace img2table.sharp.web.Services
                 _jobFolderName = jobFolderName ?? throw new ArgumentNullException(nameof(jobFolderName));
                 _enableOCR = paras.EnableOCR;
                 _removeBulletChar = paras.RemoveBulletChar;
+                _embedBase64ImageData = paras.EmbedBase64ImageData;
             }
         }
 
@@ -230,8 +232,16 @@ namespace img2table.sharp.web.Services
                     string tempImagePath = Path.Combine(_workFolder, imageName);
                     ChunkUtils.ClipChunkRectImage(_pageImagePath, tempImagePath, chunkElement.ChunkObject, false);
 
-                    var imageUrl = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
-                    _writer.WritePicture(imageUrl);
+                    if (_embedBase64ImageData)
+                    {
+                        var imageData = ChunkUtils.EncodeBase64ImageData(tempImagePath);
+                        _writer.WritePictureWithBase64(imageData);
+                    }
+                    else
+                    {
+                        var imageUrl = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                        _writer.WritePicture(imageUrl);
+                    }
                 }
             }
         }
@@ -385,8 +395,16 @@ namespace img2table.sharp.web.Services
                 }
                 else
                 {
-                    var imagePath = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
-                    _writer.WritePicture(imagePath);
+                    if (_embedBase64ImageData)
+                    {
+                        var imageData = ChunkUtils.EncodeBase64ImageData(tempImagePath);
+                        _writer.WritePictureWithBase64(imageData);
+                    }
+                    else
+                    {
+                        var imagePath = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                        _writer.WritePicture(imagePath);
+                    }
                 }
 
                 return;
@@ -475,6 +493,12 @@ namespace img2table.sharp.web.Services
             _sb.AppendLine();
         }
 
+        public void WritePictureWithBase64(string base64ImageData, string altText = "")
+        {
+            _sb.AppendLine($"![{altText}]({base64ImageData})");
+            _sb.AppendLine();
+        }
+
         public void WriteListItem(IEnumerable<string> items, bool ordered = false)
         {
             int i = 1;
@@ -509,5 +533,6 @@ namespace img2table.sharp.web.Services
         public bool OutputFigureAsImage { get; set; } = false;
         public bool EnableOCR { get; set; } = false;
         public bool RemoveBulletChar { get; set; } = true;
+        public bool EmbedBase64ImageData { get; set; } = false;
     }
 }

@@ -3,7 +3,9 @@ using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace img2table.sharp.web.Services
 {
@@ -191,5 +193,57 @@ namespace img2table.sharp.web.Services
             }
         }
 
+        public static async Task SaveBase64ImageToFileAsync(string outputFilePath, string base64String)
+        {
+            if (base64String.Contains(","))
+            {
+                base64String = base64String.Substring(base64String.IndexOf(",") + 1);
+            }
+
+            byte[] imageBytes = Convert.FromBase64String(base64String);
+            await File.WriteAllBytesAsync(outputFilePath, imageBytes);
+        }
+
+        public static string EncodeBase64ImageData(string imageFile)
+        {
+            try
+            {
+                if (!File.Exists(imageFile))
+                {
+                    Console.WriteLine($"File not found {imageFile}");
+                    return null;
+                }
+
+                byte[] imageBytes = File.ReadAllBytes(imageFile);
+                string base64String = Convert.ToBase64String(imageBytes);
+
+                string extension = Path.GetExtension(imageFile).ToLower();
+                string mimeType = GetMimeType(extension);
+
+                string imageData = $"data:{mimeType};base64,{base64String}";
+                return imageData;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to encode image to base64: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        private static string GetMimeType(string extension)
+        {
+            return extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".bmp" => "image/bmp",
+                ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
+                ".ico" => "image/x-icon",
+                _ => "image/jpeg"
+            };
+        }
     }
 }
