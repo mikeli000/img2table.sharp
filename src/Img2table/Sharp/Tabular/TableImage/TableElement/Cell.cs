@@ -84,7 +84,7 @@ namespace Img2table.Sharp.Tabular.TableImage.TableElement
                 return false;
             }
 
-            return Math.Abs(right.X1 - right.X2) >= threshold;
+            return Math.Abs(right.X1 - left.X2) >= threshold;
         }
     }
 }

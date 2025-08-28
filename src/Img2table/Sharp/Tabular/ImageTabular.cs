@@ -115,7 +115,7 @@ namespace Img2table.Sharp.Tabular
                             {
                                 if (prev != null)
                                 {
-                                    if (Cell.IsSpaceBetween(prev, curr) || prev.Baseline != curr.Baseline)
+                                    if (Cell.IsSpaceBetween(prev, curr) || prev.Y2 < curr.Y1 ) // prev.Baseline != curr.Baseline
                                     {
                                         newLineText = " " + newLineText;
                                     }
@@ -134,7 +134,7 @@ namespace Img2table.Sharp.Tabular
                             {
                                 if (prev != null)
                                 {
-                                    if (Cell.IsSpaceBetween(prev, curr) || prev.Baseline != curr.Baseline)
+                                    if (Cell.IsSpaceBetween(prev, curr) || prev.Y2 < curr.Y1) // prev.Baseline != curr.Baseline
                                     {
                                         newLineText = " " + newLineText;
                                     }
@@ -178,7 +178,6 @@ namespace Img2table.Sharp.Tabular
             foreach (var tc in textCells)
             {
                 var textRect = tc.Rect();
-
                 bool contained = IsContained(cellRect, textRect, parameter);
                 if (contained)
                 {

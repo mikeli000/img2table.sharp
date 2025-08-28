@@ -179,12 +179,9 @@ namespace Img2table.Sharp.Tabular
             var pageTextCells = ScaleToCells(textElements, ratio, pdfPage.GetPageHeight(), useHtml);
             foreach (var table in pagedTable.Tables)
             {
-                int i = 0;
                 foreach (var row in table.Rows)
                 {
                     ImageTabular.LoadRowText(row, pageTextCells, _parameter, useHtml);
-
-                    // loadTextByAPI(row, pdfPage, ratio, i++);
                 }
             }
         }

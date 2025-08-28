@@ -292,12 +292,12 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\OutSystems Leaves Highspot.PDF";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\error2.pdf";
             var dst = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
             //range.Add(new int[] { 0 });
-            range.Add(new int[] { 1 });
+            range.Add(new int[] { 2 });
             //range.Add(new int[] { 104, 105, 106, 107, 108, 109, 110, 111 });
             PDFTools.SplitPDF(src, range, dst);
         }

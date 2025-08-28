@@ -4,56 +4,81 @@ using Sdcb.PaddleOCR;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
+using System.Security.Cryptography.X509Certificates;
+using System.Numerics;
 
 public class PostionedTableCellDetector
 {
     public static bool TryDetectLines(List<Line> srcHLines, List<Line> srcVLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out List<Line> detectedHLines, out List<Line> detectedVLines)
     {
         detectedHLines = new List<Line>();
+        detectedHLines.AddRange(srcHLines);
         detectedVLines = new List<Line>();
         detectedVLines.AddRange(srcVLines);
-        detectedHLines.AddRange(srcHLines);
+        
+        //if (IsAllLineDetected(srcHLines, srcVLines))
+        //{
+        //    return true;
+        //}
 
         detectedHLines = DetecteHorLines(detectedHLines, tableBbox, textBoxes);
         var topLine = detectedHLines[0];
-        int delta = 8;
-        int headerSepPos = topLine.Y1 + delta;
         Line? secLine = detectedHLines.Count > 2 ? detectedHLines[1] : null;
-        if (secLine != null)
-        {
-            headerSepPos = secLine.Y1 + delta;
-        }
-        int rn = detectedVLines.RemoveAll(line => line.Y1 > headerSepPos); // remove lines below header line
-
-        if (rn > 0)
-        {
-            Console.WriteLine(rn);
-        }
-
+        
         var columnPositions = DetectColumnPositions(textBoxes, tableBbox, charWidth);
         var finalVPos = MergeColumnPositions(detectedVLines, columnPositions, textBoxes);
         ExtendVLines(finalVPos, detectedHLines, detectedVLines, textBoxes, tableBbox);
         if (secLine != null)
         {
+            var l_sec = secLine.X1;
+            var r_sec = secLine.X2;
+
+            if (l_sec > tableBbox.Left)
+            {
+                var exLeftLine = new Line(tableBbox.Left, secLine.Y1, l_sec, secLine.Y2);
+                if (!IntersectTextBoxes(exLeftLine, textBoxes))
+                {
+                    secLine.X1 = tableBbox.Left;
+                }
+            }
+            if (r_sec < tableBbox.Right)
+            {
+                var exRightLine = new Line(r_sec, secLine.Y1, tableBbox.Right, secLine.Y2);
+                if (!IntersectTextBoxes(exRightLine, textBoxes))
+                {
+                    secLine.X2 = tableBbox.Right;
+                }
+            }
+
             var tbodyBbox = new Rect
             {
-                Left = tableBbox.Left,
+                Left =  secLine.X1,
                 Top = secLine.Y1,
-                Width = tableBbox.Width,
-                Height = tableBbox.Bottom - secLine.Y1
+                Width = secLine.X2 - secLine.X1,
+                Height = tableBbox.Bottom - secLine.Y2
             };
             var tBodyTextBoxes = textBoxes.Where(textBox =>
             {
+                double midX = (textBox.Left + textBox.Right) / 2.0;
                 double midY = (textBox.Top + textBox.Bottom) / 2.0;
-                return midY > Math.Min(tbodyBbox.Top, tbodyBbox.Bottom) && midY < Math.Max(tbodyBbox.Top, tbodyBbox.Bottom);
+                return midY > Math.Min(tbodyBbox.Top, tbodyBbox.Bottom) && midY < Math.Max(tbodyBbox.Top, tbodyBbox.Bottom)
+                        && midX > Math.Min(tbodyBbox.Left, tbodyBbox.Right) && midX < Math.Max(tbodyBbox.Left, tbodyBbox.Right);
             }).ToList();
 
+            if (tBodyTextBoxes.Count <= 0)
+            {
+                return true;
+            }
+
             var secColumnPositions = DetectBodyVerLines(tBodyTextBoxes, tbodyBbox, columnPositions, charWidth);
-            if (columnPositions.Count() != secColumnPositions.Count())
+            int topVLineCount = CountTopVLine(detectedVLines, topLine.Y1, secLine.X1, secLine.X2);
+            
+            if (topVLineCount != secColumnPositions.Count())
             {
                 var secFinalVPos = MergeColumnPositions(detectedVLines, secColumnPositions, tBodyTextBoxes);
                 secFinalVPos = secFinalVPos.OrderBy(p => p).ToList();
 
+                /**
                 var firstFinalVPos = detectedVLines.Select(line => line.X1).ToList();
                 int? secLeft = null, secRight = null;
                 for (int i = 0; i < secFinalVPos.Count; i++)
@@ -133,12 +158,25 @@ public class PostionedTableCellDetector
                         break;
                     }
                 }
-
+                */
                 ExtendVLines(secFinalVPos, detectedHLines, detectedVLines, tBodyTextBoxes, tbodyBbox);
             }
         }
 
         return true;
+    }
+
+    private static int CountTopVLine(List<Line> vLines, int yTop, int xLeftX, int xRight)
+    {
+        if (vLines == null || vLines.Count() == 0)
+        {
+            return 0;
+        }
+
+        var topLines = vLines.Where(l => Math.Abs(l.Y1 - yTop) <= 5);
+        topLines = topLines.Where(l => l.X1 >= xLeftX && l.X1 <= xRight);
+        
+        return topLines.Count();
     }
 
     private static List<Line> DetecteHorLines(List<Line> srcHLines, Rect tableBbox, IEnumerable<TextRect> textBoxes)
@@ -149,7 +187,7 @@ public class PostionedTableCellDetector
         }
 
         bool detectLines = false;
-        var groupLines = GroupTextRectsByLine(textBoxes);
+        var groupLines = GroupTextRectsByLine(textBoxes, removeOneBoxLine: true);
         if (srcHLines.Count > 1)
         {
             if (groupLines.Count > 2 && groupLines.Count / (float)srcHLines.Count >= 2)
@@ -177,10 +215,10 @@ public class PostionedTableCellDetector
 
     private static List<int> MergeColumnPositions(List<Line> srcVLines, List<int> detectVPos, IEnumerable<TextRect> textBoxes)
     {
-        var srcPos = srcVLines.Select(line => line.X1).ToList();
+        var srcPos = srcVLines.Select(line => line.X1).OrderBy(p => p).ToList();
         if (srcPos.Count() >= detectVPos.Count())
         {
-            //return srcPos;
+            return srcPos;
         }
 
         var allPositions = srcPos.Concat(detectVPos)
@@ -304,7 +342,27 @@ public class PostionedTableCellDetector
             }
         }
 
+        if (vPos.Count > 0)
+        {
+            vPos = vPos.Distinct().OrderBy(p => p).ToList();
+        }
         return vPos;
+    }
+
+    private static bool IntersectTextBoxes(Line line, IEnumerable<TextRect> textBoxes)
+    {
+        if (line.Y1 == line.Y2)
+        {
+            return textBoxes.Any(textBox => line.Y1 > textBox.Top && line.Y2 < textBox.Bottom);
+        }
+        else if (line.X1 == line.X2)
+        {
+            return textBoxes.Any(textBox => line.X1 > textBox.Left && line.X2 < textBox.Right);
+        }
+        else
+        {
+            throw new Exception("Not a straight line " + line.ToString());
+        }
     }
 
     private static void ExtendVLines(List<int> finalVPos, List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes, Rect tableBbox)
@@ -313,14 +371,32 @@ public class PostionedTableCellDetector
         {
             return;
         }
-
         var textBoxList = textBoxes.ToList();
+
+        var bottomLine = hLines.Max(ll => ll.Y2);
+        var bottomTable = tableBbox.Bottom;
+
+        if (bottomLine < bottomTable)
+        {
+            var intersectingTextBoxes = textBoxList.Where(textBox =>
+                        (textBox.Top + textBox.Bottom) / 2 >= bottomLine && (textBox.Top + textBox.Bottom) / 2 <= bottomTable
+                    ).ToList();
+            if (intersectingTextBoxes.Any())
+            {
+                bottomLine = bottomTable;
+            }
+        }
 
         foreach (var p in finalVPos)
         {
             var vLine = vLines.FirstOrDefault(line => line.X1 == p);
             if (vLine != null)
             {
+                if (vLine.Y2 >= bottomLine)
+                {
+                    continue;
+                }
+
                 var intersectingTextBoxes = textBoxList.Where(textBox =>
                     textBox.Left <= p && textBox.Right >= p && textBox.Top > vLine.Y1
                 ).ToList();
@@ -345,12 +421,12 @@ public class PostionedTableCellDetector
                 }
                 else
                 {
-                    vLine.Y2 = tableBbox.Bottom;
+                    vLine.Y2 = bottomLine;
                 }
             }
             else
             {
-                var newLine = new Line(p, tableBbox.Top, p, tableBbox.Bottom);
+                var newLine = new Line(p, tableBbox.Top, p, bottomLine);
                 vLines.Add(newLine);
             }
         }
@@ -603,7 +679,7 @@ public class PostionedTableCellDetector
         return lines;
     }
 
-    private static List<List<TextRect>> GroupTextRectsByLine(IEnumerable<TextRect> rects)
+    private static List<List<TextRect>> GroupTextRectsByLine(IEnumerable<TextRect> rects, bool removeOneBoxLine = false)
     {
         var lines = new List<List<TextRect>>();
         if (rects.Count() == 0)
@@ -666,6 +742,11 @@ public class PostionedTableCellDetector
             }
         }
 
+        if (removeOneBoxLine)
+        {
+            lines = lines.Where(ll => ll.Count() <= 1).ToList();
+        }
+        
         return lines;
     }
 
