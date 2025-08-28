@@ -137,7 +137,7 @@ namespace Img2table.Sharp.Tabular.TableImage
 
                 if (_debug_draw_lines)
                 {
-                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                    DebugDrawLines(_img, originalHLines, originalVLines, textBoxes);
                 }   
 
 

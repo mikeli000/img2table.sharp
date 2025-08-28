@@ -15,11 +15,6 @@ public class PostionedTableCellDetector
         detectedHLines.AddRange(srcHLines);
         detectedVLines = new List<Line>();
         detectedVLines.AddRange(srcVLines);
-        
-        //if (IsAllLineDetected(srcHLines, srcVLines))
-        //{
-        //    return true;
-        //}
 
         detectedHLines = DetecteHorLines(detectedHLines, tableBbox, textBoxes);
         var topLine = detectedHLines[0];
@@ -215,7 +210,7 @@ public class PostionedTableCellDetector
 
     private static List<int> MergeColumnPositions(List<Line> srcVLines, List<int> detectVPos, IEnumerable<TextRect> textBoxes)
     {
-        var srcPos = srcVLines.Select(line => line.X1).OrderBy(p => p).ToList();
+        var srcPos = srcVLines.Select(line => line.X1).Distinct().OrderBy(p => p).ToList();
         if (srcPos.Count() >= detectVPos.Count())
         {
             return srcPos;
@@ -237,6 +232,7 @@ public class PostionedTableCellDetector
             Line preVLine = null;
             if (srcPos.Contains(currPoint))
             {
+
                 currVLine = srcVLines.FirstOrDefault(line => line.X1 == currPoint);
             }
             if (srcPos.Contains(prePoint))
@@ -387,6 +383,7 @@ public class PostionedTableCellDetector
             }
         }
 
+        var delta = 2;
         foreach (var p in finalVPos)
         {
             var vLine = vLines.FirstOrDefault(line => line.X1 == p);
@@ -398,7 +395,7 @@ public class PostionedTableCellDetector
                 }
 
                 var intersectingTextBoxes = textBoxList.Where(textBox =>
-                    textBox.Left <= p && textBox.Right >= p && textBox.Top > vLine.Y1
+                    textBox.Left + delta <= p && textBox.Right - delta >= p && textBox.Top > vLine.Y1
                 ).ToList();
 
                 if (intersectingTextBoxes.Any())
