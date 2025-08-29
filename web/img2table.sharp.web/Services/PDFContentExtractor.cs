@@ -342,26 +342,30 @@ namespace img2table.sharp.web.Services
                                 ChunkUtils.ClipImage(pageImagePath, tableImagePath, chunkBox);
                             }
 
-                            var imageTabular = new ImageTabular(param);
-                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, GetTextBoxes(contentElements), false);
-
-                            var pdfTabular = new PDFTabular(param);
-                            pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml: _useEmbeddedHtml);
-
-                            if (pagedTable != null && pagedTable.Tables?.Count() > 0)
+                            var mTables = MultiTableProcessor.BreakdownTables(tableImagePath, chunkBox);
+                            if (mTables == null || mTables.Count() == 0)
                             {
-                                var tables = new PagedTableDTO(pagedTable).Tables;
-                                foreach(var table in tables) // TODO
-                                {
-                                    TableHTML.Generate(table, out string htmlTable, true);
-                                    chunkElement.MarkdownText += htmlTable;
-                                }
-                                isTableProcessed = true;
+                                TabularPDF(param, tableImagePath, chunkBox, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _useEmbeddedHtml);
                             }
                             else
                             {
-                                isTableProcessed = false;
-                                chunkElement.ChunkObject.Label = ChunkType.Text;
+                                foreach (var region in mTables)
+                                {
+                                    tableImageName = $"table_{Guid.NewGuid().ToString()}.png";
+                                    tableImagePath = Path.Combine(workFolder, tableImageName);
+                                    if (tableEnhancedImagePath != null)
+                                    {
+                                        ChunkUtils.ClipImage(tableEnhancedImagePath, tableImagePath, region);
+                                    }
+                                    else
+                                    {
+                                        ChunkUtils.ClipImage(pageImagePath, tableImagePath, region);
+                                    }
+
+                                    contentElements = FindContentElementsInBox(region, pageElements);
+                                    chunkElement.ContentElements = contentElements;
+                                    TabularPDF(param, tableImagePath, region, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _useEmbeddedHtml);
+                                }
                             }
                         }
                     }
@@ -374,6 +378,35 @@ namespace img2table.sharp.web.Services
             }
 
             return chunks;
+        }
+
+        private static bool TabularPDF(TabularParameter param, string tableImagePath, RectangleF? chunkBox, List<ContentElement> contentElements, 
+            PDFDocument pdfDoc, PDFPage pdfPage, float ratio, ChunkElement chunkElement, bool useHtml)
+        {
+            var imageTabular = new ImageTabular(param);
+            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, GetTextBoxes(contentElements), false);
+
+            var pdfTabular = new PDFTabular(param);
+            pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml);
+
+            bool isTableProcessed = false;
+            if (pagedTable != null && pagedTable.Tables?.Count() > 0)
+            {
+                var tables = new PagedTableDTO(pagedTable).Tables;
+                foreach (var table in tables) // TODO
+                {
+                    TableHTML.Generate(table, out string htmlTable, true);
+                    chunkElement.MarkdownText += htmlTable;
+                }
+                isTableProcessed = true;
+            }
+            else
+            {
+                isTableProcessed = false;
+                chunkElement.ChunkObject.Label = ChunkType.Text;
+            }
+
+            return isTableProcessed;
         }
 
         private bool IsChunkType(string label, string chunkType)

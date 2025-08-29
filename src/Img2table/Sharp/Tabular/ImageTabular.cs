@@ -96,6 +96,11 @@ namespace Img2table.Sharp.Tabular
                     foreach (var curr in allTextCells)
                     {
                         bool isListParagraphBegin = TextElement.IsListParagraphBegin(curr.Content, out var ordered, out var listTag);
+                        if (ordered)
+                        {
+                            isListParagraphBegin = false;
+                        }
+                        
                         if (prev != null)
                         {
                             if (prev.Baseline == curr.Baseline)

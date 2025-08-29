@@ -4,8 +4,6 @@ using Sdcb.PaddleOCR;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
-using System.Security.Cryptography.X509Certificates;
-using System.Numerics;
 
 public class PostionedTableCellDetector
 {
@@ -347,13 +345,14 @@ public class PostionedTableCellDetector
 
     private static bool IntersectTextBoxes(Line line, IEnumerable<TextRect> textBoxes)
     {
+        var delta = 4;
         if (line.Y1 == line.Y2)
         {
-            return textBoxes.Any(textBox => line.Y1 > textBox.Top && line.Y2 < textBox.Bottom);
+            return textBoxes.Any(textBox => line.Y1 > textBox.Top - delta && line.Y2 < textBox.Bottom + delta);
         }
         else if (line.X1 == line.X2)
         {
-            return textBoxes.Any(textBox => line.X1 > textBox.Left && line.X2 < textBox.Right);
+            return textBoxes.Any(textBox => line.X1 > textBox.Left - delta && line.X2 < textBox.Right + delta);
         }
         else
         {

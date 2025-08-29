@@ -24,7 +24,7 @@ namespace Img2table.Sharp.Tabular.TableImage
         public static bool Debug = false;
         public static string _debug_temp_folder = Path.Combine(Path.GetTempPath(), "img2table");
         private bool _debug_draw_lines = true;
-        private bool _debug_draw_kv_table = false;
+        private bool _debug_draw_kv_table = true;
 
         public TableImage(Mat img)
         {
@@ -137,8 +137,8 @@ namespace Img2table.Sharp.Tabular.TableImage
 
                 if (_debug_draw_lines)
                 {
-                    DebugDrawLines(_img, originalHLines, originalVLines, textBoxes);
-                }   
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
 
 
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
@@ -497,7 +497,12 @@ namespace Img2table.Sharp.Tabular.TableImage
                 }
             }
 
-            var file = $@"C:\temp\img2table\{Guid.NewGuid().ToString()}.png";
+            if (!Directory.Exists(_debug_temp_folder))
+            {
+                Directory.CreateDirectory(_debug_temp_folder);
+            }
+
+            var file = Path.Combine(_debug_temp_folder, $@"{Guid.NewGuid().ToString()}.png");
             Cv2.ImWrite(file, debugImage);
         }
 

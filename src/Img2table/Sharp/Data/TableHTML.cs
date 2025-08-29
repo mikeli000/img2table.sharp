@@ -94,6 +94,7 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     }
                 }
             }
+
             if (tableDto.Items.Count == 1)
             {
                 firstRowAsTH = false;
