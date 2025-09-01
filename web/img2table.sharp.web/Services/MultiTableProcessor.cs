@@ -10,7 +10,8 @@ namespace img2table.sharp.web.Services
     public class MultiTableProcessor
     {
         public static float PT_MinGap = 7.2f;
-        public static float PT_MinCol = 72f;
+        public static float PT_MinColWidth = 72f;
+        public static float PT_MinRowHeight = 36f;
 
         public static List<RectangleF> BreakdownTables(string tableImgFile, RectangleF tableBbox, float renderDPI = 300)
         {
@@ -20,7 +21,8 @@ namespace img2table.sharp.web.Services
             }
             
             int minGapWidth = (int) Math.Round((renderDPI / 72) * PT_MinGap);
-            int minColWidth = (int) Math.Round((renderDPI / 72) * PT_MinCol);
+            int minColWidth = (int) Math.Round((renderDPI / 72) * PT_MinColWidth);
+            int minRowHeight = (int)Math.Round((renderDPI / 72) * PT_MinRowHeight);
             using var img = Cv2.ImRead(tableImgFile);
 
             var tableRect = new Rect(
@@ -36,20 +38,14 @@ namespace img2table.sharp.web.Services
             Cv2.Threshold(gray, binary, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
 
             bool hasInvalid = false;
+            var regions = new List<Rect>();
             var gaps = FindXSeps(binary, minGapWidth);
             if (gaps.Count == 0)
             {
-                var h_ranges = FindYSeps(binary, tableRect, minGapWidth);
-                if (h_ranges.Count > 0)
-                {
-                    var ll = SepYRegion(h_ranges, tableRect);
-                    hasInvalid = ll.Any(r => r.Width < minColWidth || r.Height < minGapWidth);
-                    return hasInvalid ? null : ToRectangleF(ll);
-                }
-                return null;
+                regions = ProcessRegion(binary, tableRect, minGapWidth, minRowHeight);
+                return ToRectangleF(regions);
             }
 
-            var regions = new List<Rect>();
             int l, r, t, b;
             int lastR = 0;
             Rect region;
@@ -65,7 +61,7 @@ namespace img2table.sharp.web.Services
                     b = tableRect.Bottom;
 
                     region = Rect.FromLTRB(l, t, r, b);
-                    seps = ProcessRegion(binary, region, minGapWidth);
+                    seps = ProcessRegion(binary, region, minGapWidth, minRowHeight);
                     if (seps?.Count > 0)
                     {
                         regions.AddRange(seps);
@@ -85,7 +81,7 @@ namespace img2table.sharp.web.Services
                 b = tableRect.Bottom;
 
                 region = Rect.FromLTRB(l, t, r, b);
-                seps = ProcessRegion(binary, region, minGapWidth);
+                seps = ProcessRegion(binary, region, minGapWidth, minRowHeight);
                 if (seps?.Count > 0)
                 {
                     regions.AddRange(seps);
@@ -103,7 +99,7 @@ namespace img2table.sharp.web.Services
             t = tableRect.Top;
             b = tableRect.Bottom;
             region = Rect.FromLTRB(l, t, r, b);
-            seps = ProcessRegion(binary, region, minGapWidth);
+            seps = ProcessRegion(binary, region, minGapWidth, minRowHeight);
             if (seps?.Count > 0)
             {
                 regions.AddRange(seps);
@@ -124,7 +120,7 @@ namespace img2table.sharp.web.Services
             return hasInvalid? null: ToRectangleF(regions);
         }
 
-        private static List<Rect> ProcessRegion(Mat binary, Rect region, int minGap)
+        private static List<Rect> ProcessRegion(Mat binary, Rect region, int minGap, int minRowHeight)
         {
             using var regionMat = binary.Clone();
             regionMat.SetTo(new Scalar(255));
@@ -133,7 +129,9 @@ namespace img2table.sharp.web.Services
             var h_ranges = FindYSeps(regionMat, region, minGap);
             if (h_ranges.Count > 0)
             {
-                return SepYRegion(h_ranges, region);
+                var regions = SepYRegion(h_ranges, region);
+                bool hasInvalid = regions.Any(r => r.Height < minRowHeight);
+                return hasInvalid ? null : regions;
             }
 
             return null;

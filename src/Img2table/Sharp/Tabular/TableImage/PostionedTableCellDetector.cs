@@ -465,7 +465,7 @@ public class PostionedTableCellDetector
     {
         keyValueTable = null;
         bool isKVTablePossible = false;
-        var minGap = charWidth * 4; // TODO
+        var minGap = charWidth * 2; // TODO
         var columnPositions = ScanForGapsBetweenBoxes(textBoxes, minGap);
         if (columnPositions.Count <= 1)
         {
@@ -723,7 +723,7 @@ public class PostionedTableCellDetector
 
         if (removeOneBoxLine)
         {
-            lines = lines.Where(ll => ll.Count() <= 1).ToList();
+            lines = lines.Where(ll => ll.Count() > 1).ToList();
         }
         
         return lines;

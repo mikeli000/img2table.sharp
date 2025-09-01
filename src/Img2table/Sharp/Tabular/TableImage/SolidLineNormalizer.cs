@@ -127,8 +127,15 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
                     bool intersected = LineUtils.IntersectTextBoxes(new Line(l, b, r, b), textBoxes, delta);
                     if (!intersected)
                     {
-                        bool containBox = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
-                        if (containBox)
+                        bool containBoxOnTop = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
+                        bool containBoxOnBottom = true;
+                        if (i < hLines.Count - 1)
+                        {
+                            var nextLine = hLines[i + 1];
+                            containBoxOnBottom = LineUtils.ContainsTextBox(Rect.FromLTRB(l, b, r, nextLine.Y1), textBoxes, delta);
+                        }
+
+                        if (containBoxOnTop && containBoxOnBottom)
                         {
                             line.X1 = left;
                             prevLine = line;
@@ -150,8 +157,14 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
                     bool intersected = LineUtils.IntersectTextBoxes(new Line(l, b, r, b), textBoxes, delta);
                     if (!intersected)
                     {
-                        bool containBox = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
-                        if (containBox)
+                        bool containBoxOnTop = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
+                        bool containBoxOnBottom = true;
+                        if (i < hLines.Count - 1)
+                        {
+                            var nextLine = hLines[i + 1];
+                            containBoxOnBottom = LineUtils.ContainsTextBox(Rect.FromLTRB(l, b, r, nextLine.Y1), textBoxes, delta);
+                        }
+                        if (containBoxOnTop && containBoxOnBottom)
                         {
                             line.X2 = right;
                             prevLine = line;
