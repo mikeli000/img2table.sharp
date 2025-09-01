@@ -91,6 +91,7 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
               <Checkbox
                 id="parse-text-style"
                 checked={useHtml}
+                disabled
                 onCheckedChange={val => setUseHtml(!!val)}
               />
               <label htmlFor="parse-text-style" className="text-sm">

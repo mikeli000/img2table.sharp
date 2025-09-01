@@ -106,12 +106,21 @@ namespace Img2table.Sharp.Tabular.TableImage
             var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
             var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
 
+            //var (h, v) = SolidLineNormalizer.Normalize(originalHLines, originalVLines, textBoxes, tableBbox.Value);
+            //if (_debug_draw_lines)
+            //{
+            //    DebugDrawLines(_img, h, v, null);
+            //}
+
             if (tableBbox != null)
             {
-                RemoveLinesInBox(hLines, textBoxes);
-                RemoveLinesInBox(vLines, textBoxes);
+                var (h, v) = SolidLineNormalizer.Normalize(hLines, vLines, textBoxes, tableBbox.Value);
+                hLines = h;
+                vLines = v;
+                //LineUtils.RemoveLinesInBox(hLines, textBoxes);
+                //LineUtils.RemoveLinesInBox(vLines, textBoxes);
                 //ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
-                hLines = hLines.OrderBy(hl => hl.Y1).ToList();
+                //hLines = hLines.OrderBy(hl => hl.Y1).ToList();
 
                 if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
                 {
@@ -153,22 +162,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                 _shouldOCR = implicitRows || implicitColumns;
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
             }
-        }
-
-        private void RemoveLinesInBox(List<Line> hLines, IEnumerable<TextRect> textBoxes)
-        {
-            hLines.RemoveAll(line =>
-                textBoxes.Any(box =>
-                    IsPointInBox(line.X1, line.Y1, box) &&
-                    IsPointInBox(line.X2, line.Y2, box)
-                )
-            );
-        }
-
-        private bool IsPointInBox(int x, int y, Rect box, int deltaX = 4, int deltaY = 2)
-        {
-            return (x >= box.Left - deltaX) && (x <= box.Right + deltaX)
-                && (y >= box.Top - deltaY) && (y <= box.Bottom + deltaY);
         }
 
         private void AlignTableBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes)

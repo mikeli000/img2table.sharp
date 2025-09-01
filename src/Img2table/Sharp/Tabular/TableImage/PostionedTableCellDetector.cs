@@ -29,7 +29,7 @@ public class PostionedTableCellDetector
             if (l_sec > tableBbox.Left)
             {
                 var exLeftLine = new Line(tableBbox.Left, secLine.Y1, l_sec, secLine.Y2);
-                if (!IntersectTextBoxes(exLeftLine, textBoxes))
+                if (!LineUtils.IntersectTextBoxes(exLeftLine, textBoxes))
                 {
                     secLine.X1 = tableBbox.Left;
                 }
@@ -37,7 +37,7 @@ public class PostionedTableCellDetector
             if (r_sec < tableBbox.Right)
             {
                 var exRightLine = new Line(r_sec, secLine.Y1, tableBbox.Right, secLine.Y2);
-                if (!IntersectTextBoxes(exRightLine, textBoxes))
+                if (!LineUtils.IntersectTextBoxes(exRightLine, textBoxes))
                 {
                     secLine.X2 = tableBbox.Right;
                 }
@@ -343,23 +343,6 @@ public class PostionedTableCellDetector
         return vPos;
     }
 
-    private static bool IntersectTextBoxes(Line line, IEnumerable<TextRect> textBoxes)
-    {
-        var delta = 4;
-        if (line.Y1 == line.Y2)
-        {
-            return textBoxes.Any(textBox => line.Y1 > textBox.Top - delta && line.Y2 < textBox.Bottom + delta);
-        }
-        else if (line.X1 == line.X2)
-        {
-            return textBoxes.Any(textBox => line.X1 > textBox.Left - delta && line.X2 < textBox.Right + delta);
-        }
-        else
-        {
-            throw new Exception("Not a straight line " + line.ToString());
-        }
-    }
-
     private static void ExtendVLines(List<int> finalVPos, List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes, Rect tableBbox)
     {
         if (finalVPos == null)
@@ -635,7 +618,7 @@ public class PostionedTableCellDetector
         }
         else
         {
-            hYs.Add(tableBbox.Y);
+            hYs.Add(tableBbox.Top);
         }
 
         if (hYs.Count() > 1 || (hYs.Count() == 1 && hYs[0] == tableBbox.Y))
@@ -647,7 +630,7 @@ public class PostionedTableCellDetector
             {
                 var bottomLine = new Line(tableBbox.Left, tableBbox.Bottom, tableBbox.Right, tableBbox.Bottom);
                 hLines.Add(bottomLine);
-                hYs.Add(tableBbox.Y);
+                hYs.Add(tableBbox.Bottom);
             }
         }
 
