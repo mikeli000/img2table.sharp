@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, docType, setDocType, autoOcr, setAutoOcr }) => {
+const Toolbar = ({
+  useHtml, setUseHtml,
+  ignoreMarginalia, setIgnoreMarginalia,
+  docType, setDocType,
+  autoOcr, setAutoOcr,
+  embedImagesAsBase64, setEmbedImagesAsBase64
+}) => {  
   const handleDocTypeChange = (value) => {
     const unsupportedTypes = ['spreadsheet', 'form', 'plain'];
 
@@ -36,6 +42,12 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
                   <SelectValue placeholder="Select document type..." />
                 </SelectTrigger>
                 <SelectContent className="z-50">
+                  <SelectItem value="default">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <BookOpen className="w-4 h-4" />
+                      <span>Default</span>
+                    </div>
+                  </SelectItem>
                   <SelectItem value="academic">
                     <div className="flex items-center gap-2 whitespace-nowrap">
                       <BookOpen className="w-4 h-4" />
@@ -91,7 +103,6 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
               <Checkbox
                 id="parse-text-style"
                 checked={useHtml}
-                disabled
                 onCheckedChange={val => setUseHtml(!!val)}
               />
               <label htmlFor="parse-text-style" className="text-sm">
@@ -150,6 +161,32 @@ const Toolbar = ({ useHtml, setUseHtml, ignoreMarginalia, setIgnoreMarginalia, d
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-gray-800 text-white text-xs p-2 rounded shadow-md max-w-xs">
             Automatically apply OCR to regions classified as text-like. Others will be output as images.
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="embed-images"
+                checked={embedImagesAsBase64}
+                onCheckedChange={val => setEmbedImagesAsBase64(val === true)}
+              />
+              <label htmlFor="embed-images" className="text-sm">
+                Embed Images
+              </label>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent
+            side="bottom"
+            className="z-50 overflow-hidden rounded-lg bg-[rgba(0,0,0,0.85)] px-4 py-2 text-sm text-white shadow-lg max-w-sm leading-relaxed"
+          >
+            <p>
+              If checked, images will be embedded as Base64 in the output.<br />
+              <em>Server parameter: <strong>embedImagesAsBase64</strong></em>
+            </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

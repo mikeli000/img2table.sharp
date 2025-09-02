@@ -30,11 +30,13 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
         {
             if (line.Y1 == line.Y2)
             {
-                return textBoxes.Any(textBox => line.Y1 > textBox.Top - delta && line.Y2 < textBox.Bottom + delta);
+                return textBoxes.Any(textBox => line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta); // TODO, fix it later
             }
             else if (line.X1 == line.X2)
             {
-                return textBoxes.Any(textBox => line.X1 > textBox.Left - delta && line.X2 < textBox.Right + delta);
+                return textBoxes.Any(textBox => 
+                    line.X1 > textBox.Left + delta && line.X2 < textBox.Right - delta
+                        && line.Y1 < textBox.Top + delta && line.Y2 > textBox.Bottom - delta);
             }
             else
             {

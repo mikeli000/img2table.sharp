@@ -90,9 +90,15 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     
                     if (cell.ColSpan > 1 && headerRow <= 1)
                     {
-                        headerRow += 1;
+                        headerRow = 2;
+                        break;
                     }
                 }
+            }
+
+            if (headerRow > 2)
+            {
+                firstRowAsTH = false;
             }
 
             if (tableDto.Items.Count == 1)
@@ -133,6 +139,11 @@ namespace img2table.sharp.Img2table.Sharp.Data
                     {
                         var cell = row.Items[j];
                         var cellNode = htmlDoc.CreateElement("th");
+                        if (cell.RowSpan > headerRow)
+                        {
+                            cellNode = htmlDoc.CreateElement("td");
+                        }
+                        
                         if (addBorderStyle)
                         {
                             cellNode.SetAttributeValue("style", CenterBorderStyle);

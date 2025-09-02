@@ -11,10 +11,8 @@ namespace img2table.sharp.web.Services
 {
     public class ChunkElementProcessor
     {
-        public static double DowngradeToTextConfidence = 0.4;
-
         private MarkdownWriter _writer;
-        private bool _userEmbeddedHtml;
+        private bool _useEmbeddedHtml;
         private bool _ignoreMarginalia;
         private bool _outputFigureAsImage;
         private string _workFolder;
@@ -31,7 +29,7 @@ namespace img2table.sharp.web.Services
 
             if (paras != null)
             {
-                _userEmbeddedHtml = paras.UseEmbeddedHtml;
+                _useEmbeddedHtml = paras.UseEmbeddedHtml;
                 _ignoreMarginalia = paras.IgnoreMarginalia;
                 _outputFigureAsImage = paras.OutputFigureAsImage;
                 _workFolder = workFolder ?? throw new ArgumentNullException(nameof(workFolder));
@@ -192,6 +190,26 @@ namespace img2table.sharp.web.Services
 
         private void ProcessPictureChunk(ChunkElement chunkElement)
         {
+            if (_outputFigureAsImage)
+            {
+                var imageName = $"img_{Guid.NewGuid().ToString()}.png";
+                string tempImagePath = Path.Combine(_workFolder, imageName);
+                ChunkUtils.ClipChunkRectImage(_pageImagePath, tempImagePath, chunkElement.ChunkObject, false);
+
+                if (_embedBase64ImageData)
+                {
+                    var imageData = ChunkUtils.EncodeBase64ImageData(tempImagePath);
+                    _writer.WritePictureWithBase64(imageData);
+                }
+                else
+                {
+                    var imageUrl = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
+                    _writer.WritePicture(imageUrl);
+                }
+
+                return;
+            }
+
             var contents = chunkElement.ContentElements;
             if (contents == null || contents.Count() == 0)
             {
@@ -222,33 +240,13 @@ namespace img2table.sharp.web.Services
 
             if (textElements.Count > 0)
             {
-                WriteText(textElements, chunkElement.ChunkObject);
-            }
-            else
-            {
-                if (_outputFigureAsImage)
-                {
-                    var imageName = $"img_{Guid.NewGuid().ToString()}.png";
-                    string tempImagePath = Path.Combine(_workFolder, imageName);
-                    ChunkUtils.ClipChunkRectImage(_pageImagePath, tempImagePath, chunkElement.ChunkObject, false);
-
-                    if (_embedBase64ImageData)
-                    {
-                        var imageData = ChunkUtils.EncodeBase64ImageData(tempImagePath);
-                        _writer.WritePictureWithBase64(imageData);
-                    }
-                    else
-                    {
-                        var imageUrl = $"{WorkDirectoryOptions.RequestPath}/{_jobFolderName}/{imageName}";
-                        _writer.WritePicture(imageUrl);
-                    }
-                }
+                WriteText(textElements, chunkElement.ChunkObject, autoLinkBreak: true);
             }
         }
 
-        private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, int? headingLevel = null)
+        private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, int? headingLevel = null, bool outputAsHtml = false)
         {
-            var textParagraphs = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath, _removeBulletChar);
+            var textParagraphs = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath, _removeBulletChar, outputAsHtml);
             if (textParagraphs == null || textParagraphs.Count == 0)
             {
                 return;
@@ -278,7 +276,7 @@ namespace img2table.sharp.web.Services
         {
             if (autoLinkBreak)
             {
-                WriteLine(contents, chunkObject, autoOCR, headingLevel);
+                WriteLine(contents, chunkObject, autoOCR, headingLevel, _useEmbeddedHtml);
                 return;
             }
 
@@ -315,7 +313,7 @@ namespace img2table.sharp.web.Services
                         }
                     }
 
-                    if (_userEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
+                    if (_useEmbeddedHtml && content.PageElement.TryBuildHTMLPiece(out string html))
                     {
                         string newLineText = html;
                         if (isListParagraphBegin)
@@ -431,6 +429,7 @@ namespace img2table.sharp.web.Services
 
         public void AppendText(string text)
         {
+            text = EscapeMarkdown(text);
             _sb.Append(text);
         }
 
@@ -508,6 +507,16 @@ namespace img2table.sharp.web.Services
                 i++;
             }
             _sb.AppendLine();
+        }
+
+        public static string EscapeMarkdown(string text)
+        {
+            var charsToEscape = new[] { '\\', '`', '*', '_', '~', '#', '+', '-', '!', '[', ']' };
+            foreach (var c in charsToEscape)
+            {
+                text = text.Replace(c.ToString(), "\\" + c);
+            }
+            return text;
         }
 
         public void WriteHtml(string html)

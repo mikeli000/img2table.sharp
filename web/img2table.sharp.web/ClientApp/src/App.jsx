@@ -10,10 +10,11 @@ const App = () => {
   const [documentChunks, setDocumentChunks] = useState([]);
   const [useHtml, setUseHtml] = useState(false);
   const [ignoreMarginalia, setIgnoreMarginalia] = useState(true);
-  const [docType, setDocType] = useState("academic");
+  const [docType, setDocType] = useState("default");
   const [uploading, setUploading] = useState(false);
   const [highlight, setHighlight] = useState(null);
   const [autoOcr, setAutoOcr] = useState(false);
+  const [embedImagesAsBase64, setEmbedImagesAsBase64] = useState(true);
 
   const handleChunkClick = (pageNumber, bbox) => {
     setHighlight({ pageNumber, bbox });
@@ -51,6 +52,8 @@ const App = () => {
             setDocType={setDocType}
             autoOcr={autoOcr} 
             setAutoOcr={setAutoOcr}
+            embedImagesAsBase64={embedImagesAsBase64}
+            setEmbedImagesAsBase64={setEmbedImagesAsBase64}
           />
         </div>
         <div className="flex flex-1 overflow-hidden">

@@ -292,11 +292,11 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\mul_table\无表格线.pdf";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\mul_table\穿线.pdf";
             var dst = @"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\mul_table";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
-            range.Add(new int[] { 2 });
+            range.Add(new int[] { 1 });
             PDFTools.SplitPDF(src, range, dst);
         }
 

@@ -180,7 +180,7 @@ public class PostionedTableCellDetector
         }
 
         bool detectLines = false;
-        var groupLines = GroupTextRectsByLine(textBoxes, removeOneBoxLine: true);
+        var groupLines = GroupTextRectsByLine(textBoxes, removeOneBoxLine: true, true);
         if (srcHLines.Count > 1)
         {
             if (groupLines.Count > 2 && groupLines.Count / (float)srcHLines.Count >= 2)
@@ -658,7 +658,7 @@ public class PostionedTableCellDetector
         return lines;
     }
 
-    private static List<List<TextRect>> GroupTextRectsByLine(IEnumerable<TextRect> rects, bool removeOneBoxLine = false)
+    private static List<List<TextRect>> GroupTextRectsByLine(IEnumerable<TextRect> rects, bool removeOneBoxLine = false, bool removeLowcaseStartedLine = false)
     {
         var lines = new List<List<TextRect>>();
         if (rects.Count() == 0)
@@ -724,6 +724,11 @@ public class PostionedTableCellDetector
         if (removeOneBoxLine)
         {
             lines = lines.Where(ll => ll.Count() > 1).ToList();
+        }
+
+        if (removeLowcaseStartedLine)
+        {
+            lines = lines.Where(ll => !char.IsLower(ll[0].Text.Trim()[0])).ToList();
         }
         
         return lines;

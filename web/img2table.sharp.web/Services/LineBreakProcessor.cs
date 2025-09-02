@@ -31,10 +31,11 @@ namespace img2table.sharp.web.Services
         public static void ProcessLineBreaks(ChunkElement chunkElement, bool autoOCR, string workFolder, string pageImagePath, bool hiddenListTag)
         {
             var contents = chunkElement.ContentElements;
-            ProcessLineBreaks(contents, chunkElement.ChunkObject, autoOCR, workFolder, pageImagePath, hiddenListTag);
+            ProcessLineBreaks(contents, chunkElement.ChunkObject, autoOCR, workFolder, pageImagePath, hiddenListTag, false);
         }
 
-        public static List<TextParagraph> ProcessLineBreaks(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, string workFolder, string pageImagePath, bool hiddenListTag)
+        public static List<TextParagraph> ProcessLineBreaks(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, string workFolder, 
+            string pageImagePath, bool hiddenListTag, bool loadTextStyle)
         {
             if (contents == null || !contents.Any())
             {
@@ -77,8 +78,6 @@ namespace img2table.sharp.web.Services
 
                     if (i == 0)
                     {
-                        sb.Append(seg.Content);
-
                         // is symbol winding font?
                         bool isWindingSymbol = false;
                         if (seg.PageElement is TextElement)
@@ -97,6 +96,7 @@ namespace img2table.sharp.web.Services
                             }
                         }
 
+                        string text = seg.Content;
                         if (TextElement.IsListParagraphBegin(seg.Content, out var ordered, out var listTag) || isWindingSymbol)
                         {
                             if (seg.Content.Trim().Length == listTag.Trim().Length && tabAfter)
@@ -117,9 +117,18 @@ namespace img2table.sharp.web.Services
 
                                 if (hiddenListTag && listTag != null)
                                 {
-                                    sb = sb.Remove(0, listTag.Length);
+                                    text = text.Remove(0, listTag.Length);
                                 }
                             }
+                        }
+
+                        if (loadTextStyle && seg.PageElement is TextElement textElement && textElement.TryBuildHTMLPiece(out var html, text))
+                        {
+                            sb.Append(html);
+                        }
+                        else
+                        {
+                            sb.Append(text);
                         }
                     }
                     else
@@ -148,7 +157,14 @@ namespace img2table.sharp.web.Services
                             sb.Append(" ");
                         }
 
-                        sb.Append(seg.Content);
+                        if (loadTextStyle && seg.PageElement is TextElement textElement && textElement.TryBuildHTMLPiece(out var html))
+                        {
+                            sb.Append(html);
+                        }
+                        else
+                        {
+                            sb.Append(seg.Content);
+                        }
                     }
                 }
 

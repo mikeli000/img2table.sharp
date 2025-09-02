@@ -9,7 +9,9 @@ namespace img2table.sharp.web.Services
 {
     public class MultiTableProcessor
     {
-        public static float PT_MinGap = 7.2f;
+        public static float PT_MinHorGap = 7.2f;
+        public static float PT_MinVerGap = 7.2f * 2;
+
         public static float PT_MinColWidth = 72f;
         public static float PT_MinRowHeight = 36f;
 
@@ -20,7 +22,9 @@ namespace img2table.sharp.web.Services
                 return null;
             }
             
-            int minGapWidth = (int) Math.Round((renderDPI / 72) * PT_MinGap);
+            int minHorGapWidth = (int) Math.Round((renderDPI / 72) * PT_MinHorGap);
+            int minVerGapWidth = (int)Math.Round((renderDPI / 72) * PT_MinVerGap);
+
             int minColWidth = (int) Math.Round((renderDPI / 72) * PT_MinColWidth);
             int minRowHeight = (int)Math.Round((renderDPI / 72) * PT_MinRowHeight);
             using var img = Cv2.ImRead(tableImgFile);
@@ -39,10 +43,10 @@ namespace img2table.sharp.web.Services
 
             bool hasInvalid = false;
             var regions = new List<Rect>();
-            var gaps = FindXSeps(binary, minGapWidth);
+            var gaps = FindXSeps(binary, minHorGapWidth);
             if (gaps.Count == 0)
             {
-                regions = ProcessRegion(binary, tableRect, minGapWidth, minRowHeight);
+                regions = ProcessRegion(binary, tableRect, minVerGapWidth, minRowHeight);
                 return ToRectangleF(regions);
             }
 
@@ -61,7 +65,7 @@ namespace img2table.sharp.web.Services
                     b = tableRect.Bottom;
 
                     region = Rect.FromLTRB(l, t, r, b);
-                    seps = ProcessRegion(binary, region, minGapWidth, minRowHeight);
+                    seps = ProcessRegion(binary, region, minVerGapWidth, minRowHeight);
                     if (seps?.Count > 0)
                     {
                         regions.AddRange(seps);
@@ -81,7 +85,7 @@ namespace img2table.sharp.web.Services
                 b = tableRect.Bottom;
 
                 region = Rect.FromLTRB(l, t, r, b);
-                seps = ProcessRegion(binary, region, minGapWidth, minRowHeight);
+                seps = ProcessRegion(binary, region, minVerGapWidth, minRowHeight);
                 if (seps?.Count > 0)
                 {
                     regions.AddRange(seps);
@@ -99,7 +103,7 @@ namespace img2table.sharp.web.Services
             t = tableRect.Top;
             b = tableRect.Bottom;
             region = Rect.FromLTRB(l, t, r, b);
-            seps = ProcessRegion(binary, region, minGapWidth, minRowHeight);
+            seps = ProcessRegion(binary, region, minVerGapWidth, minRowHeight);
             if (seps?.Count > 0)
             {
                 regions.AddRange(seps);
@@ -116,7 +120,7 @@ namespace img2table.sharp.web.Services
             //}
             //Cv2.ImWrite(@"C:\dev\testfiles\ai_testsuite\pdf\table\kv-test\mul_table\hgr.png", binary);
 
-            hasInvalid = regions.Any(r => r.Width < minColWidth || r.Height < minGapWidth);
+            hasInvalid = regions.Any(r => r.Width < minColWidth || r.Height < minHorGapWidth);
             return hasInvalid? null: ToRectangleF(regions);
         }
 

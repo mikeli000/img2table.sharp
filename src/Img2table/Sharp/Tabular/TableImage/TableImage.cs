@@ -106,21 +106,16 @@ namespace Img2table.Sharp.Tabular.TableImage
             var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
             var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
 
-            //var (h, v) = SolidLineNormalizer.Normalize(originalHLines, originalVLines, textBoxes, tableBbox.Value);
-            //if (_debug_draw_lines)
-            //{
-            //    DebugDrawLines(_img, h, v, null);
-            //}
-
             if (tableBbox != null)
             {
                 var (h, v) = SolidLineNormalizer.Normalize(hLines, vLines, textBoxes, tableBbox.Value);
                 hLines = h;
                 vLines = v;
-                //LineUtils.RemoveLinesInBox(hLines, textBoxes);
-                //LineUtils.RemoveLinesInBox(vLines, textBoxes);
-                //ResolveTopBottomBorder(hLines, vLines, tableBbox.Value, textBoxes);
-                //hLines = hLines.OrderBy(hl => hl.Y1).ToList();
+
+                if (_debug_draw_lines)
+                {
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
 
                 if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
                 {
@@ -143,12 +138,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                     hLines = detectHLines;
                     vLines = detectVLines;
                 }
-
-                if (_debug_draw_lines)
-                {
-                    DebugDrawLines(_img, hLines, vLines, textBoxes);
-                }
-
 
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
