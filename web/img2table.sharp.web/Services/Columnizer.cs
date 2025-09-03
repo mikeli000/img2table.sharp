@@ -4,11 +4,15 @@ using System;
 using System.Linq;
 using System.Globalization;
 using System.Threading;
+using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
+using System.Drawing;
 
 namespace img2table.sharp.web.Services
 {
     public class Columnizer
     {
+        public static float PT_MinHorGap = 7.2f;
+
         public static List<ChunkObject> SortByColumns(List<ChunkObject> body)
         {
             if (body == null || body.Count == 0)
@@ -25,6 +29,124 @@ namespace img2table.sharp.web.Services
                 sorted.AddRange(line.ChunkObjects);
             }
             return sorted;
+        }
+
+        public static List<List<ChunkObject>> Columnize(List<ChunkObject> bodyChunks, float renderDPI = 300)
+        {
+            if (bodyChunks == null || bodyChunks.Count == 0)
+            {
+                return null;
+            }
+
+            var columns = new List<List<ChunkObject>>();
+
+            int minGapW = (int)Math.Round((renderDPI / 72) * PT_MinHorGap);
+            var rects = bodyChunks.Select(b => new Rectangle((int)b.X0, (int)b.Y0, (int)(b.X1 - b.X0), (int)(b.Y1 - b.Y0))).ToList();
+            var cols = ScanForGapsBetweenBoxes(rects, minGapW);
+
+            // TODO
+            if (cols == null || cols.Count() == 0)
+            {
+                columns.Add(SortByColumns(bodyChunks));
+                return columns;
+            }
+
+            var boxesCopy = new List<ChunkObject>(bodyChunks);
+            for (int i = 0; i < cols.Count; i++)
+            {
+                int sep = cols[i];
+                var group = boxesCopy.Where(c => c.X1 < sep);
+                if (group == null || group.Count() == 0)
+                {
+                    continue;
+                }
+                group = group.OrderBy(c => c.Y0);
+                columns.Add(group.ToList());
+
+                foreach (var c in group)
+                {
+                    boxesCopy.Remove(c);
+                }
+            }
+
+            if (boxesCopy.Count > 0)
+            {
+                columns.Add(boxesCopy.OrderBy(c => c.Y0).ToList());
+            }
+
+            return columns;
+        }
+
+        private static List<int> ScanForGapsBetweenBoxes(IEnumerable<Rectangle> chunkBoxes, double minGapW)
+        {
+            var gaps = new List<int>();
+            if (chunkBoxes == null || chunkBoxes.Count() == 0)
+            {
+                return gaps;
+            }
+
+            int step = 1;
+            var boxesCopy = new List<Rectangle>(chunkBoxes);
+            int minX = boxesCopy.Min(r => r.Left);
+            int maxX = boxesCopy.Max(r => r.Right);
+
+            int currentX = minX + 1;
+            while (currentX < maxX)
+            {
+                if (TryGetIntersectingBox(currentX, boxesCopy, out var intersectingBox))
+                {
+                    currentX = intersectingBox.Right + 1;
+                    boxesCopy.RemoveAll(box => box.Right <= currentX);
+                }
+                else
+                {
+                    int gapStart = currentX;
+
+                    while (currentX < maxX)
+                    {
+                        if (TryGetIntersectingBox(currentX, boxesCopy, out intersectingBox))
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            currentX += step;
+                        }
+                    }
+
+                    if (currentX == maxX - 1)
+                    {
+                        break;
+                    }
+
+                    int gapEnd = currentX - 1;
+                    int gapWidth = gapEnd - gapStart + 1;
+                    if (gapWidth >= minGapW)
+                    {
+                        int gapCenter = (gapStart + gapEnd) / 2;
+                        gaps.Add(gapCenter);
+                    }
+
+                    currentX = intersectingBox.Right + 1;
+                    boxesCopy.RemoveAll(box => box.Right <= currentX);
+                }
+            }
+
+            return gaps;
+        }
+
+        private static bool TryGetIntersectingBox(int x, List<Rectangle> boxes, out Rectangle intersectBox)
+        {
+            intersectBox = default;
+            foreach (var box in boxes)
+            {
+                if (x >= box.Left && x <= box.Right)
+                {
+                    intersectBox = box;
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static List<LineSeg> SegmentLines(List<AnchoredChunkObject> body, float overlapThreshold = 2f)

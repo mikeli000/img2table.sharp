@@ -67,15 +67,18 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
                         int b = line.Y1;
                         int l = prevLine.X1;
                         int r = line.X1;
-                        bool intersected = LineUtils.IntersectTextBoxes(new Line(r, t, r, b), textBoxes, delta);
-                        if (!intersected)
+                        if (b > t && r > l)
                         {
-                            bool containBox = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
-                            if (containBox)
+                            bool intersected = LineUtils.IntersectTextBoxes(new Line(r, t, r, b), textBoxes, delta);
+                            if (!intersected)
                             {
-                                line.Y1 = top;
-                                prevLine = line;
-                                break;
+                                bool containBox = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
+                                if (containBox)
+                                {
+                                    line.Y1 = top;
+                                    prevLine = line;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -100,15 +103,18 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
                         int b = bottom;
                         int l = prevLine.X1;
                         int r = line.X1;
-                        bool intersected = LineUtils.IntersectTextBoxes(new Line(r, t, r, b), textBoxes, delta);
-                        if (!intersected)
+                        if (b > t && r > l)
                         {
-                            bool containBox = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
-                            if (containBox)
+                            bool intersected = LineUtils.IntersectTextBoxes(new Line(r, t, r, b), textBoxes, delta);
+                            if (!intersected)
                             {
-                                line.Y2 = bottom;
-                                prevLine = line;
-                                break;
+                                bool containBox = LineUtils.ContainsTextBox(Rect.FromLTRB(l, t, r, b), textBoxes, delta);
+                                if (containBox)
+                                {
+                                    line.Y2 = bottom;
+                                    prevLine = line;
+                                    break;
+                                }
                             }
                         }
                     }

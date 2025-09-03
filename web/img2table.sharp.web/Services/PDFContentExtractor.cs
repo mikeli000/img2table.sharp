@@ -27,7 +27,7 @@ namespace img2table.sharp.web.Services
         public float RenderDPI { get; set; } = 300;
         public float PredictConfidenceThreshold { get; set; } = 0.2f;
 
-        public static float DEFAULT_TEXT_OVERLAP_RATIO = 0.75f;
+        public static float DEFAULT_TEXT_OVERLAP_RATIO = 0.7f;
         public static float DEFAULT_IMAGE_OVERLAP_RATIO = 0.9f;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
@@ -231,7 +231,7 @@ namespace img2table.sharp.web.Services
                     var predictedPageChunks = detectResult?.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
-                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks); // TODO
+                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks, RenderDPI); // TODO
 
                     var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, tableEnhancedImagePath, filteredChunks, RenderDPI / 72f);
                     var pageChunks = new PagedChunk

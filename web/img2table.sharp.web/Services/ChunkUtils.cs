@@ -112,19 +112,24 @@ namespace img2table.sharp.web.Services
             return width * height;
         }
 
-        public static List<ChunkObject> RebuildReadingOrder(IEnumerable<ChunkObject> objects)
+        public static List<ChunkObject> RebuildReadingOrder(IEnumerable<ChunkObject> objects, float renderDPI = 300)
         {
-            var headers = objects.Where(c => c.Label == ChunkType.PageHeader).ToList().OrderBy(c => c.X1);
-            var footers = objects.Where(c => c.Label == ChunkType.PageFooter).ToList().OrderBy(c => c.X1);
+            var headers = objects.Where(c => c.Label == ChunkType.PageHeader || c.Label == ChunkType.Header).ToList().OrderBy(c => c.X1);
+            var footers = objects.Where(c => c.Label == ChunkType.PageFooter || c.Label == ChunkType.Footer).ToList().OrderBy(c => c.X1);
 
-            var artifacts = objects.Where(c => c.Label == ChunkType.Abandon).ToList().OrderBy(c => c.X1);
-            //var body = objects.Except(headers).Except(footers).ToList().OrderBy(c => c.Y1);
+            var artifacts = objects.Where(c => c.Label == ChunkType.Abandon || c.Label == ChunkType.Footnote || c.Label == ChunkType.Number || c.Label == ChunkType.PageNumber).ToList().OrderBy(c => c.X1);
             var body = objects.Except(headers).Except(footers).Except(artifacts).ToList();
 
             var result = new List<ChunkObject>();
 
             result.AddRange(headers);
-            result.AddRange(Columnizer.SortByColumns(body));
+            //result.AddRange(Columnizer.SortByColumns(body));
+
+            var cols = Columnizer.Columnize(body, renderDPI);
+            foreach (var col in cols)
+            {
+                result.AddRange(col);
+            }
             result.AddRange(footers);
 
             return result;

@@ -511,7 +511,7 @@ namespace img2table.sharp.web.Services
 
         public static string EscapeMarkdown(string text)
         {
-            var charsToEscape = new[] { '\\', '`', '*', '_', '~', '#', '+', '-', '!', '[', ']' };
+            var charsToEscape = new[] { '\\', '`', '*', '_', '~', '#', '+', '-', '!' };
             foreach (var c in charsToEscape)
             {
                 text = text.Replace(c.ToString(), "\\" + c);
