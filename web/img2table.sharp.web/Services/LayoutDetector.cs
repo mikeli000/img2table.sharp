@@ -68,6 +68,8 @@ namespace img2table.sharp.web.Services
         public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(15);
+
             using var formData = new MultipartFormDataContent();
 
             var fileContent = new ByteArrayContent(pdfFileBytes);
@@ -104,6 +106,8 @@ namespace img2table.sharp.web.Services
         public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(15);
+
             using var formData = new MultipartFormDataContent();
 
             var fileContent = new ByteArrayContent(pdfFileBytes);
@@ -140,6 +144,8 @@ namespace img2table.sharp.web.Services
         public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(15);
+
             using var formData = new MultipartFormDataContent();
 
             var fileContent = new ByteArrayContent(pdfFileBytes);

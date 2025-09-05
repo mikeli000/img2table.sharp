@@ -25,7 +25,7 @@ namespace img2table.sharp.web.Services
         public static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
 
         public float RenderDPI { get; set; } = 300;
-        public float PredictConfidenceThreshold { get; set; } = 0.2f;
+        public float PredictConfidenceThreshold { get; set; } = 0.1f;
 
         public static float DEFAULT_TEXT_OVERLAP_RATIO = 0.7f;
         public static float DEFAULT_IMAGE_OVERLAP_RATIO = 0.9f;
@@ -43,7 +43,7 @@ namespace img2table.sharp.web.Services
         // debug params
         private bool _debug_draw_page_chunks = false;
         private bool _debug_draw_text_box = false;
-        private bool _debug_save_dectect_image = false;
+        private bool _debug_save_dectect_image = true;
 
         public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, ExtractOptions extractOptions)
         {

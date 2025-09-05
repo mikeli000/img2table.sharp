@@ -122,15 +122,24 @@ namespace img2table.sharp.web.Services
 
             var result = new List<ChunkObject>();
 
-            result.AddRange(headers);
-            //result.AddRange(Columnizer.SortByColumns(body));
-
-            var cols = Columnizer.Columnize(body, renderDPI);
-            foreach (var col in cols)
+            if (headers?.Count() > 0)
             {
-                result.AddRange(col);
+                result.AddRange(headers);
             }
-            result.AddRange(footers);
+            
+            if (body?.Count() > 0)
+            {
+                var cols = Columnizer.Columnize(body, renderDPI);
+                foreach (var col in cols)
+                {
+                    result.AddRange(col);
+                }
+            }
+            
+            if (footers?.Count() > 0)
+            {
+                result.AddRange(footers);
+            }
 
             return result;
         }
