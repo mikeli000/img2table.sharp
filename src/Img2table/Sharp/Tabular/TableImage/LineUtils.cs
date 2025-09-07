@@ -40,7 +40,8 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
             }
             else
             {
-                throw new Exception("Not a straight line " + line.ToString());
+                return false;
+                //throw new Exception("Not a straight line " + line.ToString());
             }
         }
 

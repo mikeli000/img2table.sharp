@@ -52,7 +52,7 @@ namespace img2table.sharp.web.Services
 
     public interface LayoutDetector
     {
-        Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold);
+        Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold);
     }
 
     public class Yolov8xDoclaynetLayoutDetector: LayoutDetector
@@ -65,7 +65,7 @@ namespace img2table.sharp.web.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        public async Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromMinutes(15);
@@ -87,7 +87,7 @@ namespace img2table.sharp.web.Services
             }
 
             var jsonResponse = await response.Content.ReadAsStringAsync();
-            var detectResult = JsonSerializer.Deserialize<ChunkResult>(jsonResponse);
+            var detectResult = JsonSerializer.Deserialize<LayoutDetectionResult>(jsonResponse);
 
             return detectResult;
         }
@@ -103,7 +103,7 @@ namespace img2table.sharp.web.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        public async Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromMinutes(15);
@@ -125,7 +125,7 @@ namespace img2table.sharp.web.Services
             }
 
             var jsonResponse = await response.Content.ReadAsStringAsync();
-            var detectResult = JsonSerializer.Deserialize<ChunkResult>(jsonResponse);
+            var detectResult = JsonSerializer.Deserialize<LayoutDetectionResult>(jsonResponse);
 
             return detectResult;
         }
@@ -141,7 +141,7 @@ namespace img2table.sharp.web.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        public async Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromMinutes(15);
@@ -163,7 +163,7 @@ namespace img2table.sharp.web.Services
             }
 
             var jsonResponse = await response.Content.ReadAsStringAsync();
-            var detectResult = JsonSerializer.Deserialize<ChunkResult>(jsonResponse);
+            var detectResult = JsonSerializer.Deserialize<LayoutDetectionResult>(jsonResponse);
 
             return detectResult;
         }
@@ -179,7 +179,7 @@ namespace img2table.sharp.web.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        public async Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
         {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromMinutes(15);
@@ -206,23 +206,23 @@ namespace img2table.sharp.web.Services
             return detectResult;
         }
 
-        private static ChunkResult MappingToChunkResult(List<DetectionResult> detectionResults)
+        private static LayoutDetectionResult MappingToChunkResult(List<DetectionResult> detectionResults)
         {
-            var chunkResult = new ChunkResult();
+            var chunkResult = new LayoutDetectionResult();
             
-            var pageChunks = new List<PageChunk>();
+            var pageChunks = new List<PageDetectionResult>();
             foreach (var detectionResult in detectionResults)
             {
-                PageChunk pageChunk = new PageChunk();
+                PageDetectionResult pageChunk = new PageDetectionResult();
                 pageChunk.Page = detectionResult.Page;
-                var objects = new List<ChunkObject>();
+                var objects = new List<ObjectDetectionResult>();
 
                 if (detectionResult.DetectionObjectResult?.ObjectResults != null)
                 {
                     int tableIndex = 0;
                     foreach (var obj in detectionResult.DetectionObjectResult?.ObjectResults)
                     {
-                        var chunkObj = new ChunkObject();
+                        var chunkObj = new ObjectDetectionResult();
                         objects.Add(chunkObj);
                         chunkObj.Label = obj.Label;
                         chunkObj.BoundingBox = obj.BoundingBox?.Select(b => (double)b).ToArray();
@@ -232,12 +232,12 @@ namespace img2table.sharp.web.Services
                             var tables = detectionResult.DetectionObjectResult?.TableResListResults;
                             if (tables != null && tables.Count() > tableIndex)
                             {
-                                var cells = new List<TableCellChunk>();
+                                var cells = new List<TableCellDetectionResult>();
                                 var table = tables.ElementAt(tableIndex);
 
                                 foreach (var cell in table.FlatCells)
                                 {
-                                    var tableCellChunk = new TableCellChunk();
+                                    var tableCellChunk = new TableCellDetectionResult();
                                     tableCellChunk.BoundingBox = new int[] {
                                         (int)cell[0], (int)cell[1],
                                         (int)cell[2], (int)cell[3]

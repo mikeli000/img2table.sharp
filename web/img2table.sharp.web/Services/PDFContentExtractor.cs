@@ -7,28 +7,21 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Drawing;
 using System.Linq;
-using OpenCvSharp;
 using System.Collections.Generic;
 using PDFDict.SDK.Sharp.Core.Contents;
-using System.Text.Json.Serialization;
 using System.Text;
 using Img2table.Sharp.Tabular;
 using img2table.sharp.Img2table.Sharp.Data;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 
 namespace img2table.sharp.web.Services
 {
     public class PDFContentExtractor
     {
-        public static readonly string TempFolderName = "image2table_9966acf1-c43b-465c-bf7f-dd3c30394676";
-
         public float RenderDPI { get; set; } = 300;
-        public float PredictConfidenceThreshold { get; set; } = 0.1f;
+        public float PredictConfidenceThreshold { get; set; } = 0.5f;
 
-        public static float DEFAULT_TEXT_OVERLAP_RATIO = 0.7f;
-        public static float DEFAULT_IMAGE_OVERLAP_RATIO = 0.9f;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
         
@@ -58,7 +51,7 @@ namespace img2table.sharp.web.Services
             _docCategory = extractOptions.DocCategory ?? LayoutDetectorFactory.DocumentCategory.AcademicPaper;
         }
 
-        private async Task<ChunkResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
+        private async Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
         {
             var detector = new LayoutDetectorFactory(_httpClientFactory).Create(_docCategory);
             if (detector == null)
@@ -77,7 +70,7 @@ namespace img2table.sharp.web.Services
         {
             var stopwatch = Stopwatch.StartNew();
 
-            ChunkResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
+            LayoutDetectionResult detectResult = await DetectAsync(pdfFileBytes, pdfFileName);
             if (detectResult == null)
             {
                 throw new PDFContentExtractorException(HttpStatusCode.InternalServerError, "Layout detection failed.");
@@ -139,10 +132,10 @@ namespace img2table.sharp.web.Services
             }
         }
 
-        private IDictionary<int, string> RenderTableBorderEnhanced(string pdfFile, ChunkResult detectResult, string workFolder)
+        private IDictionary<int, string> RenderTableBorderEnhanced(string pdfFile, LayoutDetectionResult detectResult, string workFolder)
         {
             var tableImageDict = new Dictionary<int, string>();
-            var pagesWithTable = GetPagesWithTableChunks(detectResult);
+            var pagesWithTable = ExtractUtils.GetPagesWithTableChunks(detectResult);
             if (pagesWithTable.Count == 0)
             {
                 return tableImageDict;
@@ -205,7 +198,7 @@ namespace img2table.sharp.web.Services
         private readonly object _renderLock = new object();
 
         private Task ExtractPagesAsync(PDFDocument pdfDoc, List<Tuple<int, PDFPage>> pageList, string workFolder, 
-            ChunkResult detectResult, string jobFolderName, ConcurrentBag<PagedChunk> pagedChunks, IDictionary<int, string> tableEnhancedImagePathDict)
+            LayoutDetectionResult detectResult, string jobFolderName, ConcurrentBag<PagedChunk> pagedChunks, IDictionary<int, string> tableEnhancedImagePathDict)
         {
             return Task.Run(async () =>
             {
@@ -244,7 +237,7 @@ namespace img2table.sharp.web.Services
 
                     if (_debug_draw_page_chunks)
                     {
-                        DrawPageChunks(pageImagePath, filteredChunks);
+                        ExtractUtils.DrawPageChunks(pageImagePath, filteredChunks);
                     }
                     if (_debug_save_dectect_image)
                     {
@@ -256,7 +249,7 @@ namespace img2table.sharp.web.Services
             });
         }
 
-        private IList<ChunkElement> BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, string workFolder, string pageImagePath, string tableEnhancedImagePath, IEnumerable<ChunkObject> filteredChunkObjects, float ratio)
+        private IList<ChunkElement> BuildPageChunks(PDFDocument pdfDoc, PDFPage pdfPage, string workFolder, string pageImagePath, string tableEnhancedImagePath, IEnumerable<ObjectDetectionResult> filteredChunkObjects, float ratio)
         {
             var pageThread = pdfPage.BuildPageThread();
             var textThread = pageThread.GetTextThread();
@@ -266,19 +259,19 @@ namespace img2table.sharp.web.Services
 
             if (_debug_draw_text_box)
             {
-                DrawPageElements(pageImagePath, pageElements);
+                ExtractUtils.DrawPageElements(pageImagePath, pageElements);
             }
 
             foreach (var chunkObject in filteredChunkObjects)
             {
-                var chunkType = ChunkType.MappingChunkType(chunkObject.Label);
-                if (chunkType == ChunkType.Unknown)
+                var chunkType = DetectionLabel.MappingLabel(chunkObject.Label);
+                if (chunkType == DetectionLabel.Unknown)
                 {
                     continue;
                 }
 
                 var chunkBox = RectangleF.FromLTRB((float)chunkObject.BoundingBox[0], (float)chunkObject.BoundingBox[1], (float)chunkObject.BoundingBox[2], (float)chunkObject.BoundingBox[3]);
-                var contentElements = FindContentElementsInBox(chunkBox, pageElements);
+                var contentElements = ExtractUtils.FindContentElementsInBox(chunkBox, pageElements);
 
                 var chunkElement = new ChunkElement
                 {
@@ -287,11 +280,11 @@ namespace img2table.sharp.web.Services
                 };
 
                 bool isTableProcessed = false;
-                if (chunkType == ChunkType.Table)
+                if (chunkType == DetectionLabel.Table)
                 {
                     if (/*DrawTableChunk*/ false)
                     {
-                        DrawTableChunk(pageImagePath, chunkObject.Cells);
+                        ExtractUtils.DrawTableChunk(pageImagePath, chunkObject.Cells);
                     }
 
                     if (contentElements != null)
@@ -326,7 +319,7 @@ namespace img2table.sharp.web.Services
                             else
                             {
                                 isTableProcessed = false;
-                                chunkElement.ChunkObject.Label = ChunkType.Image;
+                                chunkElement.ChunkObject.Label = DetectionLabel.Image;
                             }
                         }
                         else
@@ -362,7 +355,7 @@ namespace img2table.sharp.web.Services
                                         ChunkUtils.ClipImage(pageImagePath, tableImagePath, region);
                                     }
 
-                                    contentElements = FindContentElementsInBox(region, pageElements);
+                                    contentElements = ExtractUtils.FindContentElementsInBox(region, pageElements);
                                     chunkElement.ContentElements = contentElements;
                                     TabularPDF(param, tableImagePath, region, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _useEmbeddedHtml);
                                 }
@@ -384,7 +377,7 @@ namespace img2table.sharp.web.Services
             PDFDocument pdfDoc, PDFPage pdfPage, float ratio, ChunkElement chunkElement, bool useHtml)
         {
             var imageTabular = new ImageTabular(param);
-            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, GetTextBoxes(contentElements), false);
+            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, ExtractUtils.GetTextBoxes(contentElements), false);
 
             var pdfTabular = new PDFTabular(param);
             pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml);
@@ -403,7 +396,7 @@ namespace img2table.sharp.web.Services
             else
             {
                 isTableProcessed = false;
-                chunkElement.ChunkObject.Label = ChunkType.Text;
+                chunkElement.ChunkObject.Label = DetectionLabel.Text;
             }
 
             return isTableProcessed;
@@ -437,313 +430,6 @@ namespace img2table.sharp.web.Services
             }
 
             return transPageElements;
-        }
-
-        private static List<TextRect> GetTextBoxes(List<ContentElement> contentElements)
-        {
-            var rects = new List<TextRect>();
-            foreach (var tc in contentElements)
-            {
-                if (tc.PageElement is TextElement)
-                {
-                    rects.Add(new TextRect(tc.Rect(), tc.Content));
-                }
-            }
-
-            return rects;
-        }
-
-        private static List<ContentElement> FindContentElementsInBox(RectangleF chunkBox, List<ContentElement> pageElements)
-        {
-            var eles = new List<ContentElement>();
-            foreach (var tc in pageElements)
-            {
-                var tcRect = tc.Rect();
-                bool contained = IsContained(chunkBox, tcRect, DEFAULT_TEXT_OVERLAP_RATIO);
-                if (contained)
-                {
-                    eles.Add(tc);
-                }
-                else
-                {
-                    if (tc.PageElement.Type == PageElement.ElementType.Image)
-                    {
-                        if (IsContained(chunkBox, tcRect, DEFAULT_IMAGE_OVERLAP_RATIO))
-                        {
-                            eles.Add(tc);
-                        }
-                    }
-                }
-            }
-
-            return eles;
-        }
-
-        private static bool IsContained(RectangleF container, RectangleF dst, float overlapRatio)
-        {
-            RectangleF intersection = RectangleF.Intersect(container, dst);
-
-            if (intersection.IsEmpty)
-            {
-                return false;
-            }
-
-            if (intersection.Equals(dst))
-            {
-                return true;
-            }
-
-            float intersectionArea = intersection.Width * intersection.Height;
-            float dstArea = dst.Width * dst.Height;
-
-            return intersectionArea / dstArea >= overlapRatio;
-        }
-
-        private static void DrawTableChunk(string pageImagePath, IEnumerable<TableCellChunk> cells)
-        {
-            if (!File.Exists(pageImagePath))
-            {
-                Console.WriteLine($"Image not found: {pageImagePath}");
-                return;
-            }
-
-            using var image = Cv2.ImRead(pageImagePath, ImreadModes.Color);
-            int thickness = 1;
-
-            foreach (var cell in cells)
-            {
-                var x1 = cell.X0;
-                var y1 = cell.Y0;
-                var x2 = cell.X1;
-                var y2 = cell.Y1;
-
-                var scalarColor = new Scalar(255, 0, 255);
-                Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
-            }
-
-            Cv2.ImWrite(pageImagePath, image);
-        }
-
-        private static void DrawPageElements(string pageImagePath, List<ContentElement> pageElements)
-        {
-            if (!File.Exists(pageImagePath))
-            {
-                Console.WriteLine($"Image not found: {pageImagePath}");
-                return;
-            }
-
-            using var image = Cv2.ImRead(pageImagePath, ImreadModes.Color);
-            int thickness = 1;
-
-            foreach (var chunk in pageElements)
-            {
-                if (chunk.PageElement is TextElement)
-                {
-                    var x1 = chunk.Left;
-                    var y1 = chunk.Top;
-                    var x2 = chunk.Right;
-                    var y2 = chunk.Bottom;
-
-                    var scalarColor = new Scalar(255, 0, 0);
-                    // Draw rectangle
-                    Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
-                }
-            }
-
-            Cv2.ImWrite(pageImagePath, image);
-        }
-
-        private static void DrawPageChunks(string pageImagePath, IEnumerable<ChunkObject> chunkObjects)
-        {
-            if (!File.Exists(pageImagePath))
-            {
-                Console.WriteLine($"Image not found: {pageImagePath}");
-                return;
-            }
-
-            using var image = Cv2.ImRead(pageImagePath, ImreadModes.Color);
-            int thickness = 4;
-            double fontScale = 2;
-
-            foreach (var chunk in chunkObjects)
-            {
-                if (chunk.BoundingBox is not { Length: 4 }) continue;
-
-                var x1 = (int)chunk.BoundingBox[0];
-                var y1 = (int)chunk.BoundingBox[1];
-                var x2 = (int)chunk.BoundingBox[2];
-                var y2 = (int)chunk.BoundingBox[3];
-
-                string label = chunk.Label ?? "Unknown";
-                double conf = chunk.Confidence ?? 0.0;
-
-                var scalarColor = new Scalar(0, 255, 0);
-                if (ChunkType.LabelColors.TryGetValue(label, out var c))
-                {
-                    scalarColor = new Scalar(c.R, c.G, c.B);
-                }
-
-                // Draw rectangle
-                Cv2.Rectangle(image, new OpenCvSharp.Point(x1, y1), new OpenCvSharp.Point(x2, y2), scalarColor, thickness);
-
-                // Draw label text
-                string text = $"{label} {conf:F2}";
-                Cv2.PutText(image, text, new OpenCvSharp.Point(x1, y1 - 5), HersheyFonts.HersheyDuplex, fontScale, scalarColor, 1);
-            }
-
-            Cv2.ImWrite(pageImagePath, image);
-        }
-
-        private static List<int> GetPagesWithTableChunks(ChunkResult detectResult)
-        {
-            var pageIndicesWithTables = new List<int>();
-    
-            if (detectResult?.Results == null)
-            {
-                return pageIndicesWithTables;
-            }
-
-            foreach (var pageChunk in detectResult.Results)
-            {
-                if (pageChunk.Objects?.Any(obj => IsTableObject(obj)) == true)
-                {
-                    if (pageChunk.Page.HasValue)
-                    {
-                        pageIndicesWithTables.Add(pageChunk.Page.Value);
-                    }
-                }
-            }
-    
-            return pageIndicesWithTables;
-        }
-
-        private static bool IsTableObject(ChunkObject chunkObject)
-        {
-            if (chunkObject?.Label == null)
-            {
-                return false;
-            }
-
-            return string.Equals(chunkObject.Label, ChunkType.Table, StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
-    public class ContentElement
-    {
-        public int Left { get; set; }
-        public int Top { get; set; }
-        public int Right { get; set; }
-        public int Bottom { get; set; }
-        public PageElement PageElement { get; set; }
-
-        public RectangleF Rect()
-        {
-            return RectangleF.FromLTRB(Left, Top, Right, Bottom);
-        }
-
-        public string OCRText { get; set; } = string.Empty;
-
-        public string Content
-        {
-            get
-            {
-                if (PageElement is TextElement textElement)
-                {
-                    return textElement.GetText();
-                }
-                else if (PageElement is ImageElement)
-                {
-                    return OCRText;
-                }
-
-                return string.Empty;
-            }
-        }
-    }
-
-    public class ChunkElement
-    {
-        [JsonPropertyName("chunkObject")]
-        public ChunkObject ChunkObject { get; set; }
-
-        [JsonIgnore]
-        public IEnumerable<ContentElement> ContentElements { get; set; }
-
-        [JsonPropertyName("markdownText")]
-        public string MarkdownText { get; set; }
-    }
-
-    public class PagedChunk
-    {
-        [JsonPropertyName("pageNumber")]
-        public int PageNumber { get; set; }
-
-        [JsonPropertyName("previewImagePath")]
-        public string PreviewImagePath { get; set; }
-
-        [JsonPropertyName("chunks")]
-        public IEnumerable<ChunkElement> Chunks { get; set; }
-    }
-
-    public class DocumentChunks
-    {
-        [JsonPropertyName("documentName")]
-        public string DocumentName { get; set; }
-
-        [JsonPropertyName("pagedChunks")]
-        public IEnumerable<PagedChunk> PagedChunks { get; set; }
-
-        [JsonPropertyName("jobId")]
-        public string JobId { get; set; }
-
-        [JsonPropertyName("elapsedMilliseconds")]
-        public long ElapsedMilliseconds { get; set; } = 0;
-
-        [JsonPropertyName("markdown")]
-        public string Markdown
-        {
-            get
-            {
-                if (PagedChunks == null || !PagedChunks.Any())
-                {
-                    return string.Empty;
-                }
-
-                var markdownBuilder = new StringBuilder();
-                foreach (var pageChunk in PagedChunks)
-                {
-                    //markdownBuilder.AppendLine($"# Page {pageChunk.PageNumber}");
-                    foreach (var chunk in pageChunk.Chunks)
-                    {
-                        //markdownBuilder.AppendLine($"## {chunk.ChunkObject.Label}");
-                        markdownBuilder.AppendLine(chunk.MarkdownText);
-                    }
-                }
-                return markdownBuilder.ToString();
-            }
-        }
-    }
-
-    public class PDFContentExtractorException : Exception
-    {
-        public HttpStatusCode StatusCode { get; }
-        public string ResponseContent { get; }
-
-        public PDFContentExtractorException(HttpStatusCode statusCode, string content)
-            : base($"PDF content extraction failed with status code {(int)statusCode}: {content}")
-        {
-            StatusCode = statusCode;
-            ResponseContent = content;
-        }
-    }
-
-    public class ExtractOptions
-    {
-        public bool UseEmbeddedHtml { get; set; } = false;
-        public bool IgnoreMarginalia { get; set; } = false;
-        public bool EnableOCR { get; set; } = false;
-        public bool EmbedImagesAsBase64 { get; set; } = false;
-        public bool OutputFigureAsImage { get; set; } = false;
-        public string DocCategory { get; set; } = LayoutDetectorFactory.DocumentCategory.AcademicPaper;
+        }        
     }
 }

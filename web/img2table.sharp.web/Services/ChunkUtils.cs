@@ -30,9 +30,9 @@ namespace img2table.sharp.web.Services
             return iou > iouThreshold;
         }
 
-        public static List<ChunkObject> FilterOverlapping(IEnumerable<ChunkObject> objects, double iouThreshold = 0.8)
+        public static List<ObjectDetectionResult> FilterOverlapping(IEnumerable<ObjectDetectionResult> objects, double iouThreshold = 0.8)
         {
-            var result = new List<ChunkObject>();
+            var result = new List<ObjectDetectionResult>();
 
             foreach (var obj in objects)
             {
@@ -56,9 +56,9 @@ namespace img2table.sharp.web.Services
             return result;
         }
 
-        public static List<ChunkObject> FilterContainment(IEnumerable<ChunkObject> objects)
+        public static List<ObjectDetectionResult> FilterContainment(IEnumerable<ObjectDetectionResult> objects)
         {
-            var result = new List<ChunkObject>();
+            var result = new List<ObjectDetectionResult>();
 
             var sorted = objects.OrderByDescending(obj => Area(obj.BoundingBox));
             foreach (var obj in sorted)
@@ -112,15 +112,15 @@ namespace img2table.sharp.web.Services
             return width * height;
         }
 
-        public static List<ChunkObject> RebuildReadingOrder(IEnumerable<ChunkObject> objects, float renderDPI = 300)
+        public static List<ObjectDetectionResult> RebuildReadingOrder(IEnumerable<ObjectDetectionResult> objects, float renderDPI = 300)
         {
-            var headers = objects.Where(c => c.Label == ChunkType.PageHeader || c.Label == ChunkType.Header).ToList().OrderBy(c => c.X1);
-            var footers = objects.Where(c => c.Label == ChunkType.PageFooter || c.Label == ChunkType.Footer).ToList().OrderBy(c => c.X1);
+            var headers = objects.Where(c => c.Label == DetectionLabel.PageHeader || c.Label == DetectionLabel.Header).ToList().OrderBy(c => c.X1);
+            var footers = objects.Where(c => c.Label == DetectionLabel.PageFooter || c.Label == DetectionLabel.Footer).ToList().OrderBy(c => c.X1);
 
-            var artifacts = objects.Where(c => c.Label == ChunkType.Abandon || c.Label == ChunkType.Footnote || c.Label == ChunkType.Number || c.Label == ChunkType.PageNumber).ToList().OrderBy(c => c.X1);
+            var artifacts = objects.Where(c => c.Label == DetectionLabel.Abandon || c.Label == DetectionLabel.Footnote || c.Label == DetectionLabel.Number || c.Label == DetectionLabel.PageNumber).ToList().OrderBy(c => c.X1);
             var body = objects.Except(headers).Except(footers).Except(artifacts).ToList();
 
-            var result = new List<ChunkObject>();
+            var result = new List<ObjectDetectionResult>();
 
             if (headers?.Count() > 0)
             {
@@ -144,7 +144,7 @@ namespace img2table.sharp.web.Services
             return result;
         }
 
-        public static void SplitIntoColumns(List<ChunkObject> boxes, out List<ChunkObject> left, out List<ChunkObject> right)
+        public static void SplitIntoColumns(List<ObjectDetectionResult> boxes, out List<ObjectDetectionResult> left, out List<ObjectDetectionResult> right)
         {
             var centers = boxes
                 .Select(b => (b.X0 + b.X1) / 2)
@@ -168,7 +168,7 @@ namespace img2table.sharp.web.Services
             right = SortByReadingOrder(boxes.Where(b => (b.X0 + b.X1) / 2 > splitX).ToList());
         }
 
-        public static List<ChunkObject> SortByReadingOrder(List<ChunkObject> boxes)
+        public static List<ObjectDetectionResult> SortByReadingOrder(List<ObjectDetectionResult> boxes)
         {
             return boxes
                 .OrderBy(b => b.Y0)
@@ -176,7 +176,7 @@ namespace img2table.sharp.web.Services
                 .ToList();
         }
 
-        public static void ClipChunkRectImage(string pageImage, string clippedImage, ChunkObject chunkObject, bool useOriginalSize = true)
+        public static void ClipChunkRectImage(string pageImage, string clippedImage, ObjectDetectionResult chunkObject, bool useOriginalSize = true)
         {
             var chunkBox = RectangleF.FromLTRB((float)chunkObject.BoundingBox[0], (float)chunkObject.BoundingBox[1], (float)chunkObject.BoundingBox[2], (float)chunkObject.BoundingBox[3]);
             ClipImage(pageImage, clippedImage, chunkBox, useOriginalSize);

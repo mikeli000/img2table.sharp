@@ -6,25 +6,25 @@ using System.Text.Json.Serialization;
 
 namespace img2table.sharp.web.Models
 {
-    public class ChunkResult
+    public class LayoutDetectionResult
     {
         [JsonPropertyName("results")]
-        public IEnumerable<PageChunk> Results { get; set; }
+        public IEnumerable<PageDetectionResult> Results { get; set; }
     }
 
-    public class PageChunk
+    public class PageDetectionResult
     {
         [JsonPropertyName("page")]
         public int? Page { get; set; }
 
         [JsonPropertyName("objects")]
-        public IEnumerable<ChunkObject> Objects { get; set; }
+        public IEnumerable<ObjectDetectionResult> Objects { get; set; }
 
         [JsonPropertyName("image_base64")]
         public string LabeledImage { get; set; }
     }
 
-    public class ChunkObject
+    public class ObjectDetectionResult
     {
         [JsonPropertyName("label")]
         public string Label { get; set; }
@@ -36,7 +36,7 @@ namespace img2table.sharp.web.Models
         public double[] BoundingBox { get; set; }
 
         [JsonIgnore]
-        public IEnumerable<TableCellChunk> Cells { get; set; }
+        public IEnumerable<TableCellDetectionResult> Cells { get; set; }
 
         [JsonIgnore]
         public double X0 => BoundingBox[0];
@@ -50,17 +50,17 @@ namespace img2table.sharp.web.Models
         public double Width => X1 - X0;
     }
 
-    public class TableChunk
+    public class TableDetectionResult
     {
-        public IEnumerable<TableRowChunk> Rows { get; set; }
+        public IEnumerable<TableRowDetectionResult> Rows { get; set; }
     }
 
-    public class TableRowChunk
+    public class TableRowDetectionResult
     {
-        public IEnumerable<TableCellChunk> Cells { get; set; }
+        public IEnumerable<TableCellDetectionResult> Cells { get; set; }
     }
 
-    public class TableCellChunk
+    public class TableCellDetectionResult
     {
         public string Content { get; set; } = string.Empty;
 
@@ -76,7 +76,7 @@ namespace img2table.sharp.web.Models
         public int Y1 => BoundingBox[3];
     }
 
-    public class ChunkType
+    public class DetectionLabel
     {
         //{0: 'Caption', 1: 'Footnote', 2: 'Formula', 3: 'List-item', 4: 'Page-footer', 5: 'Page-header', 6: 'Picture', 7: 'Section-header', 8: 'Table', 9: 'Text', 10: 'Title'}
         public const string Caption = "Caption";
@@ -127,7 +127,7 @@ namespace img2table.sharp.web.Models
 
         public const string Unknown = "Unknown";
 
-        public static string MappingChunkType(string label)
+        public static string MappingLabel(string label)
         {
             if (string.Equals(label, Caption, StringComparison.OrdinalIgnoreCase))
             {

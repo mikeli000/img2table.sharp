@@ -1,0 +1,9 @@
+paddleocr
+paddlepaddle
+fastapi
+uvicorn
+pdf2image
+opencv-python-headless
+pillow
+python-multipart
+dill

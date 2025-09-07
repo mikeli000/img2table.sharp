@@ -34,7 +34,7 @@ namespace img2table.sharp.web.Services
             ProcessLineBreaks(contents, chunkElement.ChunkObject, autoOCR, workFolder, pageImagePath, hiddenListTag, false);
         }
 
-        public static List<TextParagraph> ProcessLineBreaks(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, string workFolder, 
+        public static List<TextParagraph> ProcessLineBreaks(IEnumerable<ContentElement> contents, ObjectDetectionResult chunkObject, bool autoOCR, string workFolder, 
             string pageImagePath, bool hiddenListTag, bool loadTextStyle)
         {
             if (contents == null || !contents.Any())

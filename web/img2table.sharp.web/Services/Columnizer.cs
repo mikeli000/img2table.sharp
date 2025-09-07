@@ -13,14 +13,14 @@ namespace img2table.sharp.web.Services
     {
         public static float PT_MinHorGap = 7.2f;
 
-        public static List<ChunkObject> SortByColumns(List<ChunkObject> body)
+        public static List<ObjectDetectionResult> SortByColumns(List<ObjectDetectionResult> body)
         {
             if (body == null || body.Count == 0)
             {
                 return body;
             }
 
-            var sorted = new List<ChunkObject>();
+            var sorted = new List<ObjectDetectionResult>();
             var anchoredChunkObject = body.Select(b => new AnchoredChunkObject { Obj = b }).ToList();
             var lines = SegmentLines(anchoredChunkObject);
             foreach (var line in lines)
@@ -31,14 +31,14 @@ namespace img2table.sharp.web.Services
             return sorted;
         }
 
-        public static List<List<ChunkObject>> Columnize(List<ChunkObject> bodyChunks, float renderDPI = 300)
+        public static List<List<ObjectDetectionResult>> Columnize(List<ObjectDetectionResult> bodyChunks, float renderDPI = 300)
         {
             if (bodyChunks == null || bodyChunks.Count == 0)
             {
                 return null;
             }
 
-            var columns = new List<List<ChunkObject>>();
+            var columns = new List<List<ObjectDetectionResult>>();
 
             int minGapW = (int)Math.Round((renderDPI / 72) * PT_MinHorGap);
             var rects = bodyChunks.Select(b => new Rectangle((int)b.X0, (int)b.Y0, (int)(b.X1 - b.X0), (int)(b.Y1 - b.Y0))).ToList();
@@ -51,7 +51,7 @@ namespace img2table.sharp.web.Services
                 return columns;
             }
 
-            var boxesCopy = new List<ChunkObject>(bodyChunks);
+            var boxesCopy = new List<ObjectDetectionResult>(bodyChunks);
             for (int i = 0; i < cols.Count; i++)
             {
                 int sep = cols[i];
@@ -207,7 +207,7 @@ namespace img2table.sharp.web.Services
                     var lastLineSeg = lineSegs.Last();
                     if (lastLineSeg.Cols.Count != 0 && lastLineSeg.Cols.Count == lineSeg.Cols.Count) // TODO: check col postion??
                     {
-                        var mergedBox = new List<ChunkObject>();
+                        var mergedBox = new List<ObjectDetectionResult>();
                         mergedBox.AddRange(lastLineSeg.ChunkObjects);
                         mergedBox.AddRange(lineSeg.ChunkObjects);
                         var gaps = ScanForGapsBetweenBoxes(mergedBox);
@@ -264,7 +264,7 @@ namespace img2table.sharp.web.Services
         class AnchoredChunkObject
         {
             public bool Used { get; set; } = false;
-            public ChunkObject Obj;
+            public ObjectDetectionResult Obj;
         }
 
         class LineSeg
@@ -272,7 +272,7 @@ namespace img2table.sharp.web.Services
             public int Y0;
             public int Y1;
             public List<int> Cols;
-            public List<ChunkObject> ChunkObjects = new List<ChunkObject>();
+            public List<ObjectDetectionResult> ChunkObjects = new List<ObjectDetectionResult>();
         }
 
         private static void SortLineSegByColumns(LineSeg line)
@@ -282,7 +282,7 @@ namespace img2table.sharp.web.Services
                 return;
             }
             
-            var sortedObjs = new List<ChunkObject>();
+            var sortedObjs = new List<ObjectDetectionResult>();
             var columnBounds = new List<(int left, int right)>();
 
             columnBounds.Add((0, line.Cols[0]));
@@ -293,11 +293,11 @@ namespace img2table.sharp.web.Services
             columnBounds.Add((line.Cols.Last(), int.MaxValue));
 
             int columnCount = columnBounds.Count;
-            var columns = new List<List<ChunkObject>>(new List<ChunkObject>[columnCount]);
+            var columns = new List<List<ObjectDetectionResult>>(new List<ObjectDetectionResult>[columnCount]);
 
             for (int i = 0; i < columnCount; i++)
             {
-                columns[i] = new List<ChunkObject>();
+                columns[i] = new List<ObjectDetectionResult>();
             }
 
             foreach (var obj in line.ChunkObjects)
@@ -326,7 +326,7 @@ namespace img2table.sharp.web.Services
         }
 
 
-        private static bool IsYOverlap(ChunkObject a, ChunkObject b, float threshold = 2.0f)
+        private static bool IsYOverlap(ObjectDetectionResult a, ObjectDetectionResult b, float threshold = 2.0f)
         {
             var topA = Math.Min(a.Y0, a.Y1);
             var bottomA = Math.Max(a.Y0, a.Y1);
@@ -338,13 +338,13 @@ namespace img2table.sharp.web.Services
         }
 
         // 判断 a 是否比 b 小（用 Y 高度判断）
-        private static bool IsSmallerBox(ChunkObject a, ChunkObject b)
+        private static bool IsSmallerBox(ObjectDetectionResult a, ObjectDetectionResult b)
         {
             return (a.Y1 - a.Y0) <= (b.Y1 - b.Y0);
         }
 
 
-        private static List<int> ScanForGapsBetweenBoxes(List<ChunkObject> ocrBoxes)
+        private static List<int> ScanForGapsBetweenBoxes(List<ObjectDetectionResult> ocrBoxes)
         {
             var gaps = new List<int>();
             if (ocrBoxes == null || ocrBoxes.Count == 0)
@@ -355,7 +355,7 @@ namespace img2table.sharp.web.Services
             int step = 1;
             int minGapW = 5;
 
-            var ocrBoxesCopy = new List<ChunkObject>(ocrBoxes);
+            var ocrBoxesCopy = new List<ObjectDetectionResult>(ocrBoxes);
             int minX = (int)ocrBoxesCopy.Min(r => r.X0);
             int maxX = (int)ocrBoxesCopy.Max(r => r.X1);
 
@@ -404,7 +404,7 @@ namespace img2table.sharp.web.Services
             return gaps;
         }
 
-        private static bool TryGetIntersectingBox(int x, List<ChunkObject> ocrBoxes, out ChunkObject intersectBox)
+        private static bool TryGetIntersectingBox(int x, List<ObjectDetectionResult> ocrBoxes, out ObjectDetectionResult intersectBox)
         {
             intersectBox = default;
             foreach (var box in ocrBoxes)

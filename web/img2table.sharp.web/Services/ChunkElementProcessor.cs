@@ -43,8 +43,8 @@ namespace img2table.sharp.web.Services
         public string Process(ChunkElement chunkElement, string pageImagePath)
         {
             _pageImagePath = pageImagePath;
-            var chunkType = ChunkType.MappingChunkType(chunkElement.ChunkObject.Label);
-            if (chunkType == ChunkType.Unknown)
+            var chunkType = DetectionLabel.MappingLabel(chunkElement.ChunkObject.Label);
+            if (chunkType == DetectionLabel.Unknown)
             {
                 return "";
             }
@@ -53,63 +53,63 @@ namespace img2table.sharp.web.Services
             _writer = new MarkdownWriter();
             switch (chunkType)
             {
-                case ChunkType.Abandon:
+                case DetectionLabel.Abandon:
                     if (!_ignoreMarginalia) 
                     {
                         ProcessTextChunk(chunkElement);
                     }
                     break;
-                case ChunkType.PlainText:
+                case DetectionLabel.PlainText:
                     ProcessTextChunk(chunkElement);
                     break;
-                case ChunkType.TableFootnote:
+                case DetectionLabel.TableFootnote:
                     WriteText(chunkElement, 5);
                     _writer.AppendLine();
                     break;
-                case ChunkType.Table:
+                case DetectionLabel.Table:
                     ProcessTableChunk(chunkElement);
                     break;
-                case ChunkType.Picture:
-                case ChunkType.Figure:
-                case ChunkType.Chart:
+                case DetectionLabel.Picture:
+                case DetectionLabel.Figure:
+                case DetectionLabel.Chart:
                     ProcessPictureChunk(chunkElement);
                     break;
-                case ChunkType.SectionHeader:
-                case ChunkType.ParagraphTitle:
+                case DetectionLabel.SectionHeader:
+                case DetectionLabel.ParagraphTitle:
                     ProcessSectionHeaderChunk(chunkElement);
                     break;
-                case ChunkType.Caption:
-                case ChunkType.TableCaption:
-                case ChunkType.FigureCaption:
+                case DetectionLabel.Caption:
+                case DetectionLabel.TableCaption:
+                case DetectionLabel.FigureCaption:
                     ProcessCaptionChunk(chunkElement);
                     break;
-                case ChunkType.Footnote:
+                case DetectionLabel.Footnote:
                     ProcessFootnoteChunk(chunkElement);
                     break;
-                case ChunkType.Formula:
+                case DetectionLabel.Formula:
                     ProcessFormulaChunk(chunkElement);
                     break;
-                case ChunkType.ListItem:
+                case DetectionLabel.ListItem:
                     ProcessListItemChunk(chunkElement);
                     break;
-                case ChunkType.PageFooter:
+                case DetectionLabel.PageFooter:
                     if (!_ignoreMarginalia)
                     {
                         ProcessPageFooterChunk(chunkElement);
                     }
                     break;
-                case ChunkType.PageHeader:
+                case DetectionLabel.PageHeader:
                     if (!_ignoreMarginalia)
                     {
                         ProcessPageHeaderChunk(chunkElement);
                     }
                     break;
-                case ChunkType.Number:
-                case ChunkType.PageNumber:
-                case ChunkType.Text:
+                case DetectionLabel.Number:
+                case DetectionLabel.PageNumber:
+                case DetectionLabel.Text:
                     ProcessTextChunk(chunkElement);
                     break;
-                case ChunkType.Title:
+                case DetectionLabel.Title:
                     ProcessTitleChunk(chunkElement);
                     break;
                 default:
@@ -244,7 +244,7 @@ namespace img2table.sharp.web.Services
             }
         }
 
-        private void WriteLine(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoOCR, int? headingLevel = null, bool outputAsHtml = false)
+        private void WriteLine(IEnumerable<ContentElement> contents, ObjectDetectionResult chunkObject, bool autoOCR, int? headingLevel = null, bool outputAsHtml = false)
         {
             var textParagraphs = LineBreakProcessor.ProcessLineBreaks(contents, chunkObject, autoOCR, _workFolder, _pageImagePath, _removeBulletChar, outputAsHtml);
             if (textParagraphs == null || textParagraphs.Count == 0)
@@ -261,7 +261,7 @@ namespace img2table.sharp.web.Services
 
                 if (paragraph.IsListItem)
                 {
-                    chunkObject.Label = ChunkType.ListItem;
+                    chunkObject.Label = DetectionLabel.ListItem;
                     _writer.WriteListItemTag(listTag: paragraph.ListTag, isOrderList: paragraph.IsOrderedList);
                 }
                 if (headingLevel != null)
@@ -272,7 +272,7 @@ namespace img2table.sharp.web.Services
             }
         }
 
-        private void WriteText(IEnumerable<ContentElement> contents, ChunkObject chunkObject, bool autoLinkBreak = false, bool autoOCR = false, int? headingLevel = null)
+        private void WriteText(IEnumerable<ContentElement> contents, ObjectDetectionResult chunkObject, bool autoLinkBreak = false, bool autoOCR = false, int? headingLevel = null)
         {
             if (autoLinkBreak)
             {
