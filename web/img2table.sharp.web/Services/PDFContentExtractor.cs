@@ -19,51 +19,36 @@ namespace img2table.sharp.web.Services
 {
     public class PDFContentExtractor
     {
-        public float RenderDPI { get; set; } = 300;
-        public float PredictConfidenceThreshold { get; set; } = 0.5f;
+        private float _renderDPI { get; set; } = ExtractOptions.DEFAULT_RENDER_RESOLUTION;
+        private float _predictConfidenceThreshold = ExtractOptions.PREDICT_CONFIDENCE_THRESHOLD;
 
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly string _rootFolder;
         
         private ChunkElementProcessor _chunkElementProcessor;
-        private bool _useEmbeddedHtml;
-        private bool _ignoreMarginalia;
-        private bool _outputFigureAsImage;
-        private bool _enableOCR;
-        private bool _embedImagesAsBase64;
-        private string _docCategory;
-
-        // debug params
-        private bool _debug_draw_page_chunks = false;
-        private bool _debug_draw_text_box = false;
-        private bool _debug_save_dectect_image = true;
+        private ExtractOptions _extractOptions;
 
         public PDFContentExtractor(IHttpClientFactory httpClientFactory, string rootFolder, ExtractOptions extractOptions)
         {
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _rootFolder = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
 
-            _useEmbeddedHtml = extractOptions.UseEmbeddedHtml;
-            _ignoreMarginalia = extractOptions.IgnoreMarginalia;
-            _outputFigureAsImage = extractOptions.OutputFigureAsImage;
-            _enableOCR = extractOptions.EnableOCR;
-            _embedImagesAsBase64 = extractOptions.EmbedImagesAsBase64;
-            _docCategory = extractOptions.DocCategory ?? LayoutDetectorFactory.DocumentCategory.AcademicPaper;
+            _extractOptions = _extractOptions?? new ExtractOptions();
         }
 
         private async Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName)
         {
-            var detector = new LayoutDetectorFactory(_httpClientFactory).Create(_docCategory);
+            var detector = new LayoutDetectorFactory(_httpClientFactory).Create(_extractOptions.DocCategory);
             if (detector == null)
             {
-                throw new InvalidOperationException($"No layout detector found for category: {_docCategory}");
+                throw new InvalidOperationException($"No layout detector found for category: {_extractOptions.DocCategory}");
             }
             if (pdfFileBytes == null || pdfFileBytes.Length == 0)
             {
                 throw new ArgumentException("PDF file bytes cannot be null or empty.", nameof(pdfFileBytes));
             }
 
-            return await detector.DetectAsync(pdfFileBytes, pdfFileName, RenderDPI, PredictConfidenceThreshold);
+            return await detector.DetectAsync(pdfFileBytes, pdfFileName, _renderDPI, _predictConfidenceThreshold);
         }
 
         public async Task<DocumentChunks> ExtractAsync(byte[] pdfFileBytes, string pdfFileName)
@@ -85,11 +70,11 @@ namespace img2table.sharp.web.Services
 
             var chunkElementProcessorParameter = new ChunkElementProcessorParameter
             {
-                UseEmbeddedHtml = _useEmbeddedHtml,
-                IgnoreMarginalia = _ignoreMarginalia,
-                OutputFigureAsImage = _outputFigureAsImage,
-                EnableOCR = _enableOCR,
-                EmbedBase64ImageData = _embedImagesAsBase64,
+                UseEmbeddedHtml = _extractOptions.UseEmbeddedHtml,
+                IgnoreMarginalia = _extractOptions.IgnoreMarginalia,
+                OutputFigureAsImage = _extractOptions.OutputFigureAsImage,
+                EnableOCR = _extractOptions.EnableOCR,
+                EmbedBase64ImageData = _extractOptions.EmbedImagesAsBase64,
             };
             _chunkElementProcessor = new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter);
             string pdfFile = Path.Combine(workFolder, pdfFileName);
@@ -157,7 +142,7 @@ namespace img2table.sharp.web.Services
                     pdfPage.EnhancePathRendering();
 
                     string tableImagePath = Path.Combine(workFolder, GetTableImageFileName(pageNumber));
-                    pdfDoc.RenderPage(tableImagePath, pdfPage, RenderDPI, backgroundColor: Color.White);
+                    pdfDoc.RenderPage(tableImagePath, pdfPage, _renderDPI, backgroundColor: Color.White);
                     tableImageDict[pageNumber] = tableImagePath;
                 }
             }
@@ -218,15 +203,15 @@ namespace img2table.sharp.web.Services
                     string pageImagePath = Path.Combine(workFolder, pageImageName);
                     lock (_renderLock)
                     {
-                        pdfDoc.RenderPage(pageImagePath, pageIdx, RenderDPI, backgroundColor: Color.White);
+                        pdfDoc.RenderPage(pageImagePath, pageIdx, _renderDPI, backgroundColor: Color.White);
                     }
 
                     var predictedPageChunks = detectResult?.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
-                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks, RenderDPI); // TODO
+                    filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks, _renderDPI); // TODO
 
-                    var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, tableEnhancedImagePath, filteredChunks, RenderDPI / 72f);
+                    var chunks = BuildPageChunks(pdfDoc, page, workFolder, pageImagePath, tableEnhancedImagePath, filteredChunks, _renderDPI / 72f);
                     var pageChunks = new PagedChunk
                     {
                         PageNumber = pageNumber,
@@ -235,11 +220,11 @@ namespace img2table.sharp.web.Services
                     };
                     pagedChunks.Add(pageChunks);
 
-                    if (_debug_draw_page_chunks)
+                    if (ExtractDebugOptions._debug_draw_page_chunks)
                     {
                         ExtractUtils.DrawPageChunks(pageImagePath, filteredChunks);
                     }
-                    if (_debug_save_dectect_image)
+                    if (ExtractDebugOptions._debug_save_dectect_image)
                     {
                         var previewImageName = $"detect_page_{pageNumber}.png";
                         string previewFile = Path.Combine(workFolder, previewImageName);
@@ -255,9 +240,9 @@ namespace img2table.sharp.web.Services
             var textThread = pageThread.GetTextThread();
 
             var chunks = new List<ChunkElement>();
-            var pageElements = TransPageElements(pageThread.GetContentList(), ratio, pdfPage.GetPageHeight());
+            var pageElements = ExtractUtils.TransPageElements(pageThread.GetContentList(), ratio, pdfPage.GetPageHeight());
 
-            if (_debug_draw_text_box)
+            if (ExtractDebugOptions._debug_draw_text_box)
             {
                 ExtractUtils.DrawPageElements(pageImagePath, pageElements);
             }
@@ -338,7 +323,7 @@ namespace img2table.sharp.web.Services
                             var mTables = MultiTableProcessor.BreakdownTables(tableImagePath, chunkBox);
                             if (mTables == null || mTables.Count() == 0)
                             {
-                                TabularPDF(param, tableImagePath, chunkBox, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _useEmbeddedHtml);
+                                TabularPDF(param, tableImagePath, chunkBox, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _extractOptions.UseEmbeddedHtml);
                             }
                             else
                             {
@@ -357,7 +342,7 @@ namespace img2table.sharp.web.Services
 
                                     contentElements = ExtractUtils.FindContentElementsInBox(region, pageElements);
                                     chunkElement.ContentElements = contentElements;
-                                    TabularPDF(param, tableImagePath, region, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _useEmbeddedHtml);
+                                    TabularPDF(param, tableImagePath, region, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _extractOptions.UseEmbeddedHtml);
                                 }
                             }
                         }
@@ -402,34 +387,5 @@ namespace img2table.sharp.web.Services
             return isTableProcessed;
         }
 
-        private bool IsChunkType(string label, string chunkType)
-        {
-            return string.Equals(label, chunkType, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private List<ContentElement> TransPageElements(List<PageElement> textElements, float ratio, double pageHeight)
-        {
-            List<ContentElement> transPageElements = new List<ContentElement>();
-            double ph = pageHeight * ratio;
-            foreach (var ele in textElements)
-            {
-                int top = (int)Math.Round(ph - ele.BBox.Top * ratio - ele.BBox.Height * ratio);
-                int bottom = (int)Math.Round(top + ele.BBox.Height * ratio);
-                int left = (int)Math.Round(ele.BBox.Left * ratio);
-                int right = (int)Math.Round(ele.BBox.Right * ratio);
-
-                ContentElement c = new ContentElement()
-                {
-                    Left = left,
-                    Top = top,
-                    Right = right,
-                    Bottom = bottom,
-                    PageElement = ele
-                };
-                transPageElements.Add(c);
-            }
-
-            return transPageElements;
-        }        
     }
 }

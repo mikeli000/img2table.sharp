@@ -12,6 +12,32 @@ namespace img2table.sharp.web.Services
 {
     public class ExtractUtils
     {
+
+        public static List<ContentElement> TransPageElements(List<PageElement> textElements, float ratio, double pageHeight)
+        {
+            List<ContentElement> transPageElements = new List<ContentElement>();
+            double ph = pageHeight * ratio;
+            foreach (var ele in textElements)
+            {
+                int top = (int)Math.Round(ph - ele.BBox.Top * ratio - ele.BBox.Height * ratio);
+                int bottom = (int)Math.Round(top + ele.BBox.Height * ratio);
+                int left = (int)Math.Round(ele.BBox.Left * ratio);
+                int right = (int)Math.Round(ele.BBox.Right * ratio);
+
+                ContentElement c = new ContentElement()
+                {
+                    Left = left,
+                    Top = top,
+                    Right = right,
+                    Bottom = bottom,
+                    PageElement = ele
+                };
+                transPageElements.Add(c);
+            }
+
+            return transPageElements;
+        }
+
         public static void DrawPageElements(string pageImagePath, List<ContentElement> pageElements)
         {
             if (!File.Exists(pageImagePath))

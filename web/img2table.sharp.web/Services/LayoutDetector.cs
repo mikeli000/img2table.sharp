@@ -53,6 +53,8 @@ namespace img2table.sharp.web.Services
     public interface LayoutDetector
     {
         Task<LayoutDetectionResult> DetectAsync(byte[] pdfFileBytes, string pdfFileName, float renderDPI, float predictConfidenceThreshold);
+
+        Task<LayoutDetectionResult> DetectPageImageAsync(byte[] imageBytes, int pageIndex, string pdfFileName, float renderDPI, float predictConfidenceThreshold);
     }
 
     public class Yolov8xDoclaynetLayoutDetector: LayoutDetector
@@ -90,6 +92,11 @@ namespace img2table.sharp.web.Services
             var detectResult = JsonSerializer.Deserialize<LayoutDetectionResult>(jsonResponse);
 
             return detectResult;
+        }
+
+        public Task<LayoutDetectionResult> DetectPageImageAsync(byte[] imageBytes, int pageIndex, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -129,12 +136,18 @@ namespace img2table.sharp.web.Services
 
             return detectResult;
         }
+
+        public Task<LayoutDetectionResult> DetectPageImageAsync(byte[] imageBytes, int pageIndex, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class PPDocLayoutPlusLLayoutDetector : LayoutDetector
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private static readonly string DocumentLayoutExtractorServiceUrl = "http://localhost:8099/detect";
+        private static readonly string ImageDocumentLayoutExtractorServiceUrl = "http://localhost:8099/detect_image";
 
         public PPDocLayoutPlusLLayoutDetector(IHttpClientFactory httpClientFactory)
         {
@@ -155,6 +168,34 @@ namespace img2table.sharp.web.Services
             formData.Add(new StringContent(renderDPI + ""), "dpi");
             formData.Add(new StringContent(predictConfidenceThreshold + ""), "confidence");
             var response = await httpClient.PostAsync(DocumentLayoutExtractorServiceUrl, formData);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new PDFContentExtractorException(response.StatusCode, errorContent);
+            }
+
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            var detectResult = JsonSerializer.Deserialize<LayoutDetectionResult>(jsonResponse);
+
+            return detectResult;
+        }
+
+        public async Task<LayoutDetectionResult> DetectPageImageAsync(byte[] imageBytes, int pageIndex, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        {
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(2);
+
+            using var formData = new MultipartFormDataContent();
+
+            var fileContent = new ByteArrayContent(imageBytes);
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
+            formData.Add(fileContent, "file", pdfFileName);
+
+            formData.Add(new StringContent((pageIndex + 1) + ""), "pageNumber");
+            formData.Add(new StringContent(renderDPI + ""), "dpi");
+            formData.Add(new StringContent(predictConfidenceThreshold + ""), "confidence");
+            var response = await httpClient.PostAsync(ImageDocumentLayoutExtractorServiceUrl, formData);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -257,6 +298,11 @@ namespace img2table.sharp.web.Services
 
             chunkResult.Results = pageChunks;
             return chunkResult;
+        }
+
+        public Task<LayoutDetectionResult> DetectPageImageAsync(byte[] imageBytes, int pageIndex, string pdfFileName, float renderDPI, float predictConfidenceThreshold)
+        {
+            throw new NotImplementedException();
         }
 
         public class DetectionResult
