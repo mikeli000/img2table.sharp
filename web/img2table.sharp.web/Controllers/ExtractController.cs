@@ -49,7 +49,8 @@ namespace img2table.sharp.web.Controllers
                 EmbedImagesAsBase64 = embedImagesAsBase64
             };
 
-            PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, extractOptions);
+            //PDFContentExtractor extractor = new PDFContentExtractor(_httpClientFactory, _rootFolder, extractOptions);
+            var extractor = new PDFContentExtractor2(_httpClientFactory, _rootFolder, extractOptions);
             var res = await extractor.ExtractAsync(fileBytes, uploadFile.FileName);
 
             return Ok(res);

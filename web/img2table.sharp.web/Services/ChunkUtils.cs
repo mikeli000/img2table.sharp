@@ -1,10 +1,12 @@
 ﻿using img2table.sharp.web.Models;
 using OpenCvSharp;
+using Sdcb.PaddleOCR.Models;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Threading.Tasks;
 
 namespace img2table.sharp.web.Services
@@ -30,12 +32,22 @@ namespace img2table.sharp.web.Services
             return iou > iouThreshold;
         }
 
-        public static List<ObjectDetectionResult> FilterOverlapping(IEnumerable<ObjectDetectionResult> objects, double iouThreshold = 0.8)
+        public static List<ObjectDetectionResult> FilterOverlapping(IEnumerable<ObjectDetectionResult> objects, float tableConfidenceThreshold, double iouThreshold = 0.8)
         {
             var result = new List<ObjectDetectionResult>();
 
             foreach (var obj in objects)
             {
+                var label = DetectionLabel.NormalizeLabel(obj.Label);
+                if (label == DetectionLabel.Table)
+                {
+                    if (obj.Confidence < tableConfidenceThreshold)
+                    {
+                        //obj.Label = DetectionLabel.Text;
+                        continue;
+                    }
+                }
+
                 var overlapping = result.FirstOrDefault(existing =>
                     IsOverlapping(existing.BoundingBox, obj.BoundingBox, iouThreshold));
 

@@ -43,7 +43,7 @@ namespace img2table.sharp.web.Services
         public string Process(ChunkElement chunkElement, string pageImagePath)
         {
             _pageImagePath = pageImagePath;
-            var chunkType = DetectionLabel.MappingLabel(chunkElement.ChunkObject.Label);
+            var chunkType = DetectionLabel.NormalizeLabel(chunkElement.ChunkObject.Label);
             if (chunkType == DetectionLabel.Unknown)
             {
                 return "";

@@ -35,6 +35,11 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
 
             var tops = hLines.Select(l => l.Y1).ToList();
             int topMost = tops.FirstOrDefault();
+            int? topSecond = null;
+            if (tops.Count() > 3)
+            {
+                topSecond = tops[1];
+            }
 
             var bottoms = tops.OrderByDescending(p => p);
             int bottomMost = bottoms.FirstOrDefault();
@@ -63,6 +68,13 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
                             prevLine = line;
                             break;
                         }
+
+                        if (topSecond != null && Math.Abs(line.Y1 - topSecond.Value) <= delta)
+                        {
+                            line.Y1 = topSecond.Value;
+                            break;
+                        }
+
                         int t = top;
                         int b = line.Y1;
                         int l = prevLine.X1;

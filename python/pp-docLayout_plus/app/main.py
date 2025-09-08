@@ -86,10 +86,8 @@ async def detect(file: UploadFile = File(...), dpi: int = Form(300), confidence:
         })
     return JSONResponse(content={"results": detections})
 
-# 新增 PNG 图片检测接口
 @app.post("/detect_image")
 async def detect_image(file: UploadFile = File(...), confidence: float = Form(0.4)):
-    # 读取 PNG 图片内容
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)

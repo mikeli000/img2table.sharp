@@ -127,7 +127,7 @@ namespace img2table.sharp.web.Models
 
         public const string Unknown = "Unknown";
 
-        public static string MappingLabel(string label)
+        public static string NormalizeLabel(string label)
         {
             if (string.Equals(label, Caption, StringComparison.OrdinalIgnoreCase))
             {

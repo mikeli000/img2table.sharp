@@ -207,7 +207,7 @@ namespace img2table.sharp.web.Services
                     }
 
                     var predictedPageChunks = detectResult?.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
-                    var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects);
+                    var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects, ExtractOptions.PREDICT_CONFIDENCE_THRESHOLD_TABLE);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks, _renderDPI); // TODO
 
@@ -249,7 +249,7 @@ namespace img2table.sharp.web.Services
 
             foreach (var chunkObject in filteredChunkObjects)
             {
-                var chunkType = DetectionLabel.MappingLabel(chunkObject.Label);
+                var chunkType = DetectionLabel.NormalizeLabel(chunkObject.Label);
                 if (chunkType == DetectionLabel.Unknown)
                 {
                     continue;
