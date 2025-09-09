@@ -24,5 +24,6 @@
         public static bool _debug_draw_page_chunks = false;
         public static bool _debug_draw_text_box = false;
         public static bool _debug_save_dectect_image = true;
+        public static bool draw_table_chunk = false;
     }
 }

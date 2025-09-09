@@ -24,7 +24,7 @@ namespace img2table.sharp.web.Services
             {
                 if (PageElement is TextElement textElement)
                 {
-                    return textElement.GetText();
+                    return textElement.GetText(true);
                 }
                 else if (PageElement is ImageElement)
                 {

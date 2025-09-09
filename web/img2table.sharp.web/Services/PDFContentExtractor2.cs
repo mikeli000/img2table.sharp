@@ -85,21 +85,21 @@ namespace img2table.sharp.web.Services
                 documentChunks.DocumentName = pdfFileName;
                 documentChunks.JobId = jobFolderName;
 
-                var pagedChunks = new ConcurrentBag<PagedChunk>();
+                var allPageChunks = new ConcurrentBag<PagedChunk>();
                 int pageCount = pdfDoc.GetPageCount();
 
                 var partition = Partition(pdfDoc, pageCount);
                 if (partition.Count > 1)
                 {
-                    var tasks = partition.Select(pageList => ExtractPagesAsync(new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter), pdfDoc, pageList, workFolder, pdfFileName, jobFolderName, pagedChunks, tableEnhancedImagePathDict)).ToArray();
+                    var tasks = partition.Select(async pageList => await ExtractPagesAsync(new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter), pdfDoc, pageList, workFolder, pdfFileName, jobFolderName, allPageChunks, tableEnhancedImagePathDict)).ToArray();
                     await Task.WhenAll(tasks);
                 }
                 else
                 {
-                    await ExtractPagesAsync(new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter), pdfDoc, partition[0], workFolder, pdfFileName, jobFolderName, pagedChunks, tableEnhancedImagePathDict);
+                    await ExtractPagesAsync(new ChunkElementProcessor(workFolder, jobFolderName, chunkElementProcessorParameter), pdfDoc, partition[0], workFolder, pdfFileName, jobFolderName, allPageChunks, tableEnhancedImagePathDict);
                 }
 
-                documentChunks.PagedChunks = pagedChunks.OrderBy(t => t.PageNumber);
+                documentChunks.PagedChunks = allPageChunks.OrderBy(t => t.PageNumber);
 
                 bool _saveMarkdownToFile = true;
                 if (_saveMarkdownToFile)
@@ -115,7 +115,7 @@ namespace img2table.sharp.web.Services
         }
 
         private Task ExtractPagesAsync(ChunkElementProcessor chunkElementProcessor, PDFDocument pdfDoc, List<Tuple<int, PDFPage>> pageList, string workFolder, string pdfFileName,
-            string jobFolderName, ConcurrentBag<PagedChunk> pagedChunks, IDictionary<int, string> tableEnhancedImagePathDict)
+            string jobFolderName, ConcurrentBag<PagedChunk> allPageChunks, IDictionary<int, string> tableEnhancedImagePathDict)
         {
             return Task.Run(async () =>
             {
@@ -156,7 +156,7 @@ namespace img2table.sharp.web.Services
                         PreviewImagePath = $"{WorkDirectoryOptions.RequestPath}/{jobFolderName}/{pageImageName}",
                         Chunks = chunks
                     };
-                    pagedChunks.Add(pageChunks);
+                    allPageChunks.Add(pageChunks);
 
                     if (ExtractDebugOptions._debug_draw_page_chunks)
                     {
@@ -205,7 +205,7 @@ namespace img2table.sharp.web.Services
                 bool isTableProcessed = false;
                 if (chunkType == DetectionLabel.Table)
                 {
-                    if (/*DrawTableChunk*/ false)
+                    if (ExtractDebugOptions.draw_table_chunk)
                     {
                         ExtractUtils.DrawTableChunk(pageImagePath, chunkObject.Cells);
                     }
