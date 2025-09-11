@@ -80,7 +80,7 @@ namespace img2table.sharp.web.Services
             string pdfFile = Path.Combine(workFolder, pdfFileName);
             await File.WriteAllBytesAsync(pdfFile, pdfFileBytes);
 
-            var tableEnhancedImagePathDict = RenderTableBorderEnhanced(pdfFile, detectResult, workFolder);
+            var tableEnhancedImagePathDict = ExtractUtils.RenderTableBorderEnhanced(pdfFile, detectResult, workFolder, _renderDPI);
 
             using (PDFDocument pdfDoc = PDFDocument.Load(pdfFile))
             {
@@ -115,44 +115,6 @@ namespace img2table.sharp.web.Services
                 documentChunks.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
                 return documentChunks;
             }
-        }
-
-        private IDictionary<int, string> RenderTableBorderEnhanced(string pdfFile, LayoutDetectionResult detectResult, string workFolder)
-        {
-            var tableImageDict = new Dictionary<int, string>();
-            var pagesWithTable = ExtractUtils.GetPagesWithTableChunks(detectResult);
-            if (pagesWithTable.Count == 0)
-            {
-                return tableImageDict;
-            }
-
-            using (PDFDocument pdfDoc = PDFDocument.Load(pdfFile))
-            {
-                int pageCount = pdfDoc.GetPageCount();
-
-                for (int i = 0; i < pageCount; i++)
-                {
-                    int pageNumber = i + 1;
-                    if (!pagesWithTable.Contains(pageNumber)) 
-                    {
-                        continue;
-                    }
-                    
-                    var pdfPage = pdfDoc.LoadPage(i);
-                    pdfPage.EnhancePathRendering();
-
-                    string tableImagePath = Path.Combine(workFolder, GetTableImageFileName(pageNumber));
-                    pdfDoc.RenderPage(tableImagePath, pdfPage, _renderDPI, backgroundColor: Color.White);
-                    tableImageDict[pageNumber] = tableImagePath;
-                }
-            }
-
-            return tableImageDict;
-        }
-
-        private static string GetTableImageFileName(int pageNumber)
-        {
-            return $"page_{pageNumber}_table_image.png";
         }
 
         private List<List<Tuple<int, PDFPage>>> Partition(PDFDocument pdfDoc, int pageCount)

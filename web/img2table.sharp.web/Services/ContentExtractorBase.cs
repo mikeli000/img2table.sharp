@@ -7,11 +7,50 @@ using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using System.IO;
 using System.Drawing;
 using System.Linq;
+using PDFDict.SDK.Sharp.Core;
 
 namespace img2table.sharp.web.Services
 {
-    public class ExtractUtils
+    public class ContentExtractorBase
     {
+
+        public static IDictionary<int, string> RenderTableBorderEnhanced(string pdfFile, LayoutDetectionResult detectResult, string workFolder, float renderDPI)
+        {
+            var tableImageDict = new Dictionary<int, string>();
+            var pagesWithTable = ContentExtractorBase.GetPagesWithTableChunks(detectResult);
+            if (pagesWithTable.Count == 0)
+            {
+                return tableImageDict;
+            }
+
+            using (PDFDocument pdfDoc = PDFDocument.Load(pdfFile))
+            {
+                int pageCount = pdfDoc.GetPageCount();
+
+                for (int i = 0; i < pageCount; i++)
+                {
+                    int pageNumber = i + 1;
+                    if (!pagesWithTable.Contains(pageNumber))
+                    {
+                        continue;
+                    }
+
+                    var pdfPage = pdfDoc.LoadPage(i);
+                    pdfPage.EnhancePathRendering();
+
+                    string tableImagePath = Path.Combine(workFolder, GetTableImageFileName(pageNumber));
+                    pdfDoc.RenderPage(tableImagePath, pdfPage, renderDPI, backgroundColor: Color.White);
+                    tableImageDict[pageNumber] = tableImagePath;
+                }
+            }
+
+            return tableImageDict;
+        }
+
+        public static string GetTableImageFileName(int pageNumber)
+        {
+            return $"page_{pageNumber}_table_image.png";
+        }
 
         public static List<ContentElement> TransPageElements(List<PageElement> textElements, float ratio, double pageHeight)
         {

@@ -34,9 +34,27 @@ namespace img2table.sharp.console
             //TabularImage(tableBbox);
             //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
 
-            SplitPDF();
+            //SplitPDF();
+
+            ExtractAnnots();
 
             //TestPDFSDK();
+        }
+
+        static void ExtractAnnots()
+        {
+            var tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\link\link_docx.pdf";
+            Console.WriteLine(tempFile);
+
+            var annots = PDFTools.ExtractAnnots(tempFile);
+            foreach (var page in annots)
+            {
+                Console.WriteLine($"Page {page.Key}:");
+                foreach (var annot in page.Value)
+                {
+                    Console.WriteLine($"  {annot}");
+                }
+            }
         }
 
 

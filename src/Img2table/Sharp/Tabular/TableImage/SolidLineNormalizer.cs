@@ -20,13 +20,13 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
 
             ResoveEdges(hLines, vLines, textBoxes, tableBox);
 
-            ResolveHLines(hLines, vLines, textBoxes);
-            ResolveVLines(hLines, vLines, textBoxes);
+            //ResolveHLines(hLines, vLines, textBoxes, 0); // Hor Strict mode
+            ResolveVLines(hLines, vLines, textBoxes, 4);  // Ver Tolerant mode
 
             return (hLines, vLines);
         }
 
-        private static void ResolveVLines(List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes, int delta = 4)
+        private static void ResolveVLines(List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes, int delta = 2)
         {
             vLines = vLines.OrderBy(l => l.X1).ToList();
             hLines = hLines.OrderBy(l => l.Y1).ToList();
