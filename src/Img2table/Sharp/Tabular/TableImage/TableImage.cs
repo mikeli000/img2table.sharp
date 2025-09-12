@@ -68,7 +68,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                     reCompsiteTable = implicitRows || implicitColumns;
                     if (reCompsiteTable)
                     {
-                        ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
+                        ExtractBorderedTables(implicitRows, implicitColumns, null, null);
                     }
                 }
                 if (_tables.Count <= 0)
@@ -100,22 +100,17 @@ namespace Img2table.Sharp.Tabular.TableImage
 
         private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
         {
-            int minLineLength = _medianLineSep.HasValue ? (int)Math.Min(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
+            int minLineLength = _medianLineSep.HasValue ? (int)Math.Max(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
             var (hLines, vLines) = LineDetector.DetectLines(_img, _contours, _charLength, minLineLength);
 
-            var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
-            var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+            var originalHLines = hLines.Where(l => l.Y1 == l.Y2).Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+            var originalVLines = vLines.Where(l => l.X1 == l.X2).Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
 
             if (tableBbox != null)
             {
                 var (h, v) = SolidLineNormalizer.Normalize(hLines, vLines, textBoxes, tableBbox.Value);
                 hLines = h;
                 vLines = v;
-
-                if (_debug_draw_lines)
-                {
-                    DebugDrawLines(_img, hLines, vLines, textBoxes);
-                }
 
                 if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
                 {
@@ -139,6 +134,11 @@ namespace Img2table.Sharp.Tabular.TableImage
                     vLines = detectVLines;
                 }
 
+                if (_debug_draw_lines)
+                {
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
+
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
@@ -146,8 +146,6 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
             else
             {
-                implicitRows = hLines.Count <= 2;
-                implicitColumns = vLines.Count <= 2;
                 _shouldOCR = implicitRows || implicitColumns;
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
             }

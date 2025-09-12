@@ -7,14 +7,14 @@ using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
 
 public class PostionedTableCellDetector
 {
-    public static bool TryDetectLines(List<Line> srcHLines, List<Line> srcVLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out List<Line> detectedHLines, out List<Line> detectedVLines)
+    public static bool TryDetectLines(List<Line> solidHLines, List<Line> solidVLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out List<Line> detectedHLines, out List<Line> detectedVLines)
     {
         detectedHLines = new List<Line>();
-        detectedHLines.AddRange(srcHLines);
+        detectedHLines.AddRange(solidHLines);
         detectedVLines = new List<Line>();
-        detectedVLines.AddRange(srcVLines);
+        detectedVLines.AddRange(solidVLines);
 
-        detectedHLines = DetecteHorLines(detectedHLines, tableBbox, textBoxes);
+        detectedHLines = DetecteHorLines2(detectedHLines, tableBbox, textBoxes);
         var topLine = detectedHLines[0];
         Line? secLine = detectedHLines.Count > 2 ? detectedHLines[1] : null;
         
@@ -71,87 +71,6 @@ public class PostionedTableCellDetector
                 var secFinalVPos = MergeColumnPositions(detectedVLines, secColumnPositions, tBodyTextBoxes);
                 secFinalVPos = secFinalVPos.OrderBy(p => p).ToList();
 
-                /**
-                var firstFinalVPos = detectedVLines.Select(line => line.X1).ToList();
-                int? secLeft = null, secRight = null;
-                for (int i = 0; i < secFinalVPos.Count; i++)
-                {
-                    if (!firstFinalVPos.Contains(secFinalVPos[i]))
-                    {
-                        if (i > 0)
-                        {
-                            secLeft = secFinalVPos[i - 1];
-                        }
-                        else
-                        {
-                            secLeft = secFinalVPos[i];
-                        }
-                        break;
-                    }
-                }
-                for (int i = secFinalVPos.Count - 1; i >= 0; i--)
-                {
-                    if (!firstFinalVPos.Contains(secFinalVPos[i]))
-                    {
-                        if (i < secFinalVPos.Count - 1)
-                        {
-                            secRight = secFinalVPos[i + 1];
-                        }
-                        else
-                        {
-                            secRight = secFinalVPos[i];
-                        }
-                        break;
-                    }
-                }
-
-                if (secLeft != null && secLeft < secLine.X1)
-                {
-                    secLine.X1 = secLeft.Value;
-                }
-                if (secRight != null && secRight > secLine.X2)
-                {
-                    secLine.X2 = secRight.Value;
-                }
-
-                for (int i = 0; i < secFinalVPos.Count() - 1; i++)
-                {
-                    if (secFinalVPos[i] == secLine.X1)
-                    {
-                        break;
-                    }
-                    int leftVLine = secFinalVPos[i];
-                    int rightVLine = secFinalVPos[i + 1];
-                    if (secLine.X1 > leftVLine && secLine.X1 < rightVLine)
-                    {
-                        double midPoint = (leftVLine + rightVLine) / 2.0;
-                        if (secLine.X1 < midPoint)
-                        {
-                            secLine.X1 = leftVLine;
-                        }
-                        break;
-                    }
-                }
-
-                for (int i = 0; i < secFinalVPos.Count() - 1; i++)
-                {
-                    if (secFinalVPos[i] == secLine.X2)
-                    {
-                        break;
-                    }
-                    int leftVLine = secFinalVPos[i];
-                    int rightVLine = secFinalVPos[i + 1];
-                    if (secLine.X2 > leftVLine && secLine.X2 < rightVLine)
-                    {
-                        double midPoint = (leftVLine + rightVLine) / 2.0;
-                        if (secLine.X2 > midPoint)
-                        {
-                            secLine.X2 = rightVLine;
-                        }
-                        break;
-                    }
-                }
-                */
                 ExtendVLines(secFinalVPos, detectedHLines, detectedVLines, tBodyTextBoxes, tbodyBbox);
             }
         }
@@ -172,18 +91,148 @@ public class PostionedTableCellDetector
         return topLines.Count();
     }
 
-    private static List<Line> DetecteHorLines(List<Line> srcHLines, Rect tableBbox, IEnumerable<TextRect> textBoxes)
+    /************/
+    private static List<Line> DetecteHorLines2(List<Line> solidHLines, Rect tableBbox, IEnumerable<TextRect> textBoxes)
     {
         if (textBoxes == null || textBoxes.Count() <= 0)
         {
-            return srcHLines;
+            return solidHLines;
+        }
+
+        var groupLines = DetecteHorLinesBetweenTextBox(textBoxes, solidHLines, tableBbox, minGap: 12, removeOneBoxLine: true, removeLowcaseStartedLine: true);    
+        ResolveTopBottomBorder(groupLines, tableBbox, textBoxes);
+        return groupLines;
+    }
+
+    private static List<Line> DetecteHorLinesBetweenTextBox(IEnumerable<TextRect> rects, List<Line> solidHLines, Rect tableBbox, int minGap = 12, bool removeOneBoxLine = false, bool removeLowcaseStartedLine = false)
+    {
+        var lines = new List<List<TextRect>>();
+        if (rects.Count() == 0)
+        {
+            return solidHLines;
+        }
+        if (rects.Count() == 1)
+        {
+            lines.Add(rects.ToList());
+            return solidHLines;
+        }
+
+        var copy = rects.OrderBy(c => c.Top).ToList();
+        int top = copy.Min(c => c.Top);
+        int bottom = copy.Max(c => c.Bottom);
+
+        
+        for (int i = top + 1; i <= bottom; i++)
+        {
+            var line = new List<TextRect>();
+            var temp = new List<TextRect>();
+            foreach (var rect in copy)
+            {
+                if (i >= rect.Top && i <= rect.Bottom)
+                {
+                    temp.Add(rect);
+                }
+            }
+
+            if (temp.Count() > 0)
+            {
+                copy.RemoveAll(c => temp.Contains(c));
+
+                int lineTop = temp.Min(c => c.Top);
+                int lineBottom = temp.Max(c => c.Bottom);
+                foreach (var c in copy)
+                {
+                    if (inLine(lineTop, lineBottom, c.Top, minGap, solidHLines))
+                    {
+                        temp.Add(c);
+                        lineBottom = Math.Max(lineBottom, c.Bottom);
+                    }
+                }
+
+                copy.RemoveAll(c => temp.Contains(c));
+                line.AddRange(temp);
+                lines.Add(line.OrderBy(c => c.Left).ToList());
+
+                if (copy.Count() > 0)
+                {
+                    i = copy.Min(c => c.Top) + 1;
+                }
+                else
+                {    
+                    break;
+                }
+            }
+        }
+
+        List<Line> joinLines = new List<Line>();
+        joinLines.AddRange(solidHLines);
+        List<TextRect> lastLine = null;
+        int thick_line_delta = 2;
+        for (int i = 0; i < lines.Count(); i++)
+        {
+            var t_line = lines[i];
+            if (i == 0)
+            {
+                lastLine = t_line;
+                continue;
+            }
+
+            var currTop = t_line.Min(c => c.Top);
+            var lastBottom = lastLine.Max(c => c.Bottom);
+
+            var hasSolidLine = solidHLines.Any(l => l.Y1 >= lastBottom - thick_line_delta && l.Y1 <= currTop + thick_line_delta);
+            if (!hasSolidLine)
+            {
+                var left = tableBbox.Left;
+                var right = tableBbox.Right;
+                var middle = (lastBottom + currTop) / 2;
+                var newLine = new Line(left, middle, right, middle);
+                joinLines.Add(newLine);
+            }
+
+            lastLine = t_line;
+        }
+
+        return joinLines;
+    }
+
+    private static bool inLine(int lineTop, int lineBottom, int currTop, int minGap, List<Line> solidHLines)
+    {
+        if (currTop >= lineTop && currTop <= lineBottom)
+        {
+            return true;
+        }
+
+        if (currTop > lineBottom && currTop - lineBottom < minGap)
+        {
+            foreach (var line in solidHLines)
+            {
+                if (line.Y1 >= lineBottom && line.Y1 <= currTop)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+    /************/
+
+
+    private static List<Line> DetecteHorLines(List<Line> solidHLines, Rect tableBbox, IEnumerable<TextRect> textBoxes)
+    {
+        if (textBoxes == null || textBoxes.Count() <= 0)
+        {
+            return solidHLines;
         }
 
         bool detectLines = false;
         var groupLines = GroupTextRectsByLine(textBoxes, removeOneBoxLine: true, true);
-        if (srcHLines.Count > 1)
+        if (solidHLines.Count > 1)
         {
-            if (groupLines.Count > 2 && groupLines.Count / (float)srcHLines.Count >= 2)
+            if (groupLines.Count > 2 && groupLines.Count / (float)solidHLines.Count >= 2)
             {
                 detectLines = true;
             }
@@ -195,15 +244,15 @@ public class PostionedTableCellDetector
 
         if (detectLines)
         {
-            groupLines = GroupTextRectsByLine(textBoxes, srcHLines, tableBbox);
+            groupLines = GroupTextRectsByLine(textBoxes, solidHLines, tableBbox);
             var detectHPos = CalcHorPos(groupLines);
-            var hLines = DetectHorLines(srcHLines, detectHPos, tableBbox, textBoxes);
+            var hLines = DetectHorLines(solidHLines, detectHPos, tableBbox, textBoxes);
             ResolveTopBottomBorder(hLines, tableBbox, textBoxes);
             return hLines;
         }
 
-        ResolveTopBottomBorder(srcHLines, tableBbox, textBoxes);
-        return srcHLines;
+        ResolveTopBottomBorder(solidHLines, tableBbox, textBoxes);
+        return solidHLines;
     }
 
     private static List<int> MergeColumnPositions(List<Line> srcVLines, List<int> detectVPos, IEnumerable<TextRect> textBoxes)
@@ -693,7 +742,7 @@ public class PostionedTableCellDetector
                 int currBottom = temp.Max(c => Math.Max(c.Top, c.Bottom));
                 foreach (var c in copy)
                 {
-                    if (c.Top <= currBottom)
+                    if (c.Top <= currBottom) // TOFIX: 1. x 方向有交叉（左对齐，可以有一点 delta） 2，y 方向间隔小于 minGap 3. 中间没有 solid line 穿过
                     {
                         temp.Add(c);
                     }

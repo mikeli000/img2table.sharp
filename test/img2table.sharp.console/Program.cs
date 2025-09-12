@@ -34,9 +34,9 @@ namespace img2table.sharp.console
             //TabularImage(tableBbox);
             //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
 
-            //SplitPDF();
+            SplitPDF();
 
-            ExtractAnnots();
+            // ExtractAnnots();
 
             //TestPDFSDK();
         }
@@ -310,12 +310,12 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\sesmic_doc\Client Summary_Retail Clients Repository.pdf";
-            var dst = @"C:\dev\testfiles\sesmic_doc";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\test_report\Commercial Lease Rates - CBG_v87.0\Commercial Lease Rates - CBG_v87.0.pdf";
+            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\test_report\Commercial Lease Rates - CBG_v87.0";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
             //range.Add(new int[] { 10, 11 });
-            range.Add(new int[] { 0, 1, 3, 6 });
+            range.Add(new int[] { 11 });
             PDFTools.SplitPDF(src, range, dst);
         }
 

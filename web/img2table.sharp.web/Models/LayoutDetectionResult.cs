@@ -113,6 +113,7 @@ namespace img2table.sharp.web.Models
         public const string PlainText = "plain text";
         public const string Abstract = "abstract";
         public const string Abandon = "abandon";
+        public const string AsideText = "aside_text";
         public const string Figure = "figure";
         public const string Image = "image";
         public const string FigureCaption = "figure_caption";
@@ -185,6 +186,10 @@ namespace img2table.sharp.web.Models
                 || string.Equals(label, PlainText, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(label, Abstract, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(label, Content, StringComparison.OrdinalIgnoreCase))
+            {
+                return Text;
+            }
+            else if (string.Equals(label, AsideText, StringComparison.OrdinalIgnoreCase))
             {
                 return Text;
             }
