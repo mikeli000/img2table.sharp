@@ -1,5 +1,7 @@
 ﻿using img2table.sharp.Img2table.Sharp.Tabular;
+using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using img2table.sharp.web.Models;
+using Img2table.Sharp.Tabular.TableImage.TableElement;
 using PDFDict.SDK.Sharp.Core.Contents;
 using System;
 using System.Collections.Generic;
@@ -249,13 +251,14 @@ namespace img2table.sharp.web.Services
                 return lines;
             }
 
-            var copy = contents.ToList();
-            int top = copy.Min(c => Math.Min(c.Top, c.Bottom));
-            int bottom = copy.Max(c => Math.Max(c.Top, c.Bottom));
+            int minGap = 2;
+            var copy = contents.OrderBy(c => c.Top).ToList();
+            int top = copy.Min(c => c.Top);
+            int bottom = copy.Max(c => c.Bottom);
 
-            var line = new List<ContentElement>();
             for (int i = top + 1; i <= bottom; i++)
             {
+                var line = new List<ContentElement>();
                 var temp = new List<ContentElement>();
                 foreach (var cell in copy)
                 {
@@ -268,40 +271,56 @@ namespace img2table.sharp.web.Services
                 if (temp.Count() > 0)
                 {
                     copy.RemoveAll(c => temp.Contains(c));
-                    int currBottom = temp.Max(c => Math.Max(c.Top, c.Bottom));
+                    int lineTop = temp.Min(c => c.Top);
+                    int lineBottom = temp.Max(c => c.Bottom);
+
                     foreach (var c in copy)
                     {
-                        if (c.Top <= currBottom)
+                        if (InLine(lineTop, lineBottom, c.Top, minGap))
                         {
                             temp.Add(c);
+                            lineBottom = Math.Max(lineBottom, c.Bottom);
                         }
                     }
                     copy.RemoveAll(c => temp.Contains(c));
                     line.AddRange(temp);
+                    line.Sort((a, b) =>
+                    {
+                        if (a.Bottom <= b.Top)
+                            return -1;
+                        if (b.Bottom <= a.Top)
+                            return 1;
+                        return a.Left.CompareTo(b.Left);
+                    });
+                    lines.Add(line);
 
                     if (copy.Count() > 0)
                     {
-                        i = temp.Max(c => Math.Max(c.Top, c.Bottom)) + 1;
+                        i = copy.Min(c => c.Top) + 1;
                     }
                     else
                     {
-                        line = SortLine(line);
-                        lines.Add(line);
                         break;
-                    }
-                }
-                else
-                {
-                    if (line.Count() > 0)
-                    {
-                        line = SortLine(line);
-                        lines.Add(line);
-                        line = new List<ContentElement>();
                     }
                 }
             }
 
             return lines;
+        }
+
+        private static bool InLine(int lineTop, int lineBottom, int currTop, int minGap)
+        {
+            if (currTop >= lineTop && currTop <= lineBottom)
+            {
+                return true;
+            }
+
+            if (currTop > lineBottom && currTop - lineBottom <= minGap)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static List<ContentElement> SortLine(List<ContentElement> line)

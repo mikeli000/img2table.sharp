@@ -4,6 +4,7 @@ using Sdcb.PaddleOCR;
 using Img2table.Sharp.Tabular.TableImage.TableElement;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
+using System.Collections.Generic;
 
 public class PostionedTableCellDetector
 {
@@ -29,7 +30,7 @@ public class PostionedTableCellDetector
             if (l_sec > tableBbox.Left)
             {
                 var exLeftLine = new Line(tableBbox.Left, secLine.Y1, l_sec, secLine.Y2);
-                if (!LineUtils.IntersectTextBoxes(exLeftLine, textBoxes))
+                if (!LineUtils.IntersectTextBoxes(exLeftLine, textBoxes, -4)) // left extension, strict mode
                 {
                     secLine.X1 = tableBbox.Left;
                 }
@@ -37,7 +38,7 @@ public class PostionedTableCellDetector
             if (r_sec < tableBbox.Right)
             {
                 var exRightLine = new Line(r_sec, secLine.Y1, tableBbox.Right, secLine.Y2);
-                if (!LineUtils.IntersectTextBoxes(exRightLine, textBoxes))
+                if (!LineUtils.IntersectTextBoxes(exRightLine, textBoxes, -4)) // left extension, strict mode
                 {
                     secLine.X2 = tableBbox.Right;
                 }
@@ -104,6 +105,36 @@ public class PostionedTableCellDetector
         return groupLines;
     }
 
+    private static int CountSolidLine(List<Line> solidHLines, int topMost, int bottomMost)
+    {
+        List<Line> sorted = solidHLines.OrderBy(l => l.Y1).ToList();
+        int count = 0;
+       
+        var list = new List<int>();
+        for (int i = 0; i < sorted.Count(); i++)
+        {
+            if (sorted[i].Y1 <= topMost + 2)
+            {
+                continue;
+            }
+
+            if (sorted[i].Y1 >= bottomMost - 2)
+            {
+                continue;
+            }
+
+            bool sameY = list.Any(val => Math.Abs(val - sorted[i].Y1) <= 2);
+            if (sameY)
+            {
+                continue;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
     private static List<Line> DetecteHorLinesBetweenTextBox(IEnumerable<TextRect> rects, List<Line> solidHLines, Rect tableBbox, int minGap = 12, bool removeOneBoxLine = false, bool removeLowcaseStartedLine = false)
     {
         var lines = new List<List<TextRect>>();
@@ -121,7 +152,12 @@ public class PostionedTableCellDetector
         int top = copy.Min(c => c.Top);
         int bottom = copy.Max(c => c.Bottom);
 
-        
+        int midHLineCount = CountSolidLine(solidHLines, top, bottom);
+        if (midHLineCount > 2) // TODO consider 2 <th> at least
+        {
+            return solidHLines;
+        }
+
         for (int i = top + 1; i <= bottom; i++)
         {
             var line = new List<TextRect>();
@@ -142,7 +178,7 @@ public class PostionedTableCellDetector
                 int lineBottom = temp.Max(c => c.Bottom);
                 foreach (var c in copy)
                 {
-                    if (inLine(lineTop, lineBottom, c.Top, minGap, solidHLines))
+                    if (InLine(lineTop, lineBottom, c.Top, minGap, solidHLines))
                     {
                         temp.Add(c);
                         lineBottom = Math.Max(lineBottom, c.Bottom);
@@ -168,6 +204,7 @@ public class PostionedTableCellDetector
         joinLines.AddRange(solidHLines);
         List<TextRect> lastLine = null;
         int thick_line_delta = 2;
+        List<List<TextRect>> orphanLines = new List<List<TextRect>>();
         for (int i = 0; i < lines.Count(); i++)
         {
             var t_line = lines[i];
@@ -180,30 +217,46 @@ public class PostionedTableCellDetector
             var currTop = t_line.Min(c => c.Top);
             var lastBottom = lastLine.Max(c => c.Bottom);
 
+            bool orphan = false;
             var hasSolidLine = solidHLines.Any(l => l.Y1 >= lastBottom - thick_line_delta && l.Y1 <= currTop + thick_line_delta);
             if (!hasSolidLine)
             {
-                var left = tableBbox.Left;
-                var right = tableBbox.Right;
-                var middle = (lastBottom + currTop) / 2;
-                var newLine = new Line(left, middle, right, middle);
-                joinLines.Add(newLine);
+                if (t_line.Count() <= 1 || t_line.Count() < lastLine.Count())
+                {
+                    orphan = true;
+                }
+
+                if (orphan)
+                {
+                    lastLine.AddRange(t_line);
+                }
+                else
+                {
+                    var left = tableBbox.Left;
+                    var right = tableBbox.Right;
+                    var middle = (lastBottom + currTop) / 2;
+                    var newLine = new Line(left, middle, right, middle);
+                    joinLines.Add(newLine);
+                }
             }
 
-            lastLine = t_line;
+            if (!orphan)
+            {
+                lastLine = t_line;
+            }
         }
 
         return joinLines;
     }
 
-    private static bool inLine(int lineTop, int lineBottom, int currTop, int minGap, List<Line> solidHLines)
+    private static bool InLine(int lineTop, int lineBottom, int currTop, int minGap, List<Line> solidHLines)
     {
         if (currTop >= lineTop && currTop <= lineBottom)
         {
             return true;
         }
 
-        if (currTop > lineBottom && currTop - lineBottom < minGap)
+        if (currTop > lineBottom && currTop - lineBottom <= minGap)
         {
             foreach (var line in solidHLines)
             {

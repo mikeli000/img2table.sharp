@@ -237,8 +237,28 @@ namespace img2table.sharp.web.Services
                     if (contentElements != null)
                     {
                         bool imagebaseTable = false;
-                        if (contentElements.Count() == 0 || contentElements.Count() == 1 && contentElements[0].PageElement is ImageElement)
+                        if (contentElements.Count() <= 1)
                         {
+                            if (contentElements.Count() == 1)
+                            {
+                                if (contentElements[0].PageElement is ImageElement)
+                                {
+                                    imagebaseTable = true;
+                                }
+                                else if (contentElements[0].PageElement is TextElement)
+                                {
+                                    chunkElement.ChunkObject.Label = DetectionLabel.Text;
+                                    if (!string.IsNullOrEmpty(_chunkElementProcessor.Process(chunkElement, pageImagePath)))
+                                    {
+                                        chunks.Add(chunkElement);
+                                    }
+                                    continue;
+                                }
+                                else
+                                {
+                                    continue; // skip
+                                }
+                            }
                             imagebaseTable = true;
                         }
 
