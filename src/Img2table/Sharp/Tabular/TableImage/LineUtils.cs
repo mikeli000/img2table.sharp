@@ -30,7 +30,7 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
         {
             if (line.Y1 == line.Y2)
             {
-                var rs = textBoxes.Where(textBox => line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta).ToList();
+                //var rs = textBoxes.Where(textBox => line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta).ToList();
                 return textBoxes.Any(textBox => line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta); // TODO, fix it later
             }
             else if (line.X1 == line.X2)

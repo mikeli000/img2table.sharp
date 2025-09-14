@@ -103,14 +103,22 @@ namespace Img2table.Sharp.Tabular.TableImage
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Max(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
             var (hLines, vLines) = LineDetector.DetectLines(_img, _contours, _charLength, minLineLength);
 
-            var originalHLines = hLines.Where(l => l.Y1 == l.Y2).Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
-            var originalVLines = vLines.Where(l => l.X1 == l.X2).Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+            var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+            var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
+
+            RemoveNoiseLines(hLines, vLines, textBoxes);
 
             if (tableBbox != null)
             {
                 var (h, v) = SolidLineNormalizer.Normalize(hLines, vLines, textBoxes, tableBbox.Value);
                 hLines = h;
                 vLines = v;
+
+
+                if (_debug_draw_lines)
+                {
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
 
                 if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
                 {
@@ -134,10 +142,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                     vLines = detectVLines;
                 }
 
-                if (_debug_draw_lines)
-                {
-                    DebugDrawLines(_img, hLines, vLines, textBoxes);
-                }
 
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
@@ -148,6 +152,83 @@ namespace Img2table.Sharp.Tabular.TableImage
             {
                 _shouldOCR = implicitRows || implicitColumns;
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+            }
+        }
+
+
+        private void RemoveNoiseLines(List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes)
+        {
+            if (textBoxes == null || textBoxes.Count() <= 0)
+            {
+                return;
+            }
+            
+            if (hLines != null && hLines.Count() > 0)
+            {
+                hLines.RemoveAll(l => l.Y1 != l.Y2);
+                var intersectHLines = hLines.Where(l => LineUtils.IntersectTextBoxes(l, textBoxes, delta: 4)); // Tolerance Mode
+                if (intersectHLines?.Count() > 0)
+                {
+                    hLines.RemoveAll(l => intersectHLines.Contains(l));
+                }
+
+                int topmost = textBoxes.Min(b => b.Top) - 1;
+                var topEdgeLines = hLines.Where(l => l.Y1 < topmost).ToList();
+                if (topEdgeLines.Count() > 1)
+                {
+                    var y1 = topEdgeLines[0].Y1;
+                    if (!topEdgeLines.All(l => l.Y1 == y1))
+                    {
+                        var longest = topEdgeLines.OrderByDescending(l => l.Length).First();
+                        hLines.RemoveAll(l => topEdgeLines.Contains(l) && l != longest);
+                    }
+                }
+
+                int bottommost = textBoxes.Max(b => b.Bottom) + 1;
+                var bottomEdgeLines = hLines.Where(l => l.Y1 > bottommost).ToList();
+                if (bottomEdgeLines.Count() > 1)
+                {
+                    var y1 = bottomEdgeLines[0].Y1;
+                    if (!bottomEdgeLines.All(l => l.Y1 == y1))
+                    {
+                        var longest = bottomEdgeLines.OrderByDescending(l => l.Length).First();
+                        hLines.RemoveAll(l => bottomEdgeLines.Contains(l) && l != longest);
+                    }
+                }
+            }
+
+            if (vLines != null && vLines.Count() > 0)
+            {
+                vLines.RemoveAll(l => l.X1 != l.X2);
+                var intersectVLines = vLines.Where(l => LineUtils.IntersectTextBoxes(l, textBoxes, delta: 4)); // Tolerance Mode
+                if (intersectVLines?.Count() > 0)
+                {
+                    vLines.RemoveAll(l => intersectVLines.Contains(l));
+                }
+
+                int leftmost = textBoxes.Min(b => b.Left) - 1;
+                var leftEdgeLines = vLines.Where(l => l.X1 < leftmost).ToList();
+                if (leftEdgeLines.Count() > 1)
+                {
+                    var x1 = leftEdgeLines[0].X1;
+                    if (!leftEdgeLines.All(l => l.X1 == x1))
+                    {
+                        var longest = leftEdgeLines.OrderByDescending(l => l.Length).First();
+                        vLines.RemoveAll(l => leftEdgeLines.Contains(l) && l != longest);
+                    }
+                }
+
+                int rightmost = textBoxes.Max(b => b.Right) + 1;
+                var rightEdgeLines = vLines.Where(l => l.X1 > rightmost).ToList();
+                if (rightEdgeLines.Count() > 1)
+                {
+                    var x1 = rightEdgeLines[0].X1;
+                    if (!rightEdgeLines.All(l => l.X1 == x1))
+                    {
+                        var longest = rightEdgeLines.OrderByDescending(l => l.Length).First();
+                        vLines.RemoveAll(l => rightEdgeLines.Contains(l) && l != longest);
+                    }
+                }
             }
         }
 
