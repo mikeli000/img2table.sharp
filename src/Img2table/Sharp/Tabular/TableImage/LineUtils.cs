@@ -2,6 +2,7 @@
 using OpenCvSharp;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -47,6 +48,14 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
         }
 
         public static bool ContainsTextBox(Rect rect, IEnumerable<TextRect> textBoxes, int delta = 4)
+        {
+            return textBoxes.Any(textBox =>
+                (textBox.Left >= rect.Left - delta) && (textBox.Right <= rect.Right + delta)
+                && (textBox.Top >= rect.Top - delta) && (textBox.Bottom <= rect.Bottom + delta)
+            );
+        }
+
+        public static bool ContainsTextBox(RectangleF rect, IEnumerable<TextRect> textBoxes, int delta = 4)
         {
             return textBoxes.Any(textBox =>
                 (textBox.Left >= rect.Left - delta) && (textBox.Right <= rect.Right + delta)

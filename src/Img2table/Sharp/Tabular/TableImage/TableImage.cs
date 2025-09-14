@@ -6,6 +6,7 @@ using Img2table.Sharp.Tabular.TableImage.Processing.BorderlessTables;
 using Img2table.Sharp.Tabular.TableImage.Processing.BorderedTables.Layout;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage;
 using img2table.sharp.Img2table.Sharp.Tabular.TableImage.TableElement;
+using System.Collections.Generic;
 
 namespace Img2table.Sharp.Tabular.TableImage
 {
@@ -114,7 +115,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                 hLines = h;
                 vLines = v;
 
-
                 if (_debug_draw_lines)
                 {
                     DebugDrawLines(_img, hLines, vLines, textBoxes);
@@ -146,15 +146,83 @@ namespace Img2table.Sharp.Tabular.TableImage
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
-                CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+                CompsiteTable(hLines, vLines, implicitRows, implicitColumns, textBoxes);
             }
             else
             {
                 _shouldOCR = implicitRows || implicitColumns;
-                CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+                CompsiteTable(hLines, vLines, implicitRows, implicitColumns, null);
             }
         }
 
+        private void RemoveEmptyRow(Table table, IEnumerable<TextRect> textBoxes)
+        {
+            var copy = new List<TextRect>(textBoxes);
+            List<Row> emptyRows = new List<Row>();
+
+            int rows = table.NbRows;
+            int cols = table.NbColumns;
+            int[][] flags = new int[rows][];
+            for (int r = 0; r < rows; r++)
+            {
+                var row = table.Rows.ElementAt(r);
+                var colFlags = new int[cols];
+                for (int c = 0; c < cols; c++)
+                {
+                    colFlags[c] = 1;
+                    var cell = row.Cells.ElementAt(c);
+                    if (!LineUtils.ContainsTextBox(cell.Rect(), copy, 0)) // strict mode
+                    {
+                        colFlags[c] = 0;
+                    }
+                }
+                flags[r] = colFlags;
+            }
+
+            for (int r = 0; r < flags.Count(); r++)
+            {
+                var rowFlags = flags[r];
+                if (rowFlags.All(f => f == 0))
+                {
+                    emptyRows.Add(table.Rows.ElementAt(r));
+                }
+            }
+
+            List<int> emptyCols = new List<int>();
+            for (int c = 0; c < cols; c++)
+            {
+                bool emptyCol = true;
+                for (int r = 0; r < rows; r++)
+                {
+                    if (flags[r][c] == 1)
+                    {
+                        emptyCol = false;
+                        break;
+                    }
+                }
+
+                if (emptyCol)
+                {
+                    emptyCols.Add(c);
+                }
+            }
+
+            foreach (var row in emptyRows)
+            {
+                table.Items.Remove(row);
+            }
+
+            if (emptyCols.Count > 0)
+            {
+                foreach (var row in table.Rows)
+                {
+                    for (int c = emptyCols.Count - 1; c >= 0; c--)
+                    {
+                        row.Cells.RemoveAt(emptyCols[c]);
+                    }
+                }
+            }
+        }
 
         private void RemoveNoiseLines(List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes)
         {
@@ -464,7 +532,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void CompsiteTable(List<Line> hLines, List<Line> vLines, bool implicitRows = false, bool implicitColumns = false)
+        private void CompsiteTable(List<Line> hLines, List<Line> vLines, bool implicitRows = false, bool implicitColumns = false, IEnumerable<TextRect> textBoxes = null)
         {
             _lines = new List<Line>();
             _lines.AddRange(hLines);
@@ -474,6 +542,14 @@ namespace Img2table.Sharp.Tabular.TableImage
             _tables = _tables.Select(table => Implicit.ImplicitContent(table, _contours, _charLength, implicitRows, implicitColumns)).ToList();
             _tables = Consecutive.MergeConsecutiveTables(_tables, _contours);
             _tables = _tables.Where(tb => Math.Min(tb.NbRows, tb.NbColumns) >= 1).ToList();
+
+            if (textBoxes != null)
+            {
+                foreach (var table in _tables)
+                {
+                    RemoveEmptyRow(table, textBoxes);
+                }
+            }
         }
 
         private static List<Cell> GetCells(List<Line> hLines, List<Line> vLines)
