@@ -8,7 +8,7 @@
 
         public static float DEFAULT_RENDER_RESOLUTION = 300f;
 
-        public static float PREDICT_CONFIDENCE_THRESHOLD = 0.4f;
+        public static float PREDICT_CONFIDENCE_THRESHOLD = 0.2f;
         public static float PREDICT_CONFIDENCE_THRESHOLD_TABLE = 0.4f;
 
         public bool UseEmbeddedHtml { get; set; } = false;

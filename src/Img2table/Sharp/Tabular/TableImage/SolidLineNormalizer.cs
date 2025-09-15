@@ -349,7 +349,7 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
             if (textBetweenRightLines.Any())
             {
                 vLines.Add(tableRightLine);
-                AlignRightHLines(hLines, rightX, tableBox.Right, true, textBetweenRightLines);
+                AlignRightHLines(hLines, rightX, tableBox.Right, true, textBetweenRightLines, 2); // strict mode
             }
             else
             {

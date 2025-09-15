@@ -107,18 +107,13 @@ namespace Img2table.Sharp.Tabular.TableImage
             var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
             var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
 
-            RemoveNoiseLines(hLines, vLines, textBoxes);
+            RemoveNoiseLines(hLines, vLines, textBoxes, minLineLength);
 
             if (tableBbox != null)
             {
                 var (h, v) = SolidLineNormalizer.Normalize(hLines, vLines, textBoxes, tableBbox.Value);
                 hLines = h;
                 vLines = v;
-
-                if (_debug_draw_lines)
-                {
-                    DebugDrawLines(_img, hLines, vLines, textBoxes);
-                }
 
                 if (PostionedTableCellDetector.TryDetectKVTable(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var kvTable))
                 {
@@ -142,6 +137,11 @@ namespace Img2table.Sharp.Tabular.TableImage
                     vLines = detectVLines;
                 }
 
+                if (_debug_draw_lines)
+                {
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
+
 
                 vLines = vLines.OrderBy(vl => vl.X1).ToList();
                 AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
@@ -155,7 +155,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void RemoveEmptyRow(Table table, IEnumerable<TextRect> textBoxes)
+        private void RemoveEmptyRowAndCol(Table table, IEnumerable<TextRect> textBoxes)
         {
             var copy = new List<TextRect>(textBoxes);
             List<Row> emptyRows = new List<Row>();
@@ -224,13 +224,18 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void RemoveNoiseLines(List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes)
+        private void RemoveNoiseLines(List<Line> hLines, List<Line> vLines, IEnumerable<TextRect> textBoxes, int minLineLength)
         {
             if (textBoxes == null || textBoxes.Count() <= 0)
             {
                 return;
             }
-            
+
+            int minHLineLength = minLineLength * 2;
+            hLines.RemoveAll(l => l.Length < minHLineLength);
+            int minVLineLength = minLineLength * 2;
+            vLines.RemoveAll(l => l.Length < minVLineLength && !LineUtils.IntersectAnyLine(l, hLines));
+
             if (hLines != null && hLines.Count() > 0)
             {
                 hLines.RemoveAll(l => l.Y1 != l.Y2);
@@ -547,7 +552,7 @@ namespace Img2table.Sharp.Tabular.TableImage
             {
                 foreach (var table in _tables)
                 {
-                    RemoveEmptyRow(table, textBoxes);
+                    RemoveEmptyRowAndCol(table, textBoxes);
                 }
             }
         }

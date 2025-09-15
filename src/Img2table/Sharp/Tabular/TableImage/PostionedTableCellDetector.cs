@@ -658,19 +658,28 @@ public class PostionedTableCellDetector
                 var rects_r = kvLines[i].TextRects[kvLines[i].TextRects.Count - 1].Right;
                 var rects_mid = rects_l + (rects_r - rects_l) / 2;
                 int del = 2; // (int)(2 * charWidth);
-                if (rects_mid < l_mid) // k side
+
+                float edgeGap = (x2 - x1) / 8f;
+                if (Math.Abs(x1 - rects_l) < edgeGap) // left align
                 {
                     var k_cell = new Cell(x1, y1, rects_r + del, y2);
                     var v_cell = new Cell(rects_r + del, y1, x2, y2);
                     kv_rows.Add(new Row(new List<Cell>() { k_cell, v_cell }));
                     k_merge_cells_possible.Add(i, k_cell);
                 }
-                else // v side
+                else if (Math.Abs(x2 - rects_r) < edgeGap) // right align
                 {
                     var k_cell = new Cell(x1, y1, rects_l - del, y2);
                     var v_cell = new Cell(rects_l - del, y1, x2, y2);
                     kv_rows.Add(new Row(new List<Cell>() { k_cell, v_cell }));
                     v_merge_cells_possible.Add(i, v_cell);
+                }
+                else // center align
+                {
+                    var k_cell = new Cell(x1, y1, rects_r + del, y2);
+                    var v_cell = new Cell(rects_r + del, y1, x2, y2);
+                    kv_rows.Add(new Row(new List<Cell>() { k_cell, v_cell }));
+                    k_merge_cells_possible.Add(i, k_cell);
                 }
             }
             else

@@ -1,16 +1,24 @@
 ﻿using Img2table.Sharp.Tabular.TableImage.TableElement;
 using OpenCvSharp;
-using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
 {
     public class LineUtils
     {
+        public static bool IntersectAnyLine(Line vLine, IEnumerable<Line> hLines)
+        {
+            foreach (var hLine in hLines)
+            {
+                if (vLine.Y1 <= hLine.Y1 && vLine.Y2 >= hLine.Y1
+                    && vLine.X1 >= hLine.X1 && vLine.X1 <= hLine.X2)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public static void RemoveLinesInBox(List<Line> hLines, IEnumerable<TextRect> textBoxes)
         {
             hLines.RemoveAll(line =>
@@ -31,8 +39,9 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
         {
             if (line.Y1 == line.Y2)
             {
-                //var rs = textBoxes.Where(textBox => line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta).ToList();
-                return textBoxes.Any(textBox => line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta); // TODO, fix it later
+                return textBoxes.Any(textBox => 
+                    line.Y1 > textBox.Top + delta && line.Y2 < textBox.Bottom - delta
+                        && line.X1 < textBox.Left + delta && line.X2 > textBox.Right - delta);
             }
             else if (line.X1 == line.X2)
             {

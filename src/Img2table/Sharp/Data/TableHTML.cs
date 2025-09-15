@@ -19,6 +19,10 @@ namespace img2table.sharp.Img2table.Sharp.Data
         private const string CenterBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: center; vertical-align: middle;";
         private const string RightAlignBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: right; vertical-align: middle;";
         private const string LeftAlignBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: left; vertical-align: middle;";
+
+        private const string BoldRightAlignBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: right; vertical-align: middle; font-weight: bold;";
+        private const string BoldLeftAlignBorderStyle = "border: 1px solid lightgray; border-collapse: collapse; text-align: left; vertical-align: middle; font-weight: bold;";
+
         private const string DefaultBorderStyle = "border: 1px solid lightgray; border-collapse: collapse;";
 
         public static void Generate(PagedTableDTO pageTableDto, string outputFile)
@@ -177,13 +181,13 @@ namespace img2table.sharp.Img2table.Sharp.Data
                         var bstyle = DefaultBorderStyle;
                         if (tableDto.Type == TableDTO.TableType.KVTable)
                         {
-                            if (j == 0)
+                            if (i == 0)
                             {
-                                bstyle = LeftAlignBorderStyle;
+                                bstyle = j == 0? BoldLeftAlignBorderStyle: BoldRightAlignBorderStyle;
                             }
                             else
                             {
-                                bstyle = RightAlignBorderStyle;
+                                bstyle = j == 0 ? LeftAlignBorderStyle : RightAlignBorderStyle;
                             }
                         }
 
