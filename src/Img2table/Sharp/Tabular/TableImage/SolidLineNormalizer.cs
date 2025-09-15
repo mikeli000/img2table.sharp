@@ -268,7 +268,7 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
             if (textBetweenLeftLines.Any())
             {
                 vLines.Insert(0, tableLeftLine);
-                AlignLeftHLines(hLines, leftX, tableBox.Left, true, textBetweenLeftLines);
+                AlignLeftHLines(hLines, leftX, tableBox.Left, true, textBetweenLeftLines, 0); // strict mode
             }
             else
             {
@@ -308,7 +308,7 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
             if (textBetweenBottomLines.Any())
             {
                 hLines.Add(tableBottomLine);
-                AlignBottomVLines(vLines, bottomY, tableBox.Bottom, true, textBetweenBottomLines);
+                AlignBottomVLines(vLines, bottomY, tableBox.Bottom, true, textBetweenBottomLines, 0); // strict mode
             }
             else
             {
@@ -349,7 +349,7 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
             if (textBetweenRightLines.Any())
             {
                 vLines.Add(tableRightLine);
-                AlignRightHLines(hLines, rightX, tableBox.Right, true, textBetweenRightLines, 2); // strict mode
+                AlignRightHLines(hLines, rightX, tableBox.Right, true, textBetweenRightLines, 0); // strict mode
             }
             else
             {
@@ -390,7 +390,7 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
             if (textBetweenTopLines.Any())
             {
                 hLines.Insert(0, tableTopLine);
-                AlignTopVLines(vLines, topY, tableBox.Top, true, textBetweenTopLines);
+                AlignTopVLines(vLines, topY, tableBox.Top, true, textBetweenTopLines, 0); // strict mode
             }
             else
             {
