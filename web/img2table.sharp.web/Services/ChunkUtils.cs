@@ -38,12 +38,31 @@ namespace img2table.sharp.web.Services
 
             foreach (var obj in objects)
             {
-                var label = DetectionLabel.NormalizeLabel(obj.Label);
+                var label = obj.NormalizedLabel;
                 if (label == DetectionLabel.Table)
                 {
-                    if (obj.Confidence < tableConfidenceThreshold)
+                    //if (obj.Confidence < tableConfidenceThreshold)
+                    //{
+                    //    var insideObjects = objects.Where(o => obj.Rect.Contains(o.Rect));
+                    //    if (insideObjects.Any(o => o.Label == DetectionLabel.Table))
+                    //    {
+                    //        continue;
+                    //    }
+                    //}
+
+                    var insideObjects = objects.Where(o => obj.Rect.Contains(o.Rect) && o != obj);
+                    var insideTables = insideObjects.Where(o => o.NormalizedLabel == DetectionLabel.Table);
+                    bool hasHighConfidenceTable = false;
+                    foreach (var t in insideTables)
                     {
-                        //obj.Label = DetectionLabel.Text;
+                        hasHighConfidenceTable = (t.Confidence ?? 0) > (obj.Confidence ?? 0);
+                        if (hasHighConfidenceTable)
+                        {
+                            break;
+                        }
+                    }
+                    if (hasHighConfidenceTable)
+                    {
                         continue;
                     }
                 }

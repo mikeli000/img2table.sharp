@@ -211,7 +211,7 @@ namespace img2table.sharp.web.Services
 
             foreach (var chunkObject in filteredChunkObjects)
             {
-                var chunkType = DetectionLabel.NormalizeLabel(chunkObject.Label);
+                var chunkType = chunkObject.NormalizedLabel;
                 if (chunkType == DetectionLabel.Unknown)
                 {
                     continue;

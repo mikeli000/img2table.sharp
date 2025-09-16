@@ -36,6 +36,9 @@ namespace img2table.sharp.web.Models
         public double[] BoundingBox { get; set; }
 
         [JsonIgnore]
+        public string NormalizedLabel => DetectionLabel.NormalizeLabel(Label);
+
+        [JsonIgnore]
         public IEnumerable<TableCellDetectionResult> Cells { get; set; }
 
         [JsonIgnore]
@@ -48,6 +51,8 @@ namespace img2table.sharp.web.Models
         public double Y1 => BoundingBox[3];
         [JsonIgnore]
         public double Width => X1 - X0;
+        [JsonIgnore]
+        public RectangleF Rect => RectangleF.FromLTRB((float)X0, (float)Y0, (float)X1, (float)Y1);
     }
 
     public class TableDetectionResult
