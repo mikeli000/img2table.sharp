@@ -21,7 +21,7 @@ namespace Img2table.Sharp.Tabular
             }
         }
 
-        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool loadText = false)
+        public PagedTable Process(string imgFile, RectangleF? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool loadText = false, bool isImageBaseTable = false)
         {
             if (string.IsNullOrWhiteSpace(imgFile) || !File.Exists(imgFile))
             {
@@ -45,7 +45,7 @@ namespace Img2table.Sharp.Tabular
             {
                 textBoxes = OCRUtils.P_MaskTexts(img, Image2Table_WorkFolder);
             }
-            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, textBoxes, isImage: true);
+            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, textBoxes, isImageBaseTable);
 
             if (loadText)
             {

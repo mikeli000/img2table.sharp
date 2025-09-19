@@ -227,7 +227,7 @@ namespace img2table.sharp.web.Services
                             ChunkUtils.ClipImage(pageImagePath, tableImagePath, chunkBox);
 
                             var imageTabular = new ImageTabular(param);
-                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, loadText: true);
+                            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, loadText: true, isImageBaseTable: true);
 
                             if (pagedTable != null && pagedTable.Tables?.Count() > 0)
                             {
@@ -300,7 +300,7 @@ namespace img2table.sharp.web.Services
             PDFDocument pdfDoc, PDFPage pdfPage, float ratio, ChunkElement chunkElement, bool useHtml)
         {
             var imageTabular = new ImageTabular(param);
-            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, ContentExtractorBase.GetTextBoxes(contentElements), false);
+            var pagedTable = imageTabular.Process(tableImagePath, chunkBox, ContentExtractorBase.GetTextBoxes(contentElements), false, isImageBaseTable: false);
 
             var pdfTabular = new PDFTabular(param);
             pdfTabular.LoadText(pdfDoc, pdfPage, pagedTable, ratio, useHtml);

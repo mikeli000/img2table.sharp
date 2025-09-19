@@ -91,12 +91,6 @@ namespace img2table.sharp.Img2table.Sharp.Data
                         headerRow = cell.RowSpan > headerRow ? cell.RowSpan : headerRow;
                         break;
                     }
-                    
-                    if (cell.ColSpan > 1 && headerRow <= 1)
-                    {
-                        headerRow = 2;
-                        break;
-                    }
                 }
             }
 
