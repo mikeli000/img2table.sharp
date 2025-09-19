@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.8.34601.278
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11005.162 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "img2table.sharp.tests", "test\img2table.sharp.tests\img2table.sharp.tests.csproj", "{88E6C889-45B9-4FDF-A13A-5EC6F3D06D5E}"
 	ProjectSection(ProjectDependencies) = postProject
