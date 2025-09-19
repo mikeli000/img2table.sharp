@@ -45,11 +45,11 @@ namespace Img2table.Sharp.Tabular
             {
                 textBoxes = OCRUtils.P_MaskTexts(img, Image2Table_WorkFolder);
             }
-            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, textBoxes);
+            List<Table> tables = tableImage.ExtractTables(_parameter.ImplicitRows, _parameter.ImplicitColumns, _parameter.DetectBorderlessTables, tableRect, textBoxes, isImage: true);
 
             if (loadText)
             {
-                LoadText(textBoxes, tables);
+                LoadText(textBoxes, tables, true);
             }
             
             var pagedTable = new PagedTable
@@ -63,7 +63,7 @@ namespace Img2table.Sharp.Tabular
             return pagedTable;
         }
         
-        private void LoadText(IEnumerable<TextRect> textBoxes, List<Table> tables)
+        private void LoadText(IEnumerable<TextRect> textBoxes, List<Table> tables, bool fromOCR = false)
         {
             List<Cell> pageTextCells = textBoxes
                 .Select(tb => new Cell(tb.Rect.X, tb.Rect.Y, tb.Rect.Right, tb.Rect.Bottom, tb.Text))
@@ -72,13 +72,13 @@ namespace Img2table.Sharp.Tabular
             {
                 foreach (var row in table.Rows)
                 {
-                    LoadRowText(row, pageTextCells, _parameter);
+                    LoadRowText(row, pageTextCells, _parameter, useHtml: false, fromOCR: true);
                 }
             }
         }
 
         // TODO: refact
-        public static void LoadRowText(Row row, List<Cell> pageTextCells, TabularParameter parameter, bool useHtml = false)
+        public static void LoadRowText(Row row, List<Cell> pageTextCells, TabularParameter parameter, bool useHtml = false, bool fromOCR = false)
         {
             foreach (var cell in row.Cells)
             {
@@ -88,7 +88,7 @@ namespace Img2table.Sharp.Tabular
                 }
 
                 var cellRect = cell.Rect();
-                var allTextCells = FindTextElement(cellRect, pageTextCells, parameter);
+                var allTextCells = FindTextElement(cellRect, pageTextCells, parameter, fromOCR);
 
                 if (allTextCells.Count > 0)
                 {
@@ -177,13 +177,13 @@ namespace Img2table.Sharp.Tabular
             return TextElement.IsListParagraphBegin(text, out _, out _);
         }
 
-        private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter)
+        private static List<Cell> FindTextElement(RectangleF cellRect, List<Cell> textCells, TabularParameter parameter, bool fromOCR = false)
         {
             var cells = new List<Cell>();
             foreach (var tc in textCells)
             {
                 var textRect = tc.Rect();
-                bool contained = IsContained(cellRect, textRect, parameter);
+                bool contained = IsContained(cellRect, textRect, parameter, fromOCR);
                 if (contained)
                 {
                     cells.Add(tc);
@@ -265,7 +265,7 @@ namespace Img2table.Sharp.Tabular
             return lines;
         }
 
-        private static bool IsContained(RectangleF container, RectangleF dst, TabularParameter parameter)
+        private static bool IsContained(RectangleF container, RectangleF dst, TabularParameter parameter, bool fromOCR = false)
         {
             RectangleF intersection = RectangleF.Intersect(container, dst);
 
@@ -282,7 +282,8 @@ namespace Img2table.Sharp.Tabular
             float intersectionArea = intersection.Width * intersection.Height;
             float dstArea = dst.Width * dst.Height;
 
-            return intersectionArea / dstArea >= parameter.CellTextOverlapRatio;
+            var ratio = fromOCR ? parameter.OCRCellTextOverlapRatio : parameter.CellTextOverlapRatio;
+            return intersectionArea / dstArea >= ratio;
         }
     }
 }

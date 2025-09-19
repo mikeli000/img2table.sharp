@@ -310,12 +310,12 @@ namespace img2table.sharp.console
 
         static void SplitPDF()
         {
-            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\test_report\MDT ACC Fund Seeking Alpha in All Markets\MDT ACC Fund Seeking Alpha in All Markets.pdf";
-            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\test_report\MDT ACC Fund Seeking Alpha in All Markets";
+            var src = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\test_report\image_tables\table_style.pdf";
+            var dst = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\test_report\image_tables";
             var range = new List<int[]>();
             //range.Add(new int[] { 0 });
-            range.Add(new int[] { 1 });
-            range.Add(new int[] { 2 });
+            range.Add(new int[] { 1, 2 });
+            range.Add(new int[] { 3, 4 });
             PDFTools.SplitPDF(src, range, dst);
         }
 

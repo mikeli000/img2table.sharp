@@ -42,9 +42,9 @@ namespace Img2table.Sharp.Tabular.TableImage
             _contours = t.Item3 ?? new List<Cell>();
         }
 
-        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
+        public List<Table> ExtractTables(bool implicitRows, bool implicitColumns, bool borderlessTables, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool isImage = false)
         {
-            ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes);
+            ExtractBorderedTables(implicitRows, implicitColumns, tableBbox, textBoxes, isImage);
             if (_tables != null && _tables.Count > 0)
             {
                 if (_tables.Count == 1 && _tables[0] is KeyValueTable)
@@ -69,7 +69,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                     reCompsiteTable = implicitRows || implicitColumns;
                     if (reCompsiteTable)
                     {
-                        ExtractBorderedTables(implicitRows, implicitColumns, null, null);
+                        ExtractBorderedTables(implicitRows, implicitColumns, null, null, isImage);
                     }
                 }
                 if (_tables.Count <= 0)
@@ -99,10 +99,21 @@ namespace Img2table.Sharp.Tabular.TableImage
             }
         }
 
-        private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null)
+        private void ExtractBorderedTables(bool implicitRows = false, bool implicitColumns = false, Rect? tableBbox = null, IEnumerable<TextRect> textBoxes = null, bool isImage = false)
         {
             int minLineLength = _medianLineSep.HasValue ? (int)Math.Max(1.5 * _medianLineSep.Value, 4 * _charLength) : 20;
             var (hLines, vLines) = LineDetector.DetectLines(_img, _contours, _charLength, minLineLength);
+            if (isImage)
+            {
+                if (_debug_draw_lines)
+                {
+                    DebugDrawLines(_img, hLines, vLines, textBoxes);
+                }
+
+                CompsiteTable(hLines, vLines, implicitRows, implicitColumns);
+                return;
+            }
+            
 
             var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
             var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
@@ -137,14 +148,13 @@ namespace Img2table.Sharp.Tabular.TableImage
                     vLines = detectVLines;
                 }
 
+                vLines = vLines.OrderBy(vl => vl.X1).ToList();
+                AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
+
                 if (_debug_draw_lines)
                 {
                     DebugDrawLines(_img, hLines, vLines, textBoxes);
                 }
-
-
-                vLines = vLines.OrderBy(vl => vl.X1).ToList();
-                AlignTableBorder(hLines, vLines, tableBbox.Value, textBoxes);
 
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns, textBoxes);
             }
@@ -154,7 +164,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                 CompsiteTable(hLines, vLines, implicitRows, implicitColumns, null);
             }
         }
-
+            
         private void RemoveEmptyRowAndCol(Table table, IEnumerable<TextRect> textBoxes)
         {
             var copy = new List<TextRect>(textBoxes);

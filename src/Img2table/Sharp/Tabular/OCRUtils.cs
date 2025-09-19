@@ -53,6 +53,8 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
             return textRects;
         }
 
+
+
         public static List<TextRect> P_MaskTexts(string imageFile, string tempDir)
         {
             using PaddleOcrAll all = new(LocalFullModels.ChineseV3);

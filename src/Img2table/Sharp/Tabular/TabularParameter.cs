@@ -14,6 +14,8 @@
 
         public float CellTextOverlapRatio { get; set; } = DEFAULT_OVERLAP_RATIO;
 
+        public float OCRCellTextOverlapRatio { get; set; } = 0.6f;
+
         public static TabularParameter Default = new TabularParameter 
         {
             ImplicitRows = false,
