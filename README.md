@@ -1,6 +1,7 @@
-# img2table.sharp
+# PDF Document Extraction
+The project combines model-based recognition with program-based computation to accurately understand and extract structured content from PDF documents.
 
-`img2table.sharp` is a C# library for extracting tables from images. It provides functionality to detect and extract table structures from images, allowing for further processing and analysis.
+At its core, it leverages deep learning-based document layout inference models alongside multiple algorithms to accurately identify structural elements such as titles, tables, lists, headers, footers, and more. The extracted content is then intelligently segmented into coherent chunks and outputted in well-structured Markdown or HTML formats, enabling more precise and meaningful prompts for LLM when processing PDF documents.
 
 ## Table of Contents
 
