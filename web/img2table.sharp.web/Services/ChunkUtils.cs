@@ -94,12 +94,20 @@ namespace img2table.sharp.web.Services
             var sorted = objects.OrderByDescending(obj => Area(obj.BoundingBox));
             foreach (var obj in sorted)
             {
-                bool isContained = result.Any(existing =>
+                var exists = result.Where(existing =>
                     IsContainment(existing.BoundingBox, obj.BoundingBox));
 
-                if (!isContained)
+                if (!exists.Any())
                 {
                     result.Add(obj);
+                }
+                else
+                {
+                    var container = exists.FirstOrDefault();
+                    if (container.NormalizedLabel != DetectionLabel.Table && obj.NormalizedLabel == DetectionLabel.Table)
+                    {
+                        result.Add(obj);
+                    }
                 }
             }
 

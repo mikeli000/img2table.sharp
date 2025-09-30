@@ -169,6 +169,14 @@ namespace img2table.sharp.web.Services
                     }
 
                     var predictedPageChunks = detectResult?.Results?.FirstOrDefault(r => r.Page == pageIdx + 1);
+
+                    if (ExtractDebugOptions._debug_save_dectect_image)
+                    {
+                        var previewImageName = $"detect_page_{pageNumber}.png";
+                        string previewFile = Path.Combine(workFolder, previewImageName);
+                        await ChunkUtils.SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
+                    }
+
                     var filteredChunks = ChunkUtils.FilterOverlapping(predictedPageChunks.Objects, ExtractOptions.PREDICT_CONFIDENCE_THRESHOLD_TABLE);
                     filteredChunks = ChunkUtils.FilterContainment(filteredChunks);
                     filteredChunks = ChunkUtils.RebuildReadingOrder(filteredChunks, _renderDPI); // TODO
@@ -186,12 +194,7 @@ namespace img2table.sharp.web.Services
                     {
                         ContentExtractorBase.DrawPageChunks(pageImagePath, filteredChunks);
                     }
-                    if (ExtractDebugOptions._debug_save_dectect_image)
-                    {
-                        var previewImageName = $"detect_page_{pageNumber}.png";
-                        string previewFile = Path.Combine(workFolder, previewImageName);
-                        await ChunkUtils.SaveBase64ImageToFileAsync(previewFile, predictedPageChunks.LabeledImage);
-                    }
+
                 }
             });
         }
@@ -302,29 +305,55 @@ namespace img2table.sharp.web.Services
                                 ChunkUtils.ClipImage(pageImagePath, tableImagePath, chunkBox);
                             }
 
-                            var mTables = MultiTableProcessor.BreakdownTables(tableImagePath, chunkBox);
+                            var mTables = MultiTableProcessor.BreakdownTablesSafe(tableImagePath, chunkBox);
                             if (mTables == null || mTables.Count() == 0)
                             {
                                 TabularPDF(param, tableImagePath, chunkBox, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _extractOptions.UseEmbeddedHtml);
                             }
                             else
                             {
+                                bool hasInvalidTable = false;
+                                var regionChunkElements = new List<ChunkElement>();
                                 foreach (var region in mTables)
                                 {
-                                    tableImageName = $"table_{Guid.NewGuid().ToString()}.png";
-                                    tableImagePath = Path.Combine(workFolder, tableImageName);
+                                    var regionImageName = $"table_{Guid.NewGuid().ToString()}.png";
+                                    var regionImagePath = Path.Combine(workFolder, regionImageName);
                                     if (tableEnhancedImagePath != null)
                                     {
-                                        ChunkUtils.ClipImage(tableEnhancedImagePath, tableImagePath, region);
+                                        ChunkUtils.ClipImage(tableEnhancedImagePath, regionImagePath, region);
                                     }
                                     else
                                     {
-                                        ChunkUtils.ClipImage(pageImagePath, tableImagePath, region);
+                                        ChunkUtils.ClipImage(pageImagePath, regionImagePath, region);
                                     }
 
-                                    contentElements = ContentExtractorBase.FindContentElementsInBox(region, pageElements);
-                                    chunkElement.ContentElements = contentElements;
-                                    TabularPDF(param, tableImagePath, region, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _extractOptions.UseEmbeddedHtml);
+                                    var regionContentElements = ContentExtractorBase.FindContentElementsInBox(region, pageElements);
+
+                                    var regionChunkElement = new ChunkElement
+                                    {
+                                        ChunkObject = chunkObject,
+                                        ContentElements = regionContentElements
+                                    };
+                                    bool success = TabularPDF(param, regionImagePath, region, regionContentElements, pdfDoc, pdfPage, ratio, regionChunkElement, _extractOptions.UseEmbeddedHtml);
+                                    if (!success)
+                                    {
+                                        hasInvalidTable = true;
+                                        break;
+                                    }
+
+                                    regionChunkElements.Add(regionChunkElement);
+                                }
+
+                                if (hasInvalidTable)
+                                {
+                                    TabularPDF(param, tableImagePath, chunkBox, contentElements, pdfDoc, pdfPage, ratio, chunkElement, _extractOptions.UseEmbeddedHtml);
+                                }
+                                else
+                                {
+                                    foreach (var regionChunkElement in regionChunkElements)
+                                    {
+                                        chunkElement.MarkdownText += regionChunkElement.MarkdownText;
+                                    }
                                 }
                             }
                         }
@@ -352,22 +381,30 @@ namespace img2table.sharp.web.Services
             bool isTableProcessed = false;
             if (pagedTable != null && pagedTable.Tables?.Count() > 0)
             {
-                var tables = new PagedTableDTO(pagedTable).Tables;
-                foreach (var table in tables) // TODO
+                bool hasInvalidTable = pagedTable.Tables.Any(t => t.NbColumns <= 1);
+                if (hasInvalidTable)
                 {
-                    TableHTML.Generate(table, out string htmlTable, true);
-                    chunkElement.MarkdownText += htmlTable;
+                    return false;
                 }
-                isTableProcessed = true;
+                else
+                {
+                    var tables = new PagedTableDTO(pagedTable).Tables;
+                    foreach (var table in tables) // TODO
+                    {
+                        TableHTML.Generate(table, out string htmlTable, true);
+                        chunkElement.MarkdownText += htmlTable;
+                    }
+                    isTableProcessed = true;
+                }
+
             }
             else
             {
                 isTableProcessed = false;
-                chunkElement.ChunkObject.Label = DetectionLabel.Text;
+                chunkElement.ChunkObject.Label = DetectionLabel.Text; // move to up layer
             }
 
             return isTableProcessed;
         }
-
     }
 }

@@ -15,6 +15,18 @@ namespace img2table.sharp.web.Services
         public static float PT_MinColWidth = 72f;
         public static float PT_MinRowHeight = 36f;
 
+        public static List<RectangleF> BreakdownTablesSafe(string tableImgFile, RectangleF tableBbox, float renderDPI = 300)
+        {
+            try
+            {
+                return BreakdownTables(tableImgFile, tableBbox, renderDPI);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static List<RectangleF> BreakdownTables(string tableImgFile, RectangleF tableBbox, float renderDPI = 300)
         {
             if (tableImgFile == null || !File.Exists(tableImgFile))

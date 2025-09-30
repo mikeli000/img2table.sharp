@@ -114,7 +114,6 @@ namespace Img2table.Sharp.Tabular.TableImage
                 return;
             }
             
-
             var originalHLines = hLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
             var originalVLines = vLines.Select(l => new Line(l.X1, l.Y1, l.X2, l.Y2)).ToList();
 
@@ -142,7 +141,7 @@ namespace Img2table.Sharp.Tabular.TableImage
                     }
                 }
 
-                if (PostionedTableCellDetector.TryDetectLines(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var detectHLines, out var detectVLines))
+                if (PostionedTableCellDetector2.TryDetectLines2(hLines, vLines, tableBbox.Value, textBoxes, _charLength, out var detectHLines, out var detectVLines))
                 {
                     hLines = detectHLines;
                     vLines = detectVLines;
@@ -278,6 +277,8 @@ namespace Img2table.Sharp.Tabular.TableImage
                         hLines.RemoveAll(l => bottomEdgeLines.Contains(l) && l != longest);
                     }
                 }
+
+                LineUtils.RemoveDuplicateHorizontalLines(hLines, textBoxes);
             }
 
             if (vLines != null && vLines.Count() > 0)
@@ -312,8 +313,12 @@ namespace Img2table.Sharp.Tabular.TableImage
                         vLines.RemoveAll(l => rightEdgeLines.Contains(l) && l != longest);
                     }
                 }
+
+                LineUtils.RemoveDuplicateHorizontalLines(vLines, textBoxes);
             }
         }
+
+
 
         private void AlignTableBorder(List<Line> hLines, List<Line> vLines, Rect tableBbox, IEnumerable<TextRect> boxes)
         {

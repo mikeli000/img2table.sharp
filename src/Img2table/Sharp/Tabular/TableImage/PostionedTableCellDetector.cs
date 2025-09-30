@@ -8,6 +8,79 @@ using System.Collections.Generic;
 
 public class PostionedTableCellDetector
 {
+    public static bool TryDetectLines2(List<Line> solidHLines, List<Line> solidVLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out List<Line> detectedHLines, out List<Line> detectedVLines)
+    {
+        detectedHLines = new List<Line>();
+        detectedHLines.AddRange(solidHLines);
+        detectedVLines = new List<Line>();
+        detectedVLines.AddRange(solidVLines);
+
+        var columnPositions = DetectColumnPositions(textBoxes, tableBbox, charWidth);
+
+        detectedHLines = DetecteHorLines2(detectedHLines, tableBbox, textBoxes);
+        var topLine = detectedHLines[0];
+        Line? secLine = detectedHLines.Count > 2 ? detectedHLines[1] : null;
+
+        //var columnPositions = DetectColumnPositions(textBoxes, tableBbox, charWidth);
+        var finalVPos = MergeColumnPositions(detectedVLines, columnPositions, textBoxes);
+        ExtendVLines(finalVPos, detectedHLines, detectedVLines, textBoxes, tableBbox);
+        if (secLine != null)
+        {
+            var l_sec = secLine.X1;
+            var r_sec = secLine.X2;
+
+            if (l_sec > tableBbox.Left)
+            {
+                var exLeftLine = new Line(tableBbox.Left, secLine.Y1, l_sec, secLine.Y2);
+                if (!LineUtils.IntersectTextBoxes(exLeftLine, textBoxes, -4)) // left extension, strict mode
+                {
+                    secLine.X1 = tableBbox.Left;
+                }
+            }
+            if (r_sec < tableBbox.Right)
+            {
+                var exRightLine = new Line(r_sec, secLine.Y1, tableBbox.Right, secLine.Y2);
+                if (!LineUtils.IntersectTextBoxes(exRightLine, textBoxes, -4)) // left extension, strict mode
+                {
+                    secLine.X2 = tableBbox.Right;
+                }
+            }
+
+            var tbodyBbox = new Rect
+            {
+                Left = secLine.X1,
+                Top = secLine.Y1,
+                Width = secLine.X2 - secLine.X1,
+                Height = tableBbox.Bottom - secLine.Y2
+            };
+            var tBodyTextBoxes = textBoxes.Where(textBox =>
+            {
+                double midX = (textBox.Left + textBox.Right) / 2.0;
+                double midY = (textBox.Top + textBox.Bottom) / 2.0;
+                return midY > Math.Min(tbodyBbox.Top, tbodyBbox.Bottom) && midY < Math.Max(tbodyBbox.Top, tbodyBbox.Bottom)
+                        && midX > Math.Min(tbodyBbox.Left, tbodyBbox.Right) && midX < Math.Max(tbodyBbox.Left, tbodyBbox.Right);
+            }).ToList();
+
+            if (tBodyTextBoxes.Count <= 0)
+            {
+                return true;
+            }
+
+            var secColumnPositions = DetectBodyVerLines(tBodyTextBoxes, tbodyBbox, columnPositions, charWidth);
+            int topVLineCount = CountTopVLine(detectedVLines, topLine.Y1, secLine.X1, secLine.X2);
+
+            if (topVLineCount != secColumnPositions.Count())
+            {
+                var secFinalVPos = MergeColumnPositions(detectedVLines, secColumnPositions, tBodyTextBoxes);
+                secFinalVPos = secFinalVPos.OrderBy(p => p).ToList();
+
+                ExtendVLines(secFinalVPos, detectedHLines, detectedVLines, tBodyTextBoxes, tbodyBbox);
+            }
+        }
+
+        return true;
+    }
+
     public static bool TryDetectLines(List<Line> solidHLines, List<Line> solidVLines, Rect tableBbox, IEnumerable<TextRect> textBoxes, double charWidth, out List<Line> detectedHLines, out List<Line> detectedVLines)
     {
         detectedHLines = new List<Line>();
@@ -153,10 +226,10 @@ public class PostionedTableCellDetector
         int bottom = copy.Max(c => c.Bottom);
 
         int midHLineCount = CountSolidLine(solidHLines, top, bottom);
-        if (midHLineCount > 2) // TODO consider 2 <th> at least
-        {
-            return solidHLines;
-        }
+        //if (midHLineCount > 2) // TODO consider 2 <th> at least
+        //{
+        //    return solidHLines;
+        //}
 
         for (int i = top + 1; i <= bottom; i++)
         {
@@ -205,6 +278,9 @@ public class PostionedTableCellDetector
         List<TextRect> lastLine = null;
         int thick_line_delta = 2;
         List<List<TextRect>> orphanLines = new List<List<TextRect>>();
+
+        var avgLineSpacing = CalculateAverageLineSpacing(lines);
+
         for (int i = 0; i < lines.Count(); i++)
         {
             var t_line = lines[i];
@@ -220,11 +296,13 @@ public class PostionedTableCellDetector
             bool orphan = false;
             var hasSolidLine = solidHLines.Any(l => l.Y1 >= lastBottom - thick_line_delta && l.Y1 <= currTop + thick_line_delta);
             if (!hasSolidLine)
-            {
-                if (t_line.Count() <= 1 || t_line.Count() < lastLine.Count())
-                {
-                    orphan = true;
-                }
+            { // take font info here 
+                //if (t_line.Count() <= 1 || t_line.Count() < lastLine.Count())
+                //{
+                //    orphan = true;
+                //}
+
+                // 找到
 
                 if (orphan)
                 {
@@ -247,6 +325,30 @@ public class PostionedTableCellDetector
         }
 
         return joinLines;
+    }
+
+    private static double CalculateAverageLineSpacing(List<List<TextRect>> lines)
+    {
+        if (lines.Count() < 2)
+        {
+            return 0;
+        }
+
+        var spacings = new List<int>();
+
+        for (int i = 1; i < lines.Count(); i++)
+        {
+            var currentLineTop = lines[i].Min(c => c.Top);
+            var previousLineBottom = lines[i - 1].Max(c => c.Bottom);
+            var spacing = currentLineTop - previousLineBottom;
+
+            if (spacing > 0)
+            {
+                spacings.Add(spacing);
+            }
+        }
+
+        return spacings.Count > 0 ? spacings.Average() : 0;
     }
 
     private static bool InLine(int lineTop, int lineBottom, int currTop, int minGap, List<Line> solidHLines)

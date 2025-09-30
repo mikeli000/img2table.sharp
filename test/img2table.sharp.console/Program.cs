@@ -34,11 +34,11 @@ namespace img2table.sharp.console
             //TabularImage(tableBbox);
             //TableCellDetector.DetectTableCells(@"C:\dev\testfiles\ai_testsuite\pdf\table\z (1).png", tableBbox);
 
-            SplitPDF();
+            //SplitPDF();
 
             // ExtractAnnots();
 
-            //TestPDFSDK();
+            TestPDFSDK();
         }
 
         static void ExtractAnnots()
@@ -303,9 +303,9 @@ namespace img2table.sharp.console
 
         static void TestPDFSDK()
         {
-            var tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\text_box_test\25-32G-6_BG_XMB.pdf";
-            var tempFolder = @"C:\dev\testfiles\ai_testsuite\pdf\text_box_test";
-            PDFTools.DrawTextBox(tempFile, tempFolder);
+            var tempFile = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\fintablenet\crash\page_35.pdf";
+            var tempFolder = @"C:\dev\testfiles\ai_testsuite\pdf\Cracking Test Data\fintablenet\crash\page_35";
+            PDFTools.DrawTextBoxOnPDF(tempFile, tempFolder);
         }
 
         static void SplitPDF()

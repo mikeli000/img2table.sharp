@@ -71,5 +71,151 @@ namespace img2table.sharp.Img2table.Sharp.Tabular.TableImage
                 && (textBox.Top >= rect.Top - delta) && (textBox.Bottom <= rect.Bottom + delta)
             );
         }
+
+        public static void RemoveDuplicateHorizontalLines(List<Line> hLines, IEnumerable<TextRect> textBoxes)
+        {
+            if (hLines == null || hLines.Count <= 1 || textBoxes == null)
+            {
+                return;
+            }
+
+            var linesToRemove = new List<Line>();
+            var sortedHLines = hLines.OrderBy(l => l.Y1).ToList();
+
+            for (int i = 0; i < sortedHLines.Count - 1; i++)
+            {
+                var currentLine = sortedHLines[i];
+                var nextLine = sortedHLines[i + 1];
+
+                bool hasTextBoxBetween = HasTextBoxBetweenLines(currentLine, nextLine, textBoxes);
+
+                if (!hasTextBoxBetween)
+                {
+                    if (currentLine.Length >= nextLine.Length)
+                    {
+                        if (!linesToRemove.Contains(nextLine))
+                        {
+                            linesToRemove.Add(nextLine);
+                        }
+                    }
+                    else
+                    {
+                        if (!linesToRemove.Contains(currentLine))
+                        {
+                            linesToRemove.Add(currentLine);
+                        }
+                    }
+                }
+            }
+
+            foreach (var lineToRemove in linesToRemove)
+            {
+                hLines.Remove(lineToRemove);
+            }
+        }
+
+        private static bool HasTextBoxBetweenLines(Line line1, Line line2, IEnumerable<TextRect> textBoxes)
+        {
+            var upperLine = line1.Y1 <= line2.Y1 ? line1 : line2;
+            var lowerLine = line1.Y1 <= line2.Y1 ? line2 : line1;
+
+            foreach (var textBox in textBoxes)
+            {
+                if (textBox.Top > upperLine.Y1 && textBox.Bottom < lowerLine.Y1)
+                {
+                    if (HasHorizontalOverlap(upperLine, lowerLine, textBox))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasHorizontalOverlap(Line line1, Line line2, TextRect textBox)
+        {
+            var lineMinX = Math.Max(Math.Min(line1.X1, line1.X2), Math.Min(line2.X1, line2.X2));
+            var lineMaxX = Math.Min(Math.Max(line1.X1, line1.X2), Math.Max(line2.X1, line2.X2));
+
+            if (lineMinX >= lineMaxX)
+            {
+                return false;
+            }
+            return textBox.Left < lineMaxX && textBox.Right > lineMinX;
+        }
+
+        public static void RemoveDuplicateVerticalLines(List<Line> vLines, IEnumerable<TextRect> textBoxes)
+        {
+            if (vLines == null || vLines.Count <= 1 || textBoxes == null)
+            {
+                return;
+            }
+
+            var linesToRemove = new List<Line>();
+            var sortedVLines = vLines.OrderBy(l => l.X1).ToList();
+
+            for (int i = 0; i < sortedVLines.Count - 1; i++)
+            {
+                var currentLine = sortedVLines[i];
+                var nextLine = sortedVLines[i + 1];
+
+                bool hasTextBoxBetween = HasTextBoxBetweenVerticalLines(currentLine, nextLine, textBoxes);
+
+                if (!hasTextBoxBetween)
+                {
+                    if (currentLine.Length >= nextLine.Length)
+                    {
+                        if (!linesToRemove.Contains(nextLine))
+                        {
+                            linesToRemove.Add(nextLine);
+                        }
+                    }
+                    else
+                    {
+                        if (!linesToRemove.Contains(currentLine))
+                        {
+                            linesToRemove.Add(currentLine);
+                        }
+                    }
+                }
+            }
+
+            foreach (var lineToRemove in linesToRemove)
+            {
+                vLines.Remove(lineToRemove);
+            }
+        }
+
+        private static bool HasTextBoxBetweenVerticalLines(Line line1, Line line2, IEnumerable<TextRect> textBoxes)
+        {
+            var leftLine = line1.X1 <= line2.X1 ? line1 : line2;
+            var rightLine = line1.X1 <= line2.X1 ? line2 : line1;
+
+            foreach (var textBox in textBoxes)
+            {
+                if (textBox.Left > leftLine.X1 && textBox.Right < rightLine.X1)
+                {
+                    if (HasVerticalOverlap(leftLine, rightLine, textBox))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasVerticalOverlap(Line line1, Line line2, TextRect textBox)
+        {
+            var lineMinY = Math.Max(Math.Min(line1.Y1, line1.Y2), Math.Min(line2.Y1, line2.Y2));
+            var lineMaxY = Math.Min(Math.Max(line1.Y1, line1.Y2), Math.Max(line2.Y1, line2.Y2));
+
+            if (lineMinY >= lineMaxY)
+            {
+                return false;
+            }
+            return textBox.Top < lineMaxY && textBox.Bottom > lineMinY;
+        }
     }
 }
