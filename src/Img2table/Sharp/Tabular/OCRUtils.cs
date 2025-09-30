@@ -12,6 +12,11 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
     {
         public static List<Cell> PaddleOCR(string imageFile)
         {
+            if (!File.Exists(imageFile))
+            {
+                return null;
+            }
+
             using Mat src = Cv2.ImRead(imageFile);
             using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
             all.Detector.UnclipRatio = 1.2f;
@@ -57,6 +62,11 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
 
         public static List<TextRect> P_MaskTexts(string imageFile, string tempDir)
         {
+            if (!File.Exists(imageFile))
+            {
+                return null;
+            }
+
             using PaddleOcrAll all = new(LocalFullModels.ChineseV3);
             all.Detector.UnclipRatio = 0.5f;
             using Mat srcImage = Cv2.ImRead(imageFile);
@@ -79,6 +89,11 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
 
         public static string PaddleOCRText(string imageFile)
         {
+            if (!File.Exists(imageFile))
+            {
+                return string.Empty;
+            }
+
             using Mat src = Cv2.ImRead(imageFile);
             Task<PaddleOcrResult> ocrResultTask = Task.Run(() =>
             {
@@ -98,6 +113,11 @@ namespace img2table.sharp.Img2table.Sharp.Tabular
 
         public static List<Cell> TesseractOCR(string imageFile)
         {
+            if (!File.Exists(imageFile))
+            {
+                return null;
+            }
+
             var wordList = PDFDict.SDK.Sharp.Core.OCR.TesseractOCR.OCRWordLevel(imageFile);
 
             var buf = new StringBuilder();

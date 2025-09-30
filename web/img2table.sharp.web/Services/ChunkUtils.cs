@@ -232,6 +232,10 @@ namespace img2table.sharp.web.Services
             );
 
             roi = roi.Intersect(new Rect(0, 0, src.Width, src.Height));
+            if (roi.Width == 0 || roi.Height == 0)
+            {
+                return;
+            }
 
             if (useOriginalSize)
             {
